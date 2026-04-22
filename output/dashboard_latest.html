@@ -144,14 +144,16 @@ html,body{width:1920px;height:1080px;overflow:hidden;background:var(--bg);font-f
 .unpaid-order.u2{background:rgba(217,75,107,.05);border:1px solid rgba(217,75,107,.15);}
 .unpaid-order.u0{background:var(--card2);border:1px solid var(--line2);}
 
-#s1 .body{display:grid;grid-template-columns:1fr 1fr;gap:10px;flex:1;min-height:0;}
+#s1 .body{display:grid;grid-template-columns:1fr 1fr;gap:10px;min-height:0;}
+#s1 > .body:first-of-type{flex:1;}
+#s1 > .body:nth-of-type(2){flex:1.3;}
 #s2 .body{display:grid;grid-template-columns:1.6fr 1fr;gap:10px;flex:1;min-height:0;}
 #s3 .body{display:grid;grid-template-columns:1fr 1fr 1.1fr;gap:10px;flex:1;min-height:0;}
 #s4 .body{display:grid;grid-template-columns:1fr 1fr 1.2fr;gap:10px;flex:1;min-height:0;}
 #s5 .body{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;flex:1;min-height:0;}
 #s6 .body{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:10px;flex:1;min-height:0;}
-#s7 .body{display:grid;grid-template-columns:1fr 1fr;gap:10px;flex:1;min-height:0;}
-#s8 .body{display:grid;grid-template-columns:1.4fr 1fr;gap:10px;flex:1;min-height:0;}
+#s7 .body{display:grid;grid-template-columns:1fr 1fr 1.3fr;gap:10px;flex:1;min-height:0;}
+#s8 .body{display:grid;grid-template-columns:1fr;gap:10px;flex:1;min-height:0;}
 
 @media (max-width:768px){
   #topbar{position:static;height:auto;padding:8px 12px;flex-wrap:wrap;}
@@ -172,8 +174,8 @@ html,body{width:1920px;height:1080px;overflow:hidden;background:var(--bg);font-f
   .sh{flex-wrap:wrap;gap:6px;}
   .sh-t{font-size:15px;}
   .stag{font-size:8px;padding:1px 6px;}
-  #s1 .body,#s2 .body,#s3 .body,#s5 .body,#s7 .body{display:flex;flex-direction:column;gap:10px;}
-  #s4 .body,#s6 .body,#s8 .body{grid-template-columns:1fr!important;}
+  #s1 .body,#s2 .body,#s3 .body,#s5 .body,#s7 .body,#s8 .body{display:flex;flex-direction:column;gap:10px;}
+  #s4 .body,#s6 .body{grid-template-columns:1fr!important;}
   .panel{padding:10px 12px;}
   .pt{font-size:13px;}
   .sc{max-height:none;overflow:visible;}
@@ -184,7 +186,6 @@ html,body{width:1920px;height:1080px;overflow:hidden;background:var(--bg);font-f
   #s3 .body > div:nth-child(3){display:none;}
   #s5 [style*="grid-template-columns:14px 1fr 26px 42px 50px"]{grid-template-columns:14px 1fr 28px 46px 58px;font-size:8px;}
   #s6 .body > div:nth-child(3){display:none;}
-  #s7{display:none!important;}
   #heatmap > div{grid-template-columns:30px repeat(24,1fr)!important;}
   .chart-box{min-height:200px;max-height:280px;}
   .rr{padding:5px 0;gap:6px;}
@@ -216,6 +217,8 @@ html,body{width:1920px;height:1080px;overflow:hidden;background:var(--bg);font-f
     <div style="width:1px;height:20px;background:var(--line);"></div>
     <div style="display:flex;gap:4px;" id="snav"></div>
     <div id="snum">1/8</div>
+    <div style="width:1px;height:20px;background:var(--line);"></div>
+    <div id="mode-indicator" style="font-size:10px;letter-spacing:1px;font-weight:600;min-width:84px;text-align:right;">⏸ 手動模式</div>
   </div>
 </div>
 
@@ -334,16 +337,31 @@ html,body{width:1920px;height:1080px;overflow:hidden;background:var(--bg);font-f
 </div>
 
 <div class="slide" id="s5">
-  <div class="sh"><div class="sh-t">商品銷售排行</div><div class="stag tg">收入 · 未銷售</div></div>
+  <div class="sh"><div class="sh-t">商品銷售排行</div><div class="stag tg">收入 · 數量 · 未銷售</div></div>
   <div class="body">
-    <div class="panel" style="flex:1.5;">
-      <div style="display:flex;align-items:center;margin-bottom:7px;"><div><div class="pl">賺最多錢</div><div class="pt" style="margin-bottom:0;">收入 TOP 10</div></div><div class="stag tc" style="margin-left:auto;font-size:8px;">收入榜</div></div>
+    <div class="panel">
+      <div style="display:flex;align-items:center;margin-bottom:7px;">
+        <div><div class="pl">賺最多錢</div><div class="pt" style="margin-bottom:0;">收入 TOP 10</div></div>
+        <div class="stag tc" style="margin-left:auto;font-size:8px;">本月</div>
+      </div>
       <div style="display:grid;grid-template-columns:14px 1fr 26px 42px 50px;font-size:8px;color:var(--sub);letter-spacing:1px;text-transform:uppercase;padding:0 2px 3px;border-bottom:1px solid var(--line);">
         <span>#</span><span>商品</span><span style="text-align:right;">件</span><span style="text-align:right;">均價</span><span style="text-align:right;">收入</span></div>
       <div class="sc" id="prod-rev"></div>
     </div>
     <div class="panel">
-      <div style="display:flex;align-items:center;margin-bottom:7px;"><div><div class="pl">未銷售天數</div><div class="pt" style="margin-bottom:0;">60 天以上 TOP 10</div></div><div class="stag tc" style="margin-left:auto;font-size:8px;">警示</div></div>
+      <div style="display:flex;align-items:center;margin-bottom:7px;">
+        <div><div class="pl">賣最多件</div><div class="pt" style="margin-bottom:0;">數量 TOP 10</div></div>
+        <div class="stag tt" style="margin-left:auto;font-size:8px;">本月</div>
+      </div>
+      <div style="display:grid;grid-template-columns:14px 1fr 26px 42px 50px;font-size:8px;color:var(--sub);letter-spacing:1px;text-transform:uppercase;padding:0 2px 3px;border-bottom:1px solid var(--line);">
+        <span>#</span><span>商品</span><span style="text-align:right;">件</span><span style="text-align:right;">均價</span><span style="text-align:right;">收入</span></div>
+      <div class="sc" id="prod-qty"></div>
+    </div>
+    <div class="panel">
+      <div style="display:flex;align-items:center;margin-bottom:7px;">
+        <div><div class="pl">未銷售天數</div><div class="pt" style="margin-bottom:0;">60 天以上 TOP 10</div></div>
+        <div class="stag tc" style="margin-left:auto;font-size:8px;">全歷史</div>
+      </div>
       <div id="zero-list" style="flex:1;"></div>
     </div>
   </div>
@@ -380,7 +398,7 @@ html,body{width:1920px;height:1080px;overflow:hidden;background:var(--bg);font-f
 </div>
 
 <div class="slide" id="s7">
-  <div class="sh"><div class="sh-t">購物習慣 · 時效洞察</div><div class="stag tp">本月+全歷史</div></div>
+  <div class="sh"><div class="sh-t">購物習慣 · 時效洞察</div><div class="stag tp">本月+近90天+全歷史</div></div>
   <div class="body">
     <div style="display:flex;flex-direction:column;gap:10px;">
       <div class="panel" style="flex:1;">
@@ -396,6 +414,15 @@ html,body{width:1920px;height:1080px;overflow:hidden;background:var(--bg);font-f
           <span style="font-size:9px;padding:2px 7px;background:rgba(59,125,216,.1);color:var(--blue);border-radius:10px;letter-spacing:.5px;">本月</span>
         </div>
         <div id="pay-speed" style="margin-top:5px;"></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div class="panel" style="flex:1;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <div><div class="pl" style="margin:0;">🕐 下單熱門時段</div><div class="pt" style="margin:2px 0 0;">平日 vs 假日</div></div>
+          <span style="font-size:9px;padding:2px 7px;background:rgba(123,95,199,.1);color:var(--pur);border-radius:10px;letter-spacing:.5px;">近 90 天</span>
+        </div>
+        <div id="s7-weekday-hour" style="margin-top:6px;"></div>
       </div>
     </div>
     <div style="display:flex;flex-direction:column;gap:10px;">
@@ -419,63 +446,53 @@ html,body{width:1920px;height:1080px;overflow:hidden;background:var(--bg);font-f
 </div>
 
 <div class="slide" id="s8">
-  <div class="sh"><div class="sh-t">每日最佳上片時段</div><div class="stag tp" id="s8-today-tag">週三建議</div><div class="stag tn">近 90 天分析</div></div>
-  <div class="body">
-    <!-- 左側：今日重點建議 -->
-    <div style="display:flex;flex-direction:column;gap:10px;flex:1.3;">
-      <div class="panel" style="flex:1;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-          <div class="pl" style="margin:0;">🎯 今日建議上片</div>
-          <span style="font-size:9px;padding:2px 7px;background:rgba(217,75,107,.1);color:var(--coral);border-radius:10px;letter-spacing:.5px;" id="s8-today-label">今天（週三）</span>
-        </div>
-        <div id="s8-today-rec"></div>
-      </div>
-      <div class="panel">
-        <div class="pl">📐 計算邏輯</div>
-        <div id="s8-logic" style="font-size:11px;line-height:1.8;color:var(--sub);margin-top:8px;"></div>
-      </div>
-    </div>
-    <!-- 右側：一週對照 -->
-    <div style="display:flex;flex-direction:column;gap:10px;flex:1;">
-      <div class="panel" style="flex:1;">
-        <div class="pl">📅 一週建議時段</div>
-        <div class="pt">點選其他天查看</div>
-        <div id="s8-weekly" style="display:flex;flex-direction:column;gap:6px;margin-top:6px;"></div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="slide" id="s9">
   <div class="sh"><div class="sh-t">季度策略回顧</div><div class="stag tg" id="s9-q-tag">Q2（2026年）</div><div class="stag tt">本季累計</div></div>
   <div class="body">
-    <div style="display:flex;flex-direction:column;gap:10px;flex:1.5;">
-      <div class="panel" style="flex:1;">
+    <!-- 大指標橫幅 -->
+    <div class="panel" style="padding:16px 20px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:18px;">
+        <div style="text-align:center;">
+          <div style="font-size:9px;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase;margin-bottom:6px;">本季營收</div>
+          <div id="s9-rev" style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:26px;font-weight:700;color:var(--blue);line-height:1;"></div>
+          <div id="s9-rev-sub" style="font-size:10px;color:var(--sub);margin-top:4px;"></div>
+        </div>
+        <div style="text-align:center;border-left:1px solid var(--line);">
+          <div style="font-size:9px;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase;margin-bottom:6px;">本季訂單</div>
+          <div id="s9-orders" style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:26px;font-weight:700;color:var(--teal);line-height:1;"></div>
+          <div id="s9-orders-sub" style="font-size:10px;color:var(--sub);margin-top:4px;"></div>
+        </div>
+        <div style="text-align:center;border-left:1px solid var(--line);">
+          <div style="font-size:9px;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase;margin-bottom:6px;">新客／回購</div>
+          <div id="s9-custs" style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:26px;font-weight:700;color:var(--up);line-height:1;"></div>
+          <div id="s9-custs-sub" style="font-size:10px;color:var(--sub);margin-top:4px;"></div>
+        </div>
+        <div style="text-align:center;border-left:1px solid var(--line);">
+          <div style="font-size:9px;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase;margin-bottom:6px;">業績王</div>
+          <div id="s9-topname" style="font-size:16px;font-weight:700;color:var(--gold);line-height:1.2;"></div>
+          <div id="s9-toprev" style="font-size:10px;color:var(--sub);margin-top:4px;"></div>
+        </div>
+      </div>
+    </div>
+    <!-- 月度趨勢 + Top 5 業務並排 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="panel">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-          <div class="pl" style="margin:0;">🏆 本季業績王 Top 10</div>
-          <span style="font-size:9px;padding:2px 7px;background:rgba(184,144,42,.1);color:var(--gold);border-radius:10px;letter-spacing:.5px;">本季累計</span>
+          <div class="pl" style="margin:0;">📈 季度月度趨勢</div>
+        </div>
+        <div id="s9-monthly"></div>
+      </div>
+      <div class="panel">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <div class="pl" style="margin:0;">🏆 本季業績王 Top 5</div>
         </div>
         <div id="s9-top-agents" style="display:flex;flex-direction:column;gap:5px;"></div>
       </div>
     </div>
-    <div style="display:flex;flex-direction:column;gap:10px;flex:1;">
-      <div class="panel">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-          <div class="pl" style="margin:0;">📈 季度月度趨勢</div>
-          <span style="font-size:9px;padding:2px 7px;background:rgba(184,144,42,.1);color:var(--gold);border-radius:10px;letter-spacing:.5px;">本季</span>
-        </div>
-        <div id="s9-monthly" style="margin-top:5px;"></div>
-      </div>
-      <div class="panel">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-          <div class="pl" style="margin:0;">👥 新客 vs 回購客</div>
-          <span style="font-size:9px;padding:2px 7px;background:rgba(184,144,42,.1);color:var(--gold);border-radius:10px;letter-spacing:.5px;">本季</span>
-        </div>
-        <div id="s9-nvr" style="margin-top:5px;"></div>
-      </div>
-      <div class="panel" style="background:rgba(184,144,42,.06);border-left:3px solid var(--gold);">
-        <div class="pl" style="color:var(--gold);">✨ 季度總結</div>
-        <div id="s9-summary" style="font-size:12px;line-height:1.7;margin-top:6px;"></div>
+    <!-- 季度總結條 -->
+    <div class="panel" style="background:rgba(184,144,42,.06);border-left:3px solid var(--gold);padding:12px 16px;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:16px;">✨</span>
+        <div id="s9-summary" style="font-size:13px;line-height:1.5;color:var(--ink);"></div>
       </div>
     </div>
   </div>
@@ -485,7 +502,7 @@ html,body{width:1920px;height:1080px;overflow:hidden;background:var(--bg);font-f
 
 <script>
 /* 使用者日後用 shopline_to_dashboard.py 產生的 D JSON 直接取代下面這段 */
-const D={"target": 4500000, "meta": {"report_month": "2026年4月", "data_as_of": "2026-04-21", "days_elapsed": 21, "days_total": 30, "yesterday": "2026-04-21", "timezone": "UTC+08:00"}, "kpi": {"rev_mtd": 3442375, "rev_projected": 4917678, "achievement_pct": 76.5, "proj_achievement_pct": 109.3, "orders_mtd": 501, "avg_order": 6871, "median_order": 2788, "new_customers": 288, "returning": 151, "rev_25_apr": 2981757, "rev_jan": 3605872, "rev_feb": 4360250, "rev_mar": 4571268}, "week": {"this_rev": 186347, "last_rev": 590070, "this_orders": 21, "last_orders": 54, "this_avg": 8873, "ly_rev": 220600, "ly_orders": 30}, "yesterday": {"rev": 71718, "orders": 9, "rev_ly_same": 110800, "orders_ly_same": 7, "agents": [], "products": []}, "monthly_26": [{"month": "1月", "rev": 3605872}, {"month": "2月", "rev": 4360250}, {"month": "3月", "rev": 4571268}, {"month": "4月", "rev": 3442375, "current": true}, {"month": "5月", "rev": 0}, {"month": "6月", "rev": 0}, {"month": "7月", "rev": 0}, {"month": "8月", "rev": 0}, {"month": "9月", "rev": 0}, {"month": "10月", "rev": 0}, {"month": "11月", "rev": 0}, {"month": "12月", "rev": 0}], "monthly_25": [{"month": "1月", "rev": 991786}, {"month": "2月", "rev": 1905087}, {"month": "3月", "rev": 2685469}, {"month": "4月", "rev": 2981757}, {"month": "5月", "rev": 2553800}, {"month": "6月", "rev": 1951963}, {"month": "7月", "rev": 4243254}, {"month": "8月", "rev": 4630533}, {"month": "9月", "rev": 2940865}, {"month": "10月", "rev": 4610805}, {"month": "11月", "rev": 4706874}, {"month": "12月", "rev": 2975102}], "new_6m": [{"month": "2025/11", "label": "11月", "new": 262, "old": 144, "total": 406, "new_pct": 64.5, "old_pct": 35.5}, {"month": "2025/12", "label": "12月", "new": 257, "old": 159, "total": 416, "new_pct": 61.8, "old_pct": 38.2}, {"month": "2026/01", "label": "1月", "new": 338, "old": 143, "total": 481, "new_pct": 70.3, "old_pct": 29.7}, {"month": "2026/02", "label": "2月", "new": 593, "old": 195, "total": 788, "new_pct": 75.3, "old_pct": 24.7}, {"month": "2026/03", "label": "3月", "new": 567, "old": 186, "total": 753, "new_pct": 75.3, "old_pct": 24.7}, {"month": "2026/04", "label": "4月", "new": 288, "old": 151, "total": 439, "new_pct": 65.6, "old_pct": 34.4}], "churn": {"monthly": [{"month": "2026/02", "churn": 0}, {"month": "2026/03", "churn": 0}, {"month": "2026/04", "churn": 677}, {"month": "2026/04", "churn": 677}], "churned_90": 880, "new_90": 1682, "ret_90": 240}, "agents": [{"name": "客服跟單/陳怡萍/深圳", "orders": 18, "rev": 425763, "rank": 1, "prev_rank": 1}, {"name": "業務 /江瑩/ 深圳", "orders": 21, "rev": 289721, "rank": 2, "prev_rank": 3}, {"name": "跟單客服/ping/深圳", "orders": 8, "rev": 198260, "rank": 3, "prev_rank": null}, {"name": "業務/均睿/彰化", "orders": 14, "rev": 194540, "rank": 4, "prev_rank": 2}, {"name": "代理/楊依靈/台南", "orders": 5, "rev": 77704, "rank": 5, "prev_rank": 4}, {"name": "業務跟單 /江瑩/ 深圳", "orders": 2, "rev": 28960, "rank": 6, "prev_rank": null}, {"name": "代理/林志娟/台中", "orders": 2, "rev": 28600, "rank": 7, "prev_rank": null}, {"name": "代理/小葳/彰化", "orders": 1, "rev": 17127, "rank": 8, "prev_rank": null}, {"name": "跟單/王玉玲/深圳", "orders": 1, "rev": 15500, "rank": 9, "prev_rank": 5}, {"name": "銷售客服/雯熏/桃園", "orders": 2, "rev": 4860, "rank": 10, "prev_rank": null}], "sources": [{"src": "業務推薦", "orders": 74, "customers": 65, "rev": 1281035}, {"src": "其他", "orders": 170, "customers": 164, "rev": 747132}, {"src": "Facebook 來源", "orders": 125, "customers": 114, "rev": 693977}, {"src": "LINE 來源", "orders": 100, "customers": 85, "rev": 555368}, {"src": "Instagram 來源", "orders": 29, "customers": 28, "rev": 153305}, {"src": "廣告推廣", "orders": 2, "customers": 2, "rev": 9399}, {"src": "TikTok 來源", "orders": 1, "customers": 1, "rev": 2159}], "cities": [{"city": "新北市", "customers": 73, "orders": 91, "rev": 715254, "aov": 7859}, {"city": "台北市", "customers": 60, "orders": 62, "rev": 451430, "aov": 7281}, {"city": "高雄市", "customers": 61, "orders": 70, "rev": 431508, "aov": 6164}, {"city": "台中市", "customers": 44, "orders": 52, "rev": 420651, "aov": 8089}, {"city": "新竹縣", "customers": 16, "orders": 22, "rev": 254897, "aov": 11586}, {"city": "台南市", "customers": 29, "orders": 33, "rev": 241370, "aov": 7314}, {"city": "桃園市", "customers": 28, "orders": 29, "rev": 162273, "aov": 5595}, {"city": "未知", "customers": 33, "orders": 38, "rev": 146591, "aov": 3857}, {"city": "新竹市", "customers": 16, "orders": 17, "rev": 99800, "aov": 5870}, {"city": "苗栗縣", "customers": 11, "orders": 12, "rev": 91967, "aov": 7663}], "regions": [{"key": "north", "name": "北北基桃", "cities": ["新北市", "台北市", "桃園市", "基隆市"], "color": "#3B7DD8", "customers": 168, "orders": 190, "rev": 1390104, "aov": 7316}, {"key": "hsinchu", "name": "桃竹苗", "cities": ["新竹縣", "新竹市", "苗栗縣"], "color": "#0F8F85", "customers": 43, "orders": 51, "rev": 446664, "aov": 8758}, {"key": "central", "name": "中彰投", "cities": ["台中市", "彰化縣", "南投縣"], "color": "#B8902A", "customers": 57, "orders": 65, "rev": 488515, "aov": 7515}, {"key": "south", "name": "雲嘉南", "cities": ["雲林縣", "嘉義縣", "嘉義市", "台南市"], "color": "#7B5FC7", "customers": 47, "orders": 52, "rev": 374718, "aov": 7206}, {"key": "kp", "name": "高屏", "cities": ["高雄市", "屏東縣"], "color": "#D94B6B", "customers": 78, "orders": 88, "rev": 505316, "aov": 5742}, {"key": "east", "name": "東部離島", "cities": ["宜蘭縣", "花蓮縣", "台東縣", "澎湖縣", "金門縣", "連江縣"], "color": "#E67E22", "customers": 17, "orders": 17, "rev": 90467, "aov": 5321}], "prod_rev": [{"name": "帝王拓帕石系列｜裸石 ｜寵粉", "qty": 16, "price": 10525, "rev": 168400}, {"name": "蕭邦同款｜彩寶可開關寶盒｜吊墜", "qty": 7, "price": 11428, "rev": 80000}, {"name": "(11.13A)哥倫比亞祖母綠 套組", "qty": 1, "price": 72000, "rev": 72000}, {"name": "首選大克拉鴿子蛋｜奢華紫玉髓套組", "qty": 2, "price": 36000, "rev": 72000}, {"name": "星芒緋紅｜紅寶石套組", "qty": 2, "price": 36000, "rev": 72000}, {"name": "簡約緋紅｜紅寶石套組", "qty": 1, "price": 72000, "rev": 72000}, {"name": "倫敦藍拓帕｜方枕型裸石", "qty": 56, "price": 1278, "rev": 71600}, {"name": "限量特價 天然藍寶石套組", "qty": 1, "price": 65000, "rev": 65000}, {"name": "招財旺事業｜平步青雲&綠幽靈｜手串", "qty": 37, "price": 1715, "rev": 63470}, {"name": "海洋之淚｜托帕石套組", "qty": 2, "price": 27000, "rev": 54000}], "prod_qty": [{"name": "光之淨化石｜原礦透石膏山", "qty": 67, "price": 419, "rev": 28100}, {"name": "財富能量| 黃鐵礦", "qty": 58, "price": 423, "rev": 24550}, {"name": "倫敦藍拓帕｜方枕型裸石", "qty": 56, "price": 1278, "rev": 71600}, {"name": "爆款彩色｜尖晶石", "qty": 47, "price": 500, "rev": 23500}, {"name": "消磁聚寶盆| 瑪瑙晶洞", "qty": 45, "price": 400, "rev": 18000}, {"name": "精品級精美包裝禮盒", "qty": 41, "price": 97, "rev": 4000}, {"name": "招財旺事業｜平步青雲&綠幽靈｜手串", "qty": 37, "price": 1715, "rev": 63470}, {"name": "能量手串｜水草瑪瑙 · 綠髮晶 · 草莓晶", "qty": 36, "price": 800, "rev": 28800}, {"name": "能量手串｜葡萄晶 · 黃水晶 · 紫水晶", "qty": 33, "price": 800, "rev": 26400}, {"name": "✨ 天選三石｜一生守護 ✨", "qty": 33, "price": 590, "rev": 19500}], "dormant_45": [{"name": "18K銀色蛋白石戒指 國際圍#12", "days": 473}, {"name": "3克拉18k銀色蛋白石吊墜", "days": 473}, {"name": "補莫桑鑽3mm+從新鍍金+牢固其他鑽", "days": 473}, {"name": "溱姊祖母綠婚戒款35000", "days": 471}, {"name": "紫色藍寶石", "days": 469}, {"name": "18k莫桑小粉鑽-附證書", "days": 466}, {"name": "葡萄石5.77克拉 7000元", "days": 465}, {"name": "天然磷灰石耳釘料  帕拉伊巴既視感 霓虹綠 1.78克拉 做個小輕奢很美 玻璃體 顏色很美很夢幻 🔥 滿螢光 霓虹感漂亮 6.5×5.4mm  市價1.6萬  特價🉐4500一對", "days": 462}, {"name": "祖母綠s925莫桑吊墜+蕭邦鏈50cm", "days": 461}, {"name": "GIA鑽石市價27萬現金優惠價格15萬(1/14付款鑽石訂金3000元)", "days": 459}], "customers": [{"name": "陳O惠", "orders": 12, "rev": 242185}, {"name": "王O雯", "orders": 4, "rev": 107850}, {"name": "徐O芝", "orders": 1, "rev": 88500}, {"name": "紀O韻", "orders": 5, "rev": 71760}, {"name": "rO2", "orders": 1, "rev": 63900}, {"name": "莊O芬", "orders": 2, "rev": 55959}, {"name": "林O卿", "orders": 2, "rev": 42700}, {"name": "陳O佐", "orders": 1, "rev": 41900}, {"name": "LOy", "orders": 1, "rev": 41220}, {"name": "高O芳", "orders": 1, "rev": 40382}], "interval": {"dist": {"低 <3千": 262, "中 3–10千": 126, "高 >1萬": 113}, "pct": {"低 <3千": 52.3, "中 3–10千": 25.1, "高 >1萬": 22.6}, "median": 2788}, "dow": [{"day": "週一", "orders": 56, "rev": 522096}, {"day": "週二", "orders": 55, "rev": 413055}, {"day": "週三", "orders": 78, "rev": 662434}, {"day": "週四", "orders": 87, "rev": 393453}, {"day": "週五", "orders": 100, "rev": 567062}, {"day": "週六", "orders": 70, "rev": 533446}, {"day": "週日", "orders": 55, "rev": 350829}], "hour_dist": [{"hour": 0, "orders": 19}, {"hour": 1, "orders": 17}, {"hour": 2, "orders": 5}, {"hour": 3, "orders": 4}, {"hour": 4, "orders": 2}, {"hour": 5, "orders": 3}, {"hour": 6, "orders": 5}, {"hour": 7, "orders": 8}, {"hour": 8, "orders": 9}, {"hour": 9, "orders": 20}, {"hour": 10, "orders": 15}, {"hour": 11, "orders": 21}, {"hour": 12, "orders": 22}, {"hour": 13, "orders": 30}, {"hour": 14, "orders": 26}, {"hour": 15, "orders": 29}, {"hour": 16, "orders": 29}, {"hour": 17, "orders": 30}, {"hour": 18, "orders": 27}, {"hour": 19, "orders": 21}, {"hour": 20, "orders": 35}, {"hour": 21, "orders": 36}, {"hour": 22, "orders": 44}, {"hour": 23, "orders": 44}], "upload_timing": {"assumptions": {"view_delay_min": 30, "video_peak_offset_h": 4.5, "peak_span_h": 2, "upload_offset_h": 5.0}, "today": {"wday": 1, "day_name": "週二", "sample_size": 297, "best": {"order_peak_start": 20, "order_peak_end": 22, "order_pct": 16.8, "order_count": 50, "upload_start": 15, "upload_end": 16}, "second": {"order_peak_start": 14, "order_peak_end": 16, "order_pct": 12.8, "order_count": 38, "upload_start": 9, "upload_end": 10}}, "weekly": [{"wday": 0, "day_name": "週一", "sample_size": 325, "best": {"order_peak_start": 20, "order_peak_end": 22, "order_pct": 16.3, "order_count": 53, "upload_start": 15, "upload_end": 16}, "second": {"order_peak_start": 16, "order_peak_end": 18, "order_pct": 15.1, "order_count": 49, "upload_start": 11, "upload_end": 12}}, {"wday": 1, "day_name": "週二", "sample_size": 297, "best": {"order_peak_start": 20, "order_peak_end": 22, "order_pct": 16.8, "order_count": 50, "upload_start": 15, "upload_end": 16}, "second": {"order_peak_start": 14, "order_peak_end": 16, "order_pct": 12.8, "order_count": 38, "upload_start": 9, "upload_end": 10}}, {"wday": 2, "day_name": "週三", "sample_size": 309, "best": {"order_peak_start": 22, "order_peak_end": 0, "order_pct": 16.8, "order_count": 52, "upload_start": 17, "upload_end": 18}, "second": {"order_peak_start": 17, "order_peak_end": 19, "order_pct": 13.9, "order_count": 43, "upload_start": 12, "upload_end": 13}}, {"wday": 3, "day_name": "週四", "sample_size": 279, "best": {"order_peak_start": 21, "order_peak_end": 23, "order_pct": 17.6, "order_count": 49, "upload_start": 16, "upload_end": 17}, "second": {"order_peak_start": 19, "order_peak_end": 21, "order_pct": 14.3, "order_count": 40, "upload_start": 14, "upload_end": 15}}, {"wday": 4, "day_name": "週五", "sample_size": 468, "best": {"order_peak_start": 21, "order_peak_end": 23, "order_pct": 26.1, "order_count": 122, "upload_start": 16, "upload_end": 17}, "second": {"order_peak_start": 19, "order_peak_end": 21, "order_pct": 15.8, "order_count": 74, "upload_start": 14, "upload_end": 15}}, {"wday": 5, "day_name": "週六", "sample_size": 469, "best": {"order_peak_start": 12, "order_peak_end": 14, "order_pct": 17.5, "order_count": 82, "upload_start": 7, "upload_end": 8}, "second": {"order_peak_start": 15, "order_peak_end": 17, "order_pct": 14.7, "order_count": 69, "upload_start": 10, "upload_end": 11}}, {"wday": 6, "day_name": "週日", "sample_size": 361, "best": {"order_peak_start": 13, "order_peak_end": 15, "order_pct": 13.3, "order_count": 48, "upload_start": 8, "upload_end": 9}, "second": {"order_peak_start": 22, "order_peak_end": 0, "order_pct": 13.0, "order_count": 47, "upload_start": 17, "upload_end": 18}}]}, "shopping_habits": {"pay_speed": {"10分鐘內": 450, "10分–1小時": 25, "1–24小時": 15, ">24小時": 10, "median_min": 5}, "top_combos": [[["能量手串｜水草瑪瑙 · 綠髮晶 · 草莓晶", "能量手串｜金髮晶 · 鈦晶 · 粉晶"], 9], [["招財旺事業｜平步青雲&綠幽靈｜手串", "財富能量| 黃鐵礦"], 6], [["能量手串｜葡萄晶 · 黃水晶 · 紫水晶", "能量手串｜鈦赫茲 · 鈦晶 · 月光石"], 6], [["能量手串｜石榴石 · 黃水晶 · 粉水晶", "能量手串｜葡萄晶 · 黃水晶 · 紫水晶"], 6], [["招財旺事業｜平步青雲&綠幽靈｜手串", "黑金超七｜項鏈（星輝骨幹）"], 6]]}, "member_funnel": [{"level": "VIP頂級藏家", "count": 1, "orders": 2, "rev": 0, "aov": 0}, {"level": "入門藏家", "count": 101, "orders": 124, "rev": 1012248, "aov": 8163}, {"level": "精選藏家", "count": 13, "orders": 17, "rev": 163125, "aov": 9595}, {"level": "資深藏家", "count": 1, "orders": 12, "rev": 242185, "aov": 20182}], "first_vs_return": {"first_aov": 5627, "return_aov": 9876, "first_med": 1950, "return_med": 4141}, "strategy": {"keep": ["帝王拓帕石系列｜裸石 ｜寵粉", "蕭邦同款｜彩寶可開關寶盒｜吊墜", "(11.13A)哥倫比亞祖母綠 套組", "首選大克拉鴿子蛋｜奢華紫玉髓套組", "星芒緋紅｜紅寶石套組", "簡約緋紅｜紅寶石套組"], "exit": ["18K銀色蛋白石戒指 國際圍#12", "3克拉18k銀色蛋白石吊墜", "補莫桑鑽3mm+從新鍍金+牢固其他鑽", "溱姊祖母綠婚戒款35000", "紫色藍寶石", "18k莫桑小粉鑽-附證書"], "top3_agents": ["客服跟單/陳怡萍/深圳", "業務 /江瑩/ 深圳", "跟單客服/ping/深圳", "業務/均睿/彰化", "代理/楊依靈/台南", "業務跟單 /江瑩/ 深圳", "代理/林志娟/台中", "代理/小葳/彰化", "跟單/王玉玲/深圳", "銷售客服/雯熏/桃園"], "top3_q1": [{"name": "客服跟單/陳怡萍/深圳", "orders": 18, "rev": 425763, "months_active": 1}, {"name": "業務 /江瑩/ 深圳", "orders": 21, "rev": 289721, "months_active": 1}, {"name": "跟單客服/ping/深圳", "orders": 8, "rev": 198260, "months_active": 1}, {"name": "業務/均睿/彰化", "orders": 14, "rev": 194540, "months_active": 1}, {"name": "代理/楊依靈/台南", "orders": 5, "rev": 77704, "months_active": 1}, {"name": "業務跟單 /江瑩/ 深圳", "orders": 2, "rev": 28960, "months_active": 1}, {"name": "代理/林志娟/台中", "orders": 2, "rev": 28600, "months_active": 1}, {"name": "代理/小葳/彰化", "orders": 1, "rev": 17127, "months_active": 1}, {"name": "跟單/王玉玲/深圳", "orders": 1, "rev": 15500, "months_active": 1}, {"name": "銷售客服/雯熏/桃園", "orders": 2, "rev": 4860, "months_active": 1}], "prev_quarter_label": "Q2（2026年）"}, "quarter_review": {"quarter_num": 2, "quarter_label": "Q2（2026年）", "top_agents": [{"name": "客服跟單/陳怡萍/深圳", "orders": 18, "rev": 425763, "months_active": 1}, {"name": "業務 /江瑩/ 深圳", "orders": 21, "rev": 289721, "months_active": 1}, {"name": "跟單客服/ping/深圳", "orders": 8, "rev": 198260, "months_active": 1}, {"name": "業務/均睿/彰化", "orders": 14, "rev": 194540, "months_active": 1}, {"name": "代理/楊依靈/台南", "orders": 5, "rev": 77704, "months_active": 1}, {"name": "業務跟單 /江瑩/ 深圳", "orders": 2, "rev": 28960, "months_active": 1}, {"name": "代理/林志娟/台中", "orders": 2, "rev": 28600, "months_active": 1}, {"name": "代理/小葳/彰化", "orders": 1, "rev": 17127, "months_active": 1}, {"name": "跟單/王玉玲/深圳", "orders": 1, "rev": 15500, "months_active": 1}, {"name": "銷售客服/雯熏/桃園", "orders": 2, "rev": 4860, "months_active": 1}], "monthly_trend": [{"month": 4, "label": "4月", "rev": 3442375, "orders": 501, "is_current": true, "is_partial": true}, {"month": 5, "label": "5月", "rev": 0, "orders": 0, "is_current": false, "is_partial": false}, {"month": 6, "label": "6月", "rev": 0, "orders": 0, "is_current": false, "is_partial": false}], "new_vs_return": {"new": 288, "returning": 151, "new_pct": 65.6}, "summary": "業務王 客服跟單/陳怡萍/深圳 貢獻 NT$ 425,763 · 本季累計營收 NT$ 3,442,375 · 本季新客佔 66%"}, "unpaid": [], "rfm": {"grid": [[{"k": "潛在忠實", "action": "培養", "color": "#0F8F85", "c": 153, "rev": 271538, "r": 3, "fm": 1}, {"k": "忠實客戶", "action": "回饋", "color": "#B8902A", "c": 212, "rev": 673118, "r": 3, "fm": 2}, {"k": "冠軍客戶", "action": "維繫", "color": "#D94B6B", "c": 292, "rev": 9067746, "r": 3, "fm": 3}], [{"k": "有希望", "action": "首購回訪", "color": "#3B7DD8", "c": 258, "rev": 424829, "r": 2, "fm": 1}, {"k": "需關心", "action": "優惠券", "color": "#7B5FC7", "c": 223, "rev": 952689, "r": 2, "fm": 2}, {"k": "關注中", "action": "再激活", "color": "#E67E22", "c": 187, "rev": 6434691, "r": 2, "fm": 3}], [{"k": "流失", "action": "放手", "color": "#94A3B8", "c": 248, "rev": 366896, "r": 1, "fm": 1}, {"k": "即將流失", "action": "問卷/補貼", "color": "#64748B", "c": 194, "rev": 704021, "r": 1, "fm": 2}, {"k": "無法失去", "action": "召回", "color": "#BE185D", "c": 155, "rev": 3847948, "r": 1, "fm": 3}]], "total_customers": 1922}, "active_tiers": [{"name": "活躍", "desc": "近30天下單", "color": "#10A37F", "count": 741, "pct": 17}, {"name": "溫層", "desc": "30-90天", "color": "#0F8F85", "count": 1187, "pct": 28}, {"name": "冷卻", "desc": "90-180天", "color": "#B8902A", "count": 883, "pct": 21}, {"name": "沉睡", "desc": "180-365天", "color": "#E67E22", "count": 1213, "pct": 29}, {"name": "流失", "desc": ">365天", "color": "#D94B6B", "count": 222, "pct": 5}], "repurchase": {"buckets": [{"range": "7天內", "count": 372, "pct": 31}, {"range": "8-30天", "count": 377, "pct": 31}, {"range": "31-60天", "count": 194, "pct": 16}, {"range": "61-90天", "count": 81, "pct": 7}, {"range": "91-180天", "count": 124, "pct": 10}, {"range": ">180天", "count": 56, "pct": 5}], "median_days": 19, "avg_days": 42, "repeat_rate": 28}, "health": {"new_customers": 288, "returning": 151, "new_pct": 65.6, "return_pct": 34.4, "champions": {"count": 2, "month_rev": 242185}, "senior": {"count": 1, "month_rev": 242185}, "vip": {"count": 1, "month_rev": 0}}, "action_focus": {"target_gap": {"rev_mtd": 3442375, "target": 4500000, "remaining": 1057625, "days_left": 9, "daily_needed": 117513, "current_daily_avg": 163922, "on_track": true, "rev_projected": 4917678, "proj_achievement_pct": 109.3}, "recovery_strategy": null, "churn_risk": {"count": 349, "potential_loss_90d": 4551969}, "unpaid_summary": {"count": 0, "total_amount": 0, "max_days": 0}, "cross_sell": [{"combo": ["能量手串｜水草瑪瑙 · 綠髮晶 · 草莓晶", "能量手串｜金髮晶 · 鈦晶 · 粉晶"], "count": 9}, {"combo": ["招財旺事業｜平步青雲&綠幽靈｜手串", "財富能量| 黃鐵礦"], "count": 6}, {"combo": ["能量手串｜葡萄晶 · 黃水晶 · 紫水晶", "能量手串｜鈦赫茲 · 鈦晶 · 月光石"], "count": 6}]}, "projection": {"rev_projected": 4917678, "proj_achievement_pct": 109.3, "confidence": "high", "trend_vs_last_month": 7.6}};
+const D={"target": 4500000, "meta": {"report_month": "2026年4月", "data_as_of": "2026-04-21", "days_elapsed": 21, "days_total": 30, "yesterday": "2026-04-21", "timezone": "UTC+08:00"}, "kpi": {"rev_mtd": 3442375, "rev_projected": 4917678, "achievement_pct": 76.5, "proj_achievement_pct": 109.3, "orders_mtd": 501, "avg_order": 6871, "median_order": 2788, "new_customers": 288, "returning": 151, "rev_25_apr": 2981757, "rev_jan": 3605872, "rev_feb": 4360250, "rev_mar": 4571268}, "week": {"this_rev": 186347, "last_rev": 590070, "this_orders": 21, "last_orders": 54, "this_avg": 8873, "ly_rev": 220600, "ly_orders": 30}, "yesterday": {"rev": 71718, "orders": 9, "rev_ly_same": 110800, "orders_ly_same": 7, "agents": [], "products": []}, "monthly_26": [{"month": "1月", "rev": 3605872}, {"month": "2月", "rev": 4360250}, {"month": "3月", "rev": 4571268}, {"month": "4月", "rev": 3442375, "current": true}, {"month": "5月", "rev": 0}, {"month": "6月", "rev": 0}, {"month": "7月", "rev": 0}, {"month": "8月", "rev": 0}, {"month": "9月", "rev": 0}, {"month": "10月", "rev": 0}, {"month": "11月", "rev": 0}, {"month": "12月", "rev": 0}], "monthly_25": [{"month": "1月", "rev": 991786}, {"month": "2月", "rev": 1905087}, {"month": "3月", "rev": 2685469}, {"month": "4月", "rev": 2981757}, {"month": "5月", "rev": 2553800}, {"month": "6月", "rev": 1951963}, {"month": "7月", "rev": 4243254}, {"month": "8月", "rev": 4630533}, {"month": "9月", "rev": 2940865}, {"month": "10月", "rev": 4610805}, {"month": "11月", "rev": 4706874}, {"month": "12月", "rev": 2975102}], "new_6m": [{"month": "2025/11", "label": "11月", "new": 262, "old": 144, "total": 406, "new_pct": 64.5, "old_pct": 35.5}, {"month": "2025/12", "label": "12月", "new": 257, "old": 159, "total": 416, "new_pct": 61.8, "old_pct": 38.2}, {"month": "2026/01", "label": "1月", "new": 338, "old": 143, "total": 481, "new_pct": 70.3, "old_pct": 29.7}, {"month": "2026/02", "label": "2月", "new": 593, "old": 195, "total": 788, "new_pct": 75.3, "old_pct": 24.7}, {"month": "2026/03", "label": "3月", "new": 567, "old": 186, "total": 753, "new_pct": 75.3, "old_pct": 24.7}, {"month": "2026/04", "label": "4月", "new": 288, "old": 151, "total": 439, "new_pct": 65.6, "old_pct": 34.4}], "churn": {"monthly": [{"month": "2026/02", "churn": 0}, {"month": "2026/03", "churn": 0}, {"month": "2026/04", "churn": 677}, {"month": "2026/04", "churn": 677}], "churned_90": 880, "new_90": 1682, "ret_90": 240}, "agents": [{"name": "客服跟單/陳怡萍/深圳", "orders": 18, "rev": 425763, "rank": 1, "prev_rank": 1}, {"name": "業務 /江瑩/ 深圳", "orders": 21, "rev": 289721, "rank": 2, "prev_rank": 3}, {"name": "跟單客服/ping/深圳", "orders": 8, "rev": 198260, "rank": 3, "prev_rank": null}, {"name": "業務/均睿/彰化", "orders": 14, "rev": 194540, "rank": 4, "prev_rank": 2}, {"name": "代理/楊依靈/台南", "orders": 5, "rev": 77704, "rank": 5, "prev_rank": 4}, {"name": "業務跟單 /江瑩/ 深圳", "orders": 2, "rev": 28960, "rank": 6, "prev_rank": null}, {"name": "代理/林志娟/台中", "orders": 2, "rev": 28600, "rank": 7, "prev_rank": null}, {"name": "代理/小葳/彰化", "orders": 1, "rev": 17127, "rank": 8, "prev_rank": null}, {"name": "跟單/王玉玲/深圳", "orders": 1, "rev": 15500, "rank": 9, "prev_rank": 5}, {"name": "銷售客服/雯熏/桃園", "orders": 2, "rev": 4860, "rank": 10, "prev_rank": null}], "sources": [{"src": "業務推薦", "orders": 74, "customers": 65, "rev": 1281035}, {"src": "其他", "orders": 170, "customers": 164, "rev": 747132}, {"src": "Facebook 來源", "orders": 125, "customers": 114, "rev": 693977}, {"src": "LINE 來源", "orders": 100, "customers": 85, "rev": 555368}, {"src": "Instagram 來源", "orders": 29, "customers": 28, "rev": 153305}, {"src": "廣告推廣", "orders": 2, "customers": 2, "rev": 9399}, {"src": "TikTok 來源", "orders": 1, "customers": 1, "rev": 2159}], "cities": [{"city": "新北市", "customers": 73, "orders": 91, "rev": 715254, "aov": 7859}, {"city": "台北市", "customers": 60, "orders": 62, "rev": 451430, "aov": 7281}, {"city": "高雄市", "customers": 61, "orders": 70, "rev": 431508, "aov": 6164}, {"city": "台中市", "customers": 44, "orders": 52, "rev": 420651, "aov": 8089}, {"city": "新竹縣", "customers": 16, "orders": 22, "rev": 254897, "aov": 11586}, {"city": "台南市", "customers": 29, "orders": 33, "rev": 241370, "aov": 7314}, {"city": "桃園市", "customers": 28, "orders": 29, "rev": 162273, "aov": 5595}, {"city": "未知", "customers": 33, "orders": 38, "rev": 146591, "aov": 3857}, {"city": "新竹市", "customers": 16, "orders": 17, "rev": 99800, "aov": 5870}, {"city": "苗栗縣", "customers": 11, "orders": 12, "rev": 91967, "aov": 7663}], "regions": [{"key": "north", "name": "北北基桃", "cities": ["新北市", "台北市", "桃園市", "基隆市"], "color": "#3B7DD8", "customers": 168, "orders": 190, "rev": 1390104, "aov": 7316}, {"key": "hsinchu", "name": "桃竹苗", "cities": ["新竹縣", "新竹市", "苗栗縣"], "color": "#0F8F85", "customers": 43, "orders": 51, "rev": 446664, "aov": 8758}, {"key": "central", "name": "中彰投", "cities": ["台中市", "彰化縣", "南投縣"], "color": "#B8902A", "customers": 57, "orders": 65, "rev": 488515, "aov": 7515}, {"key": "south", "name": "雲嘉南", "cities": ["雲林縣", "嘉義縣", "嘉義市", "台南市"], "color": "#7B5FC7", "customers": 47, "orders": 52, "rev": 374718, "aov": 7206}, {"key": "kp", "name": "高屏", "cities": ["高雄市", "屏東縣"], "color": "#D94B6B", "customers": 78, "orders": 88, "rev": 505316, "aov": 5742}, {"key": "east", "name": "東部離島", "cities": ["宜蘭縣", "花蓮縣", "台東縣", "澎湖縣", "金門縣", "連江縣"], "color": "#E67E22", "customers": 17, "orders": 17, "rev": 90467, "aov": 5321}], "prod_rev": [{"name": "帝王拓帕石系列｜裸石 ｜寵粉", "qty": 16, "price": 10525, "rev": 168400}, {"name": "蕭邦同款｜彩寶可開關寶盒｜吊墜", "qty": 7, "price": 11428, "rev": 80000}, {"name": "(11.13A)哥倫比亞祖母綠 套組", "qty": 1, "price": 72000, "rev": 72000}, {"name": "首選大克拉鴿子蛋｜奢華紫玉髓套組", "qty": 2, "price": 36000, "rev": 72000}, {"name": "星芒緋紅｜紅寶石套組", "qty": 2, "price": 36000, "rev": 72000}, {"name": "簡約緋紅｜紅寶石套組", "qty": 1, "price": 72000, "rev": 72000}, {"name": "倫敦藍拓帕｜方枕型裸石", "qty": 56, "price": 1278, "rev": 71600}, {"name": "限量特價 天然藍寶石套組", "qty": 1, "price": 65000, "rev": 65000}, {"name": "招財旺事業｜平步青雲&綠幽靈｜手串", "qty": 37, "price": 1715, "rev": 63470}, {"name": "海洋之淚｜托帕石套組", "qty": 2, "price": 27000, "rev": 54000}], "prod_qty": [{"name": "光之淨化石｜原礦透石膏山", "qty": 67, "price": 419, "rev": 28100}, {"name": "財富能量| 黃鐵礦", "qty": 58, "price": 423, "rev": 24550}, {"name": "倫敦藍拓帕｜方枕型裸石", "qty": 56, "price": 1278, "rev": 71600}, {"name": "爆款彩色｜尖晶石", "qty": 47, "price": 500, "rev": 23500}, {"name": "消磁聚寶盆| 瑪瑙晶洞", "qty": 45, "price": 400, "rev": 18000}, {"name": "精品級精美包裝禮盒", "qty": 41, "price": 97, "rev": 4000}, {"name": "招財旺事業｜平步青雲&綠幽靈｜手串", "qty": 37, "price": 1715, "rev": 63470}, {"name": "能量手串｜水草瑪瑙 · 綠髮晶 · 草莓晶", "qty": 36, "price": 800, "rev": 28800}, {"name": "能量手串｜葡萄晶 · 黃水晶 · 紫水晶", "qty": 33, "price": 800, "rev": 26400}, {"name": "✨ 天選三石｜一生守護 ✨", "qty": 33, "price": 590, "rev": 19500}], "dormant_45": [{"name": "18K銀色蛋白石戒指 國際圍#12", "days": 473}, {"name": "3克拉18k銀色蛋白石吊墜", "days": 473}, {"name": "補莫桑鑽3mm+從新鍍金+牢固其他鑽", "days": 473}, {"name": "溱姊祖母綠婚戒款35000", "days": 471}, {"name": "紫色藍寶石", "days": 469}, {"name": "18k莫桑小粉鑽-附證書", "days": 466}, {"name": "葡萄石5.77克拉 7000元", "days": 465}, {"name": "天然磷灰石耳釘料  帕拉伊巴既視感 霓虹綠 1.78克拉 做個小輕奢很美 玻璃體 顏色很美很夢幻 🔥 滿螢光 霓虹感漂亮 6.5×5.4mm  市價1.6萬  特價🉐4500一對", "days": 462}, {"name": "祖母綠s925莫桑吊墜+蕭邦鏈50cm", "days": 461}, {"name": "GIA鑽石市價27萬現金優惠價格15萬(1/14付款鑽石訂金3000元)", "days": 459}], "customers": [{"name": "陳O惠", "orders": 12, "rev": 242185}, {"name": "王O雯", "orders": 4, "rev": 107850}, {"name": "徐O芝", "orders": 1, "rev": 88500}, {"name": "紀O韻", "orders": 5, "rev": 71760}, {"name": "rO2", "orders": 1, "rev": 63900}, {"name": "莊O芬", "orders": 2, "rev": 55959}, {"name": "林O卿", "orders": 2, "rev": 42700}, {"name": "陳O佐", "orders": 1, "rev": 41900}, {"name": "LOy", "orders": 1, "rev": 41220}, {"name": "高O芳", "orders": 1, "rev": 40382}], "interval": {"dist": {"低 <3千": 262, "中 3–10千": 126, "高 >1萬": 113}, "pct": {"低 <3千": 52.3, "中 3–10千": 25.1, "高 >1萬": 22.6}, "median": 2788}, "dow": [{"day": "週一", "orders": 56, "rev": 522096}, {"day": "週二", "orders": 55, "rev": 413055}, {"day": "週三", "orders": 78, "rev": 662434}, {"day": "週四", "orders": 87, "rev": 393453}, {"day": "週五", "orders": 100, "rev": 567062}, {"day": "週六", "orders": 70, "rev": 533446}, {"day": "週日", "orders": 55, "rev": 350829}], "hour_dist": [{"hour": 0, "orders": 19}, {"hour": 1, "orders": 17}, {"hour": 2, "orders": 5}, {"hour": 3, "orders": 4}, {"hour": 4, "orders": 2}, {"hour": 5, "orders": 3}, {"hour": 6, "orders": 5}, {"hour": 7, "orders": 8}, {"hour": 8, "orders": 9}, {"hour": 9, "orders": 20}, {"hour": 10, "orders": 15}, {"hour": 11, "orders": 21}, {"hour": 12, "orders": 22}, {"hour": 13, "orders": 30}, {"hour": 14, "orders": 26}, {"hour": 15, "orders": 29}, {"hour": 16, "orders": 29}, {"hour": 17, "orders": 30}, {"hour": 18, "orders": 27}, {"hour": 19, "orders": 21}, {"hour": 20, "orders": 35}, {"hour": 21, "orders": 36}, {"hour": 22, "orders": 44}, {"hour": 23, "orders": 44}], "weekday_hour": {"weekday": {"name": "平日", "sample_size": 1678, "peak": {"start": 21, "end": 23, "count": 294, "pct": 17.5}, "upload_suggest": {"start": 16, "end": 17}}, "weekend": {"name": "假日", "sample_size": 830, "peak": {"start": 12, "end": 14, "count": 125, "pct": 15.1}, "upload_suggest": {"start": 7, "end": 8}}}, "shopping_habits": {"pay_speed": {"10分鐘內": 450, "10分–1小時": 25, "1–24小時": 15, ">24小時": 10, "median_min": 5}, "top_combos": [[["能量手串｜水草瑪瑙 · 綠髮晶 · 草莓晶", "能量手串｜金髮晶 · 鈦晶 · 粉晶"], 9], [["招財旺事業｜平步青雲&綠幽靈｜手串", "財富能量| 黃鐵礦"], 6], [["能量手串｜葡萄晶 · 黃水晶 · 紫水晶", "能量手串｜鈦赫茲 · 鈦晶 · 月光石"], 6], [["能量手串｜石榴石 · 黃水晶 · 粉水晶", "能量手串｜葡萄晶 · 黃水晶 · 紫水晶"], 6], [["招財旺事業｜平步青雲&綠幽靈｜手串", "黑金超七｜項鏈（星輝骨幹）"], 6]]}, "member_funnel": [{"level": "VIP頂級藏家", "count": 1, "orders": 2, "rev": 0, "aov": 0}, {"level": "入門藏家", "count": 101, "orders": 124, "rev": 1012248, "aov": 8163}, {"level": "精選藏家", "count": 13, "orders": 17, "rev": 163125, "aov": 9595}, {"level": "資深藏家", "count": 1, "orders": 12, "rev": 242185, "aov": 20182}], "first_vs_return": {"first_aov": 5627, "return_aov": 9876, "first_med": 1950, "return_med": 4141}, "strategy": {"keep": ["帝王拓帕石系列｜裸石 ｜寵粉", "蕭邦同款｜彩寶可開關寶盒｜吊墜", "(11.13A)哥倫比亞祖母綠 套組", "首選大克拉鴿子蛋｜奢華紫玉髓套組", "星芒緋紅｜紅寶石套組", "簡約緋紅｜紅寶石套組"], "exit": ["18K銀色蛋白石戒指 國際圍#12", "3克拉18k銀色蛋白石吊墜", "補莫桑鑽3mm+從新鍍金+牢固其他鑽", "溱姊祖母綠婚戒款35000", "紫色藍寶石", "18k莫桑小粉鑽-附證書"], "top3_agents": ["客服跟單/陳怡萍/深圳", "業務 /江瑩/ 深圳", "跟單客服/ping/深圳", "業務/均睿/彰化", "代理/楊依靈/台南", "業務跟單 /江瑩/ 深圳", "代理/林志娟/台中", "代理/小葳/彰化", "跟單/王玉玲/深圳", "銷售客服/雯熏/桃園"], "top3_q1": [{"name": "客服跟單/陳怡萍/深圳", "orders": 18, "rev": 425763, "months_active": 1}, {"name": "業務 /江瑩/ 深圳", "orders": 21, "rev": 289721, "months_active": 1}, {"name": "跟單客服/ping/深圳", "orders": 8, "rev": 198260, "months_active": 1}, {"name": "業務/均睿/彰化", "orders": 14, "rev": 194540, "months_active": 1}, {"name": "代理/楊依靈/台南", "orders": 5, "rev": 77704, "months_active": 1}, {"name": "業務跟單 /江瑩/ 深圳", "orders": 2, "rev": 28960, "months_active": 1}, {"name": "代理/林志娟/台中", "orders": 2, "rev": 28600, "months_active": 1}, {"name": "代理/小葳/彰化", "orders": 1, "rev": 17127, "months_active": 1}, {"name": "跟單/王玉玲/深圳", "orders": 1, "rev": 15500, "months_active": 1}, {"name": "銷售客服/雯熏/桃園", "orders": 2, "rev": 4860, "months_active": 1}], "prev_quarter_label": "Q2（2026年）"}, "quarter_review": {"quarter_num": 2, "quarter_label": "Q2（2026年）", "top_agents": [{"name": "客服跟單/陳怡萍/深圳", "orders": 18, "rev": 425763, "months_active": 1}, {"name": "業務 /江瑩/ 深圳", "orders": 21, "rev": 289721, "months_active": 1}, {"name": "跟單客服/ping/深圳", "orders": 8, "rev": 198260, "months_active": 1}, {"name": "業務/均睿/彰化", "orders": 14, "rev": 194540, "months_active": 1}, {"name": "代理/楊依靈/台南", "orders": 5, "rev": 77704, "months_active": 1}, {"name": "業務跟單 /江瑩/ 深圳", "orders": 2, "rev": 28960, "months_active": 1}, {"name": "代理/林志娟/台中", "orders": 2, "rev": 28600, "months_active": 1}, {"name": "代理/小葳/彰化", "orders": 1, "rev": 17127, "months_active": 1}, {"name": "跟單/王玉玲/深圳", "orders": 1, "rev": 15500, "months_active": 1}, {"name": "銷售客服/雯熏/桃園", "orders": 2, "rev": 4860, "months_active": 1}], "monthly_trend": [{"month": 4, "label": "4月", "rev": 3442375, "orders": 501, "is_current": true, "is_partial": true}, {"month": 5, "label": "5月", "rev": 0, "orders": 0, "is_current": false, "is_partial": false}, {"month": 6, "label": "6月", "rev": 0, "orders": 0, "is_current": false, "is_partial": false}], "new_vs_return": {"new": 288, "returning": 151, "new_pct": 65.6}, "summary": "業務王 客服跟單/陳怡萍/深圳 貢獻 NT$ 425,763 · 本季累計營收 NT$ 3,442,375 · 本季新客佔 66%"}, "unpaid": [], "rfm": {"grid": [[{"k": "潛在忠實", "action": "培養", "color": "#0F8F85", "c": 153, "rev": 271538, "r": 3, "fm": 1}, {"k": "忠實客戶", "action": "回饋", "color": "#B8902A", "c": 212, "rev": 673118, "r": 3, "fm": 2}, {"k": "冠軍客戶", "action": "維繫", "color": "#D94B6B", "c": 292, "rev": 9067746, "r": 3, "fm": 3}], [{"k": "有希望", "action": "首購回訪", "color": "#3B7DD8", "c": 258, "rev": 424829, "r": 2, "fm": 1}, {"k": "需關心", "action": "優惠券", "color": "#7B5FC7", "c": 223, "rev": 952689, "r": 2, "fm": 2}, {"k": "關注中", "action": "再激活", "color": "#E67E22", "c": 187, "rev": 6434691, "r": 2, "fm": 3}], [{"k": "流失", "action": "放手", "color": "#94A3B8", "c": 248, "rev": 366896, "r": 1, "fm": 1}, {"k": "即將流失", "action": "問卷/補貼", "color": "#64748B", "c": 194, "rev": 704021, "r": 1, "fm": 2}, {"k": "無法失去", "action": "召回", "color": "#BE185D", "c": 155, "rev": 3847948, "r": 1, "fm": 3}]], "total_customers": 1922}, "active_tiers": [{"name": "活躍", "desc": "近30天下單", "color": "#10A37F", "count": 741, "pct": 17}, {"name": "溫層", "desc": "30-90天", "color": "#0F8F85", "count": 1187, "pct": 28}, {"name": "冷卻", "desc": "90-180天", "color": "#B8902A", "count": 883, "pct": 21}, {"name": "沉睡", "desc": "180-365天", "color": "#E67E22", "count": 1213, "pct": 29}, {"name": "流失", "desc": ">365天", "color": "#D94B6B", "count": 222, "pct": 5}], "repurchase": {"buckets": [{"range": "7天內", "count": 372, "pct": 31}, {"range": "8-30天", "count": 377, "pct": 31}, {"range": "31-60天", "count": 194, "pct": 16}, {"range": "61-90天", "count": 81, "pct": 7}, {"range": "91-180天", "count": 124, "pct": 10}, {"range": ">180天", "count": 56, "pct": 5}], "median_days": 19, "avg_days": 42, "repeat_rate": 28}, "health": {"new_customers": 288, "returning": 151, "new_pct": 65.6, "return_pct": 34.4, "champions": {"count": 2, "month_rev": 242185}, "senior": {"count": 1, "month_rev": 242185}, "vip": {"count": 1, "month_rev": 0}}, "action_focus": {"target_gap": {"rev_mtd": 3442375, "target": 4500000, "remaining": 1057625, "days_left": 9, "daily_needed": 117513, "current_daily_avg": 163922, "on_track": true, "rev_projected": 4917678, "proj_achievement_pct": 109.3}, "recovery_strategy": null, "churn_risk": {"count": 349, "potential_loss_90d": 4551969}, "unpaid_summary": {"count": 0, "total_amount": 0, "max_days": 0}, "cross_sell": [{"combo": ["能量手串｜水草瑪瑙 · 綠髮晶 · 草莓晶", "能量手串｜金髮晶 · 鈦晶 · 粉晶"], "count": 9}, {"combo": ["招財旺事業｜平步青雲&綠幽靈｜手串", "財富能量| 黃鐵礦"], "count": 6}, {"combo": ["能量手串｜葡萄晶 · 黃水晶 · 紫水晶", "能量手串｜鈦赫茲 · 鈦晶 · 月光石"], "count": 6}]}, "projection": {"rev_projected": 4917678, "proj_achievement_pct": 109.3, "confidence": "high", "trend_vs_last_month": 7.6}};
 
 const f=n=>n>=1000000?(n/1000000).toFixed(2)+'M':n>=1000?(n/1000).toFixed(0)+'K':Math.round(n).toLocaleString();
 const fN=n=>'NT$'+f(n);
@@ -838,190 +855,203 @@ function renderTimeInsight(){
 }
 
 // ═══════════════════════════════════════════════════════
-// 🆕 s8: 每日最佳上片時段
+// 🆕 s7: 平日 vs 假日 下單熱門時段 + 上片建議
 // ═══════════════════════════════════════════════════════
-let s8_curDay=null;
-
 function fmtHour(h){return String(h).padStart(2,'0')+':00';}
 
-function buildSlotCard(slot, isPrimary){
-  if(!slot) return '';
-  const col=isPrimary?'var(--coral)':'var(--gold)';
-  const bg=isPrimary?'rgba(217,75,107,.08)':'rgba(184,144,42,.07)';
-  const label=isPrimary?'🥇 最佳時段':'🥈 次佳時段';
-  // 影片觀看高峰時段 = 上片時段 + 4.5h
-  const videoPeakStart=(slot.upload_start+4)%24;
-  const videoPeakEnd=(slot.upload_start+6)%24;
-  return `<div style="padding:12px 14px;background:${bg};border-left:3px solid ${col};border-radius:4px;margin-bottom:10px;">
-    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
-      <span style="font-size:12px;font-weight:700;color:${col};letter-spacing:1px;">${label}</span>
-      <span style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:11px;color:var(--sub);">下單佔比 ${slot.order_pct}%</span>
-    </div>
-    <div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:24px;font-weight:700;color:${col};line-height:1;margin-bottom:8px;">
-      ${fmtHour(slot.upload_start)} - ${fmtHour(slot.upload_end)}
-    </div>
-    <div style="font-size:11px;color:var(--sub);line-height:1.7;">
-      → 影片高峰預估：${fmtHour(videoPeakStart)} - ${fmtHour(videoPeakEnd)}<br>
-      → 覆蓋下單密集區：<b style="color:var(--ink);">${fmtHour(slot.order_peak_start)} - ${fmtHour(slot.order_peak_end)}</b><br>
-      → 本區間累計 ${slot.order_count} 筆訂單
-    </div>
-  </div>`;
-}
-
-function renderS8Today(wday){
-  const ut=D.upload_timing;if(!ut)return;
-  const data=ut.weekly[wday];
-  s8_curDay=wday;
-  // 更新標題
-  const todayWday=ut.today.wday;
-  const isToday=wday===todayWday;
-  document.getElementById('s8-today-label').textContent=(isToday?'今天':'檢視')+'（'+data.day_name+'）';
-  document.getElementById('s8-today-tag').textContent=data.day_name+'建議';
+function renderS7WeekdayHour(){
+  const el=document.getElementById('s7-weekday-hour');
+  if(!el)return;
+  const wh=D.weekday_hour;
+  if(!wh){el.innerHTML='<div style="padding:20px;text-align:center;color:var(--sub);font-size:11px;">資料尚未生成</div>';return;}
   
-  let html='';
-  if(!data.best){
-    html=`<div style="padding:30px 20px;text-align:center;color:var(--sub);font-size:11px;line-height:1.8;">
-      <div style="font-size:28px;margin-bottom:8px;opacity:.4;">📊</div>
-      資料不足（${data.sample_size} 筆）<br>
-      <span style="font-size:10px;">需要更多訂單才能產生可信建議</span>
-    </div>`;
-  }else{
-    html+=buildSlotCard(data.best,true);
-    if(data.second) html+=buildSlotCard(data.second,false);
-  }
-  document.getElementById('s8-today-rec').innerHTML=html;
-  
-  // 更新一週列表的 active 狀態
-  document.querySelectorAll('.s8-wday').forEach(el=>{
-    el.classList.toggle('active',parseInt(el.dataset.w)===wday);
-  });
-}
-
-function renderS8Weekly(){
-  const ut=D.upload_timing;if(!ut)return;
-  const todayWday=ut.today.wday;
-  const el=document.getElementById('s8-weekly');
-  el.innerHTML=ut.weekly.map(d=>{
-    const isToday=d.wday===todayWday;
-    const best=d.best;
-    const timeStr=best?`${fmtHour(best.upload_start)}`:'—';
-    const peakStr=best?`下單高峰 ${fmtHour(best.order_peak_start)}`:'資料不足';
-    return `<div class="s8-wday" data-w="${d.wday}" style="padding:9px 12px;background:${isToday?'rgba(217,75,107,.08)':'var(--card2)'};border-left:3px solid ${isToday?'var(--coral)':'transparent'};border-radius:5px;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:10px;">
-      <div style="width:40px;font-size:11px;font-weight:${isToday?'700':'500'};color:${isToday?'var(--coral)':'var(--ink)'};">${d.day_name}${isToday?' ★':''}</div>
-      <div style="flex:1;min-width:0;">
-        <div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:13px;font-weight:600;color:${isToday?'var(--coral)':'var(--blue)'};">${timeStr}</div>
-        <div style="font-size:9px;color:var(--sub);margin-top:1px;">${peakStr}</div>
+  function buildBlock(group, col, bgCol){
+    if(!group.peak){
+      return `<div style="padding:12px 14px;background:${bgCol};border-left:3px solid ${col};border-radius:4px;margin-bottom:10px;">
+        <div style="font-size:11px;font-weight:700;color:${col};letter-spacing:1px;margin-bottom:6px;">${group.name}</div>
+        <div style="font-size:11px;color:var(--sub);">資料不足（${group.sample_size} 筆）</div>
+      </div>`;
+    }
+    const p=group.peak, u=group.upload_suggest;
+    return `<div style="padding:12px 14px;background:${bgCol};border-left:3px solid ${col};border-radius:4px;margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
+        <span style="font-size:12px;font-weight:700;color:${col};letter-spacing:1px;">${group.name}</span>
+        <span style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:10px;color:var(--sub);">${p.count} 筆 · ${p.pct}%</span>
       </div>
-      <div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:9px;color:var(--sub);">${d.sample_size}筆</div>
+      <div style="margin-bottom:8px;">
+        <div style="font-size:9px;color:var(--sub);letter-spacing:1px;margin-bottom:2px;">🛒 下單高峰</div>
+        <div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:18px;font-weight:700;color:${col};line-height:1;">
+          ${fmtHour(p.start)} - ${fmtHour(p.end)}
+        </div>
+      </div>
+      <div style="padding-top:8px;border-top:1px dashed rgba(30,58,95,.1);">
+        <div style="font-size:9px;color:var(--sub);letter-spacing:1px;margin-bottom:2px;">🎬 建議上片</div>
+        <div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:15px;font-weight:700;color:var(--ink);line-height:1;">
+          ${fmtHour(u.start)} - ${fmtHour(u.end)}
+        </div>
+        <div style="font-size:9px;color:var(--sub);margin-top:3px;">
+          影片高峰預計 ${fmtHour((u.start+4)%24)}-${fmtHour((u.start+6)%24)}
+        </div>
+      </div>
     </div>`;
-  }).join('');
-  el.querySelectorAll('.s8-wday').forEach(item=>{
-    item.addEventListener('click',()=>renderS8Today(parseInt(item.dataset.w)));
-    item.addEventListener('mouseover',()=>{if(!item.classList.contains('active'))item.style.background='rgba(59,125,216,.08)';});
-    item.addEventListener('mouseout',()=>{if(!item.classList.contains('active'))item.style.background=parseInt(item.dataset.w)===D.upload_timing.today.wday?'rgba(217,75,107,.08)':'var(--card2)';});
-  });
-}
-
-function renderS8Logic(){
-  const ut=D.upload_timing;if(!ut)return;
-  const a=ut.assumptions;
-  document.getElementById('s8-logic').innerHTML=`
-    <div style="margin-bottom:6px;">📅 <b>取樣範圍</b>：近 90 天訂單資料</div>
-    <div style="margin-bottom:6px;">⏱️ <b>下單密集區</b>：連續 ${a.peak_span_h} 小時最多訂單的區間</div>
-    <div style="margin-bottom:6px;">👁️ <b>看影片延遲</b>：${a.view_delay_min} 分鐘（客人看到 → 下單）</div>
-    <div style="margin-bottom:6px;">🔥 <b>影片高峰時差</b>：${a.video_peak_offset_h} 小時（上片 → 觀看高峰）</div>
-    <div style="margin-top:10px;padding:8px 10px;background:rgba(59,125,216,.06);border-radius:4px;color:var(--ink);">
-      <b>上片時段</b> = 下單密集區起點 − ${a.upload_offset_h}h
-    </div>`;
-}
-
-function renderS8All(){
-  if(!D.upload_timing){
-    document.getElementById('s8-today-rec').innerHTML='<div style="padding:30px;text-align:center;color:var(--sub);">上片時段資料尚未生成</div>';
-    return;
   }
-  renderS8Weekly();
-  renderS8Today(D.upload_timing.today.wday);
-  renderS8Logic();
+  
+  el.innerHTML=buildBlock(wh.weekday,'var(--blue)','rgba(59,125,216,.06)')+
+               buildBlock(wh.weekend,'var(--coral)','rgba(217,75,107,.06)')+
+               `<div style="padding:8px 12px;background:rgba(100,116,139,.05);border-radius:4px;font-size:10px;color:var(--sub);line-height:1.6;">
+                 💡 <b>上片邏輯</b>：下單高峰起點 − 30 分（看到延遲）− 4.5 時（影片衝刺高峰）
+               </div>`;
 }
 
 // ═══════════════════════════════════════════════════════
-// 🆕 s9: 季度策略回顧
+// 🆕 s9: 季度策略回顧（極簡大指標版）
 // ═══════════════════════════════════════════════════════
 function renderS9(){
   const qr=D.quarter_review;
   if(!qr){
-    document.getElementById('s9-top-agents').innerHTML='<div style="padding:20px;text-align:center;color:var(--sub);font-size:11px;">季度資料尚未生成</div>';
+    document.getElementById('s9-rev').textContent='—';
     return;
   }
   
-  // 標題
   document.getElementById('s9-q-tag').textContent=qr.quarter_label;
   
-  // Top Agents
+  // 計算季度總營收/訂單
+  const mt=qr.monthly_trend||[];
+  const qRev=mt.reduce((s,m)=>s+(m.rev||0),0);
+  const qOrders=mt.reduce((s,m)=>s+(m.orders||0),0);
+  const nvr=qr.new_vs_return||{};
+  const qCusts=(nvr.new||0)+(nvr.returning||0);
   const agents=qr.top_agents||[];
-  const rI=i=>i<3?['🥇','🥈','🥉'][i]:`<span style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:13px;font-weight:700;">${i+1}</span>`;
-  const rC=i=>i===0?'var(--gold)':i===1?'#9CA3AF':i===2?'#CD7F32':'var(--dim)';
-  if(agents.length===0){
-    document.getElementById('s9-top-agents').innerHTML='<div style="padding:20px;text-align:center;color:var(--sub);font-size:11px;">本季尚無業務業績</div>';
+  const topAgent=agents[0];
+  const completedMonths=mt.filter(m=>!m.is_partial).length;
+  const curMonth=mt.find(m=>m.is_current);
+  
+  // 大指標
+  document.getElementById('s9-rev').textContent=fF(qRev);
+  document.getElementById('s9-rev-sub').textContent=
+    mt.length?`${mt[0].label}–${mt[mt.length-1].label}` + (curMonth?'（進行中）':''):'';
+  
+  document.getElementById('s9-orders').textContent=qOrders.toLocaleString();
+  document.getElementById('s9-orders-sub').textContent=
+    qOrders>0?`平均 ${fN(Math.round(qRev/qOrders))} / 筆`:'—';
+  
+  document.getElementById('s9-custs').innerHTML=
+    `<span style="color:var(--up);">${nvr.new||0}</span><span style="color:var(--sub);font-size:20px;">/</span><span style="color:var(--blue);">${nvr.returning||0}</span>`;
+  document.getElementById('s9-custs-sub').textContent=
+    qCusts>0?`新客佔 ${nvr.new_pct||0}%`:'—';
+  
+  if(topAgent){
+    document.getElementById('s9-topname').textContent=topAgent.name.length>8?topAgent.name.slice(0,8)+'…':topAgent.name;
+    document.getElementById('s9-toprev').textContent=fN(topAgent.rev);
   }else{
-    document.getElementById('s9-top-agents').innerHTML=agents.map((a,i)=>
-      `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--card2);border-radius:6px;border-left:3px solid ${rC(i)};">
-        <div style="width:22px;text-align:center;flex-shrink:0;">${rI(i)}</div>
-        <div style="flex:1;min-width:0;">
-          <div style="font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${a.name}</div>
-          <div style="font-size:9px;color:var(--sub);margin-top:1px;">${a.orders} 筆 · 連續 ${a.months_active} 個月</div>
-        </div>
-        <div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:13px;font-weight:700;color:${rC(i)};flex-shrink:0;">${fN(a.rev)}</div>
-      </div>`
-    ).join('');
+    document.getElementById('s9-topname').textContent='—';
+    document.getElementById('s9-toprev').textContent='';
   }
   
-  // Monthly Trend
-  const mt=qr.monthly_trend||[];
-  const maxV=Math.max(...mt.map(m=>m.rev),1);
-  document.getElementById('s9-monthly').innerHTML=mt.map(m=>{
-    const w=Math.round(m.rev/maxV*100);
-    const col=m.is_current?'var(--coral)':'var(--blue)';
-    const partial=m.is_partial?' <span style="font-size:9px;color:var(--sub);">(進行中)</span>':'';
-    return `<div class="hrow" style="margin-bottom:6px;">
-      <div style="min-width:56px;font-size:11px;font-weight:${m.is_current?'700':'500'};color:${col};">${m.label}${partial}</div>
-      <div class="hw" style="height:16px;"><div class="hb" data-w="${w}" style="background:${col};height:100%;border-radius:2px;"></div></div>
-      <div class="hend" style="min-width:60px;font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:11px;">${fN(m.rev)}</div>
-    </div>`;
-  }).join('');
+  // 月度趨勢
+  if(mt.length>0){
+    const maxV=Math.max(...mt.map(m=>m.rev),1);
+    document.getElementById('s9-monthly').innerHTML=mt.map(m=>{
+      const w=Math.round(m.rev/maxV*100);
+      const col=m.is_current?'var(--coral)':'var(--blue)';
+      const partial=m.is_partial?' <span style="font-size:9px;color:var(--sub);">(進行中)</span>':'';
+      return `<div class="hrow" style="margin-bottom:6px;">
+        <div style="min-width:75px;font-size:11px;font-weight:${m.is_current?'700':'500'};color:${col};">${m.label}${partial}</div>
+        <div class="hw" style="height:16px;flex:1;"><div class="hb" data-w="${w}" style="background:${col};height:100%;border-radius:2px;"></div></div>
+        <div class="hend" style="min-width:60px;font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:11px;text-align:right;">${fN(m.rev)}</div>
+      </div>`;
+    }).join('');
+  }else{
+    document.getElementById('s9-monthly').innerHTML='<div style="padding:15px;text-align:center;color:var(--sub);font-size:11px;">本季暫無資料</div>';
+  }
   
-  // New vs Return
-  const nvr=qr.new_vs_return||{};
-  const total=(nvr.new||0)+(nvr.returning||0);
-  const newPct=nvr.new_pct||0;
-  const retPct=100-newPct;
-  document.getElementById('s9-nvr').innerHTML=`
-    <div style="display:flex;gap:8px;margin-bottom:8px;">
-      <div style="flex:1;padding:8px;background:rgba(16,163,127,.08);border-radius:5px;text-align:center;">
-        <div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:18px;font-weight:700;color:var(--up);">${nvr.new||0}</div>
-        <div style="font-size:9px;color:var(--sub);">新客 ${newPct}%</div>
-      </div>
-      <div style="flex:1;padding:8px;background:rgba(59,125,216,.08);border-radius:5px;text-align:center;">
-        <div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:18px;font-weight:700;color:var(--blue);">${nvr.returning||0}</div>
-        <div style="font-size:9px;color:var(--sub);">回購客 ${retPct.toFixed(1)}%</div>
-      </div>
-    </div>
-    <div style="height:8px;background:rgba(30,58,95,.08);border-radius:4px;overflow:hidden;display:flex;">
-      <div style="width:${newPct}%;background:var(--up);"></div>
-      <div style="width:${retPct}%;background:var(--blue);"></div>
-    </div>`;
+  // Top 5 業務（壓縮到 5 人）
+  const top5=agents.slice(0,5);
+  const rI=i=>i<3?['🥇','🥈','🥉'][i]:`<span style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:12px;font-weight:700;">${i+1}</span>`;
+  const rC=i=>i===0?'var(--gold)':i===1?'#9CA3AF':i===2?'#CD7F32':'var(--dim)';
+  if(top5.length){
+    document.getElementById('s9-top-agents').innerHTML=top5.map((a,i)=>
+      `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--card2);border-radius:5px;border-left:3px solid ${rC(i)};">
+        <div style="width:20px;text-align:center;flex-shrink:0;">${rI(i)}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${a.name}</div>
+        </div>
+        <div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:12px;font-weight:700;color:${rC(i)};flex-shrink:0;">${fN(a.rev)}</div>
+      </div>`
+    ).join('');
+  }else{
+    document.getElementById('s9-top-agents').innerHTML='<div style="padding:15px;text-align:center;color:var(--sub);font-size:11px;">本季尚無業務業績</div>';
+  }
   
   // Summary
   document.getElementById('s9-summary').textContent=qr.summary||'本季數據彙整中';
 }
 
-const DUR=20000;const slides=document.querySelectorAll('.slide');let cur=0,timer;
-const inits={3:[],5:[renderNew6mChart,renderFvrChart,renderMemberChart,renderRfmGrid,renderActiveTiers],6:[renderRepurchaseChart],7:[],8:[]};
-function buildNav(){const el=document.getElementById('snav');el.innerHTML=Array.from({length:slides.length},(_,i)=>`<div class="sdot${i===0?' on':''}" data-i="${i}"></div>`).join('');el.querySelectorAll('.sdot').forEach(d=>d.addEventListener('click',()=>goTo(+d.dataset.i)));}
-function goTo(n){slides[cur].classList.remove('on');document.querySelectorAll('.sdot')[cur].classList.remove('on');cur=((n%slides.length)+slides.length)%slides.length;slides[cur].classList.add('on');document.querySelectorAll('.sdot')[cur].classList.add('on');document.getElementById('snum').textContent=`${cur+1}/${slides.length}`;startProg();trigAnim(slides[cur]);if(inits[cur])inits[cur].forEach(fn=>setTimeout(fn,200));}
-function startProg(){clearTimeout(timer);const fill=document.getElementById('pfill');fill.style.transition='none';fill.style.width='0%';requestAnimationFrame(()=>{fill.style.transition=`width ${DUR}ms linear`;fill.style.width='100%';});timer=setTimeout(()=>goTo(cur+1),DUR);}
-document.addEventListener('keydown',e=>{if(e.key==='ArrowRight')goTo(cur+1);if(e.key==='ArrowLeft')goTo(cur-1);});
+const DUR=20000;  // 每頁停留時間（毫秒）
+const IDLE_MS=5*60*1000;  // 5 分鐘閒置後啟動自動播放
+const slides=document.querySelectorAll('.slide');
+let cur=0, timer, idleTimer, autoPlaying=false;
+
+const inits={3:[],5:[renderNew6mChart,renderFvrChart,renderMemberChart,renderRfmGrid,renderActiveTiers],6:[renderRepurchaseChart],7:[]};
+function buildNav(){const el=document.getElementById('snav');el.innerHTML=Array.from({length:slides.length},(_,i)=>`<div class="sdot${i===0?' on':''}" data-i="${i}"></div>`).join('');el.querySelectorAll('.sdot').forEach(d=>d.addEventListener('click',()=>{goTo(+d.dataset.i);userAction();}));}
+function goTo(n){slides[cur].classList.remove('on');document.querySelectorAll('.sdot')[cur].classList.remove('on');cur=((n%slides.length)+slides.length)%slides.length;slides[cur].classList.add('on');document.querySelectorAll('.sdot')[cur].classList.add('on');document.getElementById('snum').textContent=`${cur+1}/${slides.length}`;if(autoPlaying)startProg();else stopProg();trigAnim(slides[cur]);if(inits[cur])inits[cur].forEach(fn=>setTimeout(fn,200));}
+
+function startProg(){
+  clearTimeout(timer);
+  const fill=document.getElementById('pfill');
+  fill.style.transition='none';fill.style.width='0%';
+  requestAnimationFrame(()=>{fill.style.transition=`width ${DUR}ms linear`;fill.style.width='100%';});
+  timer=setTimeout(()=>goTo(cur+1),DUR);
+}
+
+function stopProg(){
+  clearTimeout(timer);
+  const fill=document.getElementById('pfill');
+  if(fill){fill.style.transition='none';fill.style.width='0%';}
+}
+
+function startAutoPlay(){
+  if(autoPlaying)return;
+  autoPlaying=true;
+  updateModeIndicator();
+  startProg();
+}
+
+function stopAutoPlay(){
+  autoPlaying=false;
+  updateModeIndicator();
+  stopProg();
+}
+
+function updateModeIndicator(){
+  const el=document.getElementById('mode-indicator');
+  if(!el)return;
+  if(autoPlaying){
+    el.textContent='▶ 自動播放中';
+    el.style.color='var(--up)';
+  }else{
+    el.textContent='⏸ 手動模式';
+    el.style.color='var(--sub)';
+  }
+}
+
+function userAction(){
+  // 任何互動都算使用者操作 → 停止自動播放 + 重置閒置計時器
+  stopAutoPlay();
+  clearTimeout(idleTimer);
+  idleTimer=setTimeout(startAutoPlay, IDLE_MS);
+}
+
+// 監聽所有互動：滑鼠移動、點擊、按鍵、觸控
+['mousemove','mousedown','keydown','touchstart','scroll'].forEach(ev=>{
+  document.addEventListener(ev,userAction,{passive:true});
+});
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight')goTo(cur+1);
+  if(e.key==='ArrowLeft')goTo(cur-1);
+});
+
 function tick(){const n=new Date();document.getElementById('clock').textContent=n.toLocaleTimeString('zh-TW',{hour12:false});document.getElementById('dlbl').textContent=n.toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit',weekday:'short'});}
 setInterval(tick,1000);tick();
 
@@ -1032,14 +1062,25 @@ renderMonthlyTbl();renderSrcChart();
 renderAgents();renderCustomers();renderUnpaid();
 renderRegionCards();renderCityTbl();renderCityInsight();
 renderProdRows('prod-rev',D.prod_rev,'var(--teal)',false);
+renderProdRows('prod-qty',D.prod_qty,'var(--gold)',true);
 renderZeroList();
 renderNew6mChart();renderFvrChart();renderMemberChart();
 renderRfmGrid();renderActiveTiers();
 renderCombosList();renderPaySpeed();
 renderRepurchaseChart();renderTimeInsight();
-renderS8All();renderS9();
+renderS7WeekdayHour();renderS9();
 
-if(IS_MOBILE){document.querySelectorAll('.slide').forEach(s=>s.classList.add('on'));Object.values(inits).forEach(arr=>arr.forEach(fn=>setTimeout(fn,100)));document.querySelectorAll('.rr,.hrow').forEach(el=>el.classList.add('vis'));}else{buildNav();startProg();setTimeout(()=>trigAnim(slides[0]),350);}
+if(IS_MOBILE){
+  document.querySelectorAll('.slide').forEach(s=>s.classList.add('on'));
+  Object.values(inits).forEach(arr=>arr.forEach(fn=>setTimeout(fn,100)));
+  document.querySelectorAll('.rr,.hrow').forEach(el=>el.classList.add('vis'));
+}else{
+  buildNav();
+  setTimeout(()=>trigAnim(slides[0]),350);
+  updateModeIndicator();
+  // 初始是手動模式，不自動播放；等使用者 5 分鐘沒動作才啟動
+  idleTimer=setTimeout(startAutoPlay, IDLE_MS);
+}
 </script>
 </body>
 </html>
