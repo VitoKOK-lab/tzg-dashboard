@@ -191,6 +191,14 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
   .stag{font-size:8px;padding:1px 6px;}
   #s1 .body,#s2 .body,#s3 .body,#s5 .body,#s7 .body,#s8 .body{display:flex;flex-direction:column;gap:10px;}
   #s4 .body,#s6 .body{grid-template-columns:1fr!important;}
+  /* s8 季度回顧手機強制 grid 重排 */
+  #s8 .panel > div[style*="grid-template-columns:1.2fr"]{grid-template-columns:1fr!important;gap:8px!important;}
+  #s8 .panel > div[style*="grid-template-columns:1fr 1fr 1fr 1fr"]{grid-template-columns:1fr 1fr!important;gap:10px!important;}
+  #s8 .panel > div[style*="grid-template-columns:1fr 1fr"]:not([style*="1fr 1fr 1fr"]){grid-template-columns:1fr!important;gap:10px!important;}
+  #s8 .panel > div > div[style*="border-left:1px solid"]{border-left:none!important;border-top:1px solid var(--line)!important;padding-top:8px!important;}
+  #s8 .sh{flex-wrap:wrap;}
+  /* s2 訂單來源條狀圖手機調整 */
+  #s2 #src-list > div > div:first-child > div:nth-last-child(2){font-size:12px!important;}
   .panel{padding:10px 12px;}
   .pt{font-size:13px;}
   .sc{max-height:none;overflow:visible;}
@@ -321,14 +329,14 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
       </div>
     </div>
     <div class="panel">
-      <div class="pl">訂單來源</div>
-      <div class="pt">依推薦活動分類 · TOP 1 顯示在中心</div>
-      <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:14px;flex:1;min-height:0;align-items:center;">
-        <div style="position:relative;height:100%;min-height:200px;max-height:240px;">
-          <canvas id="src-chart"></canvas>
+      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px;">
+        <div>
+          <div class="pl">訂單來源</div>
+          <div class="pt" style="margin:0;">依推薦活動 · 共 <span id="src-total-orders">—</span> 筆</div>
         </div>
-        <div id="src-legend" style="display:flex;flex-direction:column;gap:0;max-height:240px;overflow-y:auto;"></div>
+        <span style="font-size:9px;padding:2px 7px;background:rgba(59,125,216,.1);color:var(--blue);border-radius:10px;letter-spacing:.5px;">本月</span>
       </div>
+      <div id="src-list" style="display:flex;flex-direction:column;gap:10px;flex:1;min-height:0;overflow-y:auto;"></div>
     </div>
   </div>
 </div>
@@ -789,77 +797,50 @@ function renderMonthlyTbl(){
 function renderSrcChart(){
   const sources=D.sources||[];
   if(!sources.length)return;
-  // 財經報表風：收斂色彩為 5 個層次，不要彩虹色
-  const cols=['#1E3A5F','#3B7DD8','#0F8F85','#B8902A','#D94B6B','#7B5FC7','#94A3B8','#CBD5E1'];
-  const labels=sources.map(s=>s.src);
-  const values=sources.map(s=>s.rev);
-  const total=values.reduce((a,b)=>a+b,0)||1;
-  const top=sources[0];
-  const topPct=(top.rev/total*100).toFixed(1);
   
-  // Chart.js doughnut
-  makeChart('src-chart',{
-    type:'doughnut',
-    data:{
-      labels:labels,
-      datasets:[{
-        data:values,
-        backgroundColor:cols.slice(0,sources.length),
-        borderColor:'#FFFFFF',
-        borderWidth:2,
-        hoverOffset:4,
-      }]
-    },
-    options:{
-      animation:{duration:900,easing:'easeOutQuart'},
-      responsive:true,
-      maintainAspectRatio:false,
-      cutout:'68%',  // 空心較多，中間可放大字
-      plugins:{
-        legend:{display:false},
-        tooltip:{
-          callbacks:{
-            label:i=>{
-              const pct=(i.raw/total*100).toFixed(1);
-              return `${i.label}: NT$${i.raw.toLocaleString()} (${pct}%)`;
-            }
-          }
-        }
-      }
-    }
-  });
+  // 財經報表色階（深藍 → 灰）
+  const cols=['#1E3A5F','#3B7DD8','#0F8F85','#B8902A','#94A3B8','#CBD5E1','#7B5FC7','#D94B6B'];
+  const total=sources.reduce((a,b)=>a+b.rev,0)||1;
+  const totalOrders=sources.reduce((a,b)=>a+b.orders,0);
+  const totalCusts=sources.reduce((a,b)=>a+b.customers,0);
+  const max=sources[0].rev;  // 用最大值當條長基準
   
-  // 中心疊一個 TOP 1 標示（用 absolute 定位疊在 canvas 上）
-  const wrap=document.getElementById('src-chart').parentElement;
-  if(wrap){
-    wrap.style.position='relative';
-    let center=document.getElementById('src-center');
-    if(!center){
-      center=document.createElement('div');
-      center.id='src-center';
-      center.style.cssText='position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;';
-      wrap.appendChild(center);
-    }
-    center.innerHTML=`
-      <div style="font-size:10px;letter-spacing:2px;color:var(--sub);text-transform:uppercase;margin-bottom:3px;">TOP 來源</div>
-      <div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:24px;font-weight:700;color:var(--ink);line-height:1;">${topPct}%</div>
-      <div style="font-size:11px;font-weight:600;color:var(--ink);margin-top:4px;">${top.src}</div>
-      <div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:11px;color:var(--sub);margin-top:1px;">${fN(top.rev)}</div>
-    `;
-  }
+  // 更新總計（顯示在標題旁）
+  const tot=document.getElementById('src-total-orders');
+  if(tot)tot.textContent=totalOrders.toLocaleString();
   
-  // 自訂圖例 —— 財經報表樣式，右側直排
-  const legendEl=document.getElementById('src-legend');
-  if(legendEl){
-    legendEl.innerHTML=sources.map((s,i)=>{
-      const pct=(s.rev/total*100).toFixed(1);
-      return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--line2);">
-        <div style="width:8px;height:8px;background:${cols[i]};border-radius:2px;flex-shrink:0;"></div>
-        <div style="flex:1;min-width:0;font-size:11px;color:var(--ink);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${s.src}</div>
-        <div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:11px;color:var(--sub);flex-shrink:0;">${pct}%</div>
-      </div>`;
-    }).join('');
-  }
+  const el=document.getElementById('src-list');
+  if(!el)return;
+  
+  el.innerHTML=sources.map((s,i)=>{
+    const pct=(s.rev/total*100).toFixed(1);
+    const widthPct=Math.round(s.rev/max*100);
+    const rankBadge=i===0?'🥇':i===1?'🥈':i===2?'🥉':`<span style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-weight:700;color:var(--sub);">${i+1}</span>`;
+    return `<div style="display:flex;flex-direction:column;gap:5px;">
+      <!-- 第一行：排名 + 名稱 + 金額 + 佔比 -->
+      <div style="display:flex;align-items:baseline;gap:10px;">
+        <div style="width:22px;text-align:center;font-size:14px;flex-shrink:0;">${rankBadge}</div>
+        <div style="flex:1;min-width:0;font-size:13px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${s.src}</div>
+        <div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:14px;font-weight:700;color:var(--ink);flex-shrink:0;">${fN(s.rev)}</div>
+        <div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:12px;color:${cols[i]};font-weight:700;flex-shrink:0;min-width:48px;text-align:right;">${pct}%</div>
+      </div>
+      <!-- 第二行：條狀進度條 -->
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:22px;flex-shrink:0;"></div>
+        <div style="flex:1;height:8px;background:rgba(30,58,95,.06);border-radius:2px;overflow:hidden;">
+          <div class="src-bar" data-w="${widthPct}" style="height:100%;background:${cols[i]};width:0;border-radius:2px;transition:width 1.2s cubic-bezier(.23,1,.32,1);"></div>
+        </div>
+        <div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:11px;color:var(--sub);flex-shrink:0;min-width:90px;text-align:right;">${s.orders} 筆 · ${s.customers} 人</div>
+      </div>
+    </div>`;
+  }).join('');
+  
+  // 動畫填充
+  setTimeout(()=>{
+    el.querySelectorAll('.src-bar').forEach(bar=>{
+      bar.style.width=bar.dataset.w+'%';
+    });
+  },300);
 }
 
 // ═══════════════════════════════════════════════════════
