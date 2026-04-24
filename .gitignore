@@ -15,6 +15,10 @@ logs/
 __pycache__/
 *.pyc
 
+# ========== 登入憑證：絕對不能上傳 ==========
+.env
+shopline_session.json
+
 # ========== 系統檔案 ==========
 Thumbs.db
 .DS_Store

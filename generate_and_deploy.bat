@@ -47,6 +47,27 @@ if errorlevel 1 (
 echo [4/6] Git OK
 echo.
 
+REM ============ Step 5a: Auto Download from Shopline ============
+if exist ".env" (
+    echo ===================================================
+    echo  Downloading from Shopline...
+    echo ===================================================
+    echo.
+    python auto_shopline.py
+    if errorlevel 1 (
+        echo.
+        echo WARNING: Shopline download failed. Continuing with existing data...
+        echo.
+    ) else (
+        echo [5a] Shopline download OK
+        echo.
+    )
+) else (
+    echo [5a] .env not found, skipping auto-download
+    echo      To enable: copy .env.example .env and fill in credentials
+    echo.
+)
+
 REM ============ Step 5: Generate Dashboard ============
 echo ===================================================
 echo  Generating Dashboard...
