@@ -757,28 +757,22 @@ function renderS1Action(){
 
 function renderS1Health(){
   const h=D.health||{}, ch=h.champions||{}, sr=h.senior||{}, vp=h.vip||{};
+  const items=[
+    {icon:'⬆', label:'新客',   val:h.new_customers||0, unit:'位', sub:`${h.new_pct||0}%`, col:'var(--up)',   bg:'rgba(16,163,127,.06)'},
+    {icon:'⟲', label:'回購',   val:h.returning||0,    unit:'位', sub:`${h.return_pct||0}%`, col:'var(--blue)', bg:'rgba(59,125,216,.06)'},
+    {icon:'★', label:'冠軍',   val:ch.count||0,        unit:'位', sub:fN(ch.month_rev||0), col:'var(--gold)', bg:'rgba(184,144,42,.06)'},
+    {icon:'◆', label:'VIP',    val:vp.count||0,        unit:'位', sub:`資深 ${sr.count||0}`, col:'var(--coral)', bg:'rgba(217,75,107,.06)'},
+  ];
   document.getElementById('s1-health').innerHTML=`
-    <div style="display:flex;flex-direction:column;gap:10px;">
-      <div style="padding:10px;background:rgba(16,163,127,.06);border-radius:6px;border:1px solid rgba(16,163,127,.15);">
-        <div style="font-size:9px;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase;margin-bottom:3px;">本月新客</div>
-        <div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:22px;font-weight:700;color:var(--up);line-height:1;">${h.new_customers||0}</div>
-        <div style="font-size:9px;color:var(--sub);margin-top:3px;">佔比 ${h.new_pct||0}%</div>
-      </div>
-      <div style="padding:10px;background:rgba(59,125,216,.06);border-radius:6px;border:1px solid rgba(59,125,216,.15);">
-        <div style="font-size:9px;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase;margin-bottom:3px;">本月回購</div>
-        <div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:22px;font-weight:700;color:var(--blue);line-height:1;">${h.returning||0}</div>
-        <div style="font-size:9px;color:var(--sub);margin-top:3px;">佔比 ${h.return_pct||0}%</div>
-      </div>
-      <div style="padding:10px;background:rgba(184,144,42,.06);border-radius:6px;border:1px solid rgba(184,144,42,.15);">
-        <div style="font-size:9px;letter-spacing:1.5px;color:var(--gold);text-transform:uppercase;margin-bottom:3px;">冠軍客戶</div>
-        <div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:22px;font-weight:700;color:var(--gold);line-height:1;">${ch.count||0} 位</div>
-        <div style="font-size:9px;color:var(--sub);margin-top:3px;">貢獻 ${fN(ch.month_rev||0)}</div>
-      </div>
-      <div style="padding:10px;background:rgba(217,75,107,.06);border-radius:6px;border:1px solid rgba(217,75,107,.15);">
-        <div style="font-size:9px;letter-spacing:1.5px;color:var(--coral);text-transform:uppercase;margin-bottom:3px;">VIP 頂級</div>
-        <div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:22px;font-weight:700;color:var(--coral);line-height:1;">${vp.count||0} 位</div>
-        <div style="font-size:9px;color:var(--sub);margin-top:3px;">資深 ${sr.count||0} 位</div>
-      </div>
+    <div style="display:flex;flex-direction:column;gap:5px;">
+      ${items.map(it=>`
+        <div style="display:flex;align-items:center;gap:8px;padding:6px 9px;background:${it.bg};border-radius:4px;border-left:2px solid ${it.col};">
+          <span style="color:${it.col};font-size:13px;font-weight:700;flex-shrink:0;width:14px;text-align:center;">${it.icon}</span>
+          <span style="font-size:10px;color:var(--sub);flex-shrink:0;width:28px;">${it.label}</span>
+          <span style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:15px;font-weight:700;color:${it.col};flex-shrink:0;margin-left:auto;">${it.val}</span>
+          <span style="font-size:9px;color:var(--sub);flex-shrink:0;width:48px;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${it.sub}</span>
+        </div>
+      `).join('')}
     </div>`;
 }
 function renderMonthlyTbl(){
