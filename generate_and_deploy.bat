@@ -155,5 +155,10 @@ if exist "output\dashboard_latest.html" (
     start "" "output\dashboard_latest.html"
 )
 
-pause
+REM 如果以 --shutdown 參數執行（排程自動執行模式），完成後詢問關機
+if "%1"=="--shutdown" (
+    powershell.exe -WindowStyle Normal -ExecutionPolicy Bypass -File "%~dp0shutdown_prompt.ps1"
+) else (
+    pause
+)
 endlocal
