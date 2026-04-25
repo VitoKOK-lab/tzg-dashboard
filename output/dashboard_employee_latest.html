@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TZG 本月業績達標</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+          background: #0f1117; color: #e2e8f0; min-height: 100vh; padding: 16px; }
+
+  .header { text-align: center; padding: 20px 0 8px; }
+  .header h1 { font-size: 20px; font-weight: 700; color: #f8fafc; letter-spacing: 1px; }
+  .header .sub { font-size: 13px; color: #94a3b8; margin-top: 4px; }
+
+  .card { background: #1e2330; border-radius: 16px; padding: 20px; margin: 12px 0; }
+
+  /* 達標狀態 */
+  .status-reached { background: linear-gradient(135deg, #064e3b, #065f46);
+                     border: 1px solid #10b981; }
+  .status-not { background: linear-gradient(135deg, #1e1b2e, #2d1f3d);
+                 border: 1px solid #7c3aed; }
+  .status-icon { font-size: 48px; text-align: center; margin-bottom: 8px; }
+  .status-label { text-align: center; font-size: 22px; font-weight: 700; }
+  .status-reached .status-label { color: #10b981; }
+  .status-not .status-label { color: #a78bfa; }
+  .status-gap { text-align: center; font-size: 14px; color: #94a3b8; margin-top: 6px; }
+
+  /* 進度條 */
+  .progress-section { }
+  .progress-numbers { display: flex; justify-content: space-between;
+                       font-size: 13px; color: #94a3b8; margin-bottom: 8px; }
+  .progress-numbers .current { font-size: 22px; font-weight: 700; color: #f8fafc; }
+  .progress-numbers .target-label { font-size: 14px; color: #64748b; align-self: flex-end; padding-bottom: 4px; }
+  .bar-bg { background: #2d3748; border-radius: 999px; height: 14px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 999px; transition: width 0.8s ease;
+               background: linear-gradient(90deg, #7c3aed, #10b981); }
+  .bar-fill.full { background: linear-gradient(90deg, #059669, #10b981); }
+  .pct-row { display: flex; justify-content: space-between;
+              font-size: 12px; color: #64748b; margin-top: 6px; }
+
+  /* 剩餘天數 */
+  .days-row { display: flex; justify-content: center; gap: 6px;
+               font-size: 13px; color: #94a3b8; margin-top: 10px; }
+  .days-num { color: #f8fafc; font-weight: 700; font-size: 16px; }
+
+  /* 排行榜 */
+  .section-title { font-size: 14px; font-weight: 600; color: #94a3b8;
+                    letter-spacing: 0.5px; margin-bottom: 14px; }
+  .agent-row { display: flex; align-items: center; padding: 12px 0;
+                border-bottom: 1px solid #2d3748; }
+  .agent-row:last-child { border-bottom: none; }
+  .rank { width: 32px; font-size: 15px; font-weight: 700; color: #64748b; flex-shrink: 0; }
+  .rank.r1 { color: #f59e0b; }
+  .rank.r2 { color: #94a3b8; }
+  .rank.r3 { color: #cd7c2f; }
+  .agent-info { flex: 1; min-width: 0; }
+  .agent-name { font-size: 15px; font-weight: 600; color: #f1f5f9;
+                 white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .agent-orders { font-size: 12px; color: #64748b; margin-top: 2px; }
+  .agent-rev { font-size: 16px; font-weight: 700; color: #e2e8f0; text-align: right; flex-shrink: 0; }
+
+  /* 免責 */
+  .footer { text-align: center; font-size: 11px; color: #334155;
+             padding: 20px 0 8px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>TZG 本月業績達標</h1>
+  <div class="sub">2026年4月 &nbsp;·&nbsp; 更新：2026/04/26</div>
+</div>
+
+<!-- 達標狀態 -->
+<div class="card status-not">
+  <div class="status-icon">💪</div>
+  <div class="status-label">繼續衝刺！</div>
+  <div class="status-gap">還差 NT$40.6萬 達標</div>
+</div>
+
+<!-- 進度 -->
+<div class="card progress-section">
+  <div class="progress-numbers">
+    <div class="current">NT$409萬</div>
+    <div class="target-label">目標 NT$450萬</div>
+  </div>
+  <div class="bar-bg">
+    <div class="bar-fill " style="width:91.0%"></div>
+  </div>
+  <div class="pct-row">
+    <span>91.0%</span>
+    <span class="days-row">本月剩 <span class="days-num">&nbsp;4&nbsp;</span> 天</span>
+  </div>
+</div>
+
+<!-- 業務排行 -->
+<div class="card">
+  <div class="section-title">業務貢獻排行</div>
+  
+  <div class="agent-row">
+    <div class="rank r1">🥇</div>
+    <div class="agent-info">
+      <div class="agent-name">客服跟單/陳怡萍/深圳</div>
+      <div class="agent-orders">24 筆</div>
+    </div>
+    <div class="agent-rev">NT$526K</div>
+  </div>
+
+  <div class="agent-row">
+    <div class="rank r2">🥈</div>
+    <div class="agent-info">
+      <div class="agent-name">業務 /江瑩/ 深圳</div>
+      <div class="agent-orders">27 筆</div>
+    </div>
+    <div class="agent-rev">NT$329K</div>
+  </div>
+
+  <div class="agent-row">
+    <div class="rank r3">🥉</div>
+    <div class="agent-info">
+      <div class="agent-name">業務/均睿/彰化</div>
+      <div class="agent-orders">15 筆</div>
+    </div>
+    <div class="agent-rev">NT$215K</div>
+  </div>
+
+  <div class="agent-row">
+    <div class="rank ">#4</div>
+    <div class="agent-info">
+      <div class="agent-name">跟單客服/ping/深圳</div>
+      <div class="agent-orders">8 筆</div>
+    </div>
+    <div class="agent-rev">NT$198K</div>
+  </div>
+
+  <div class="agent-row">
+    <div class="rank ">#5</div>
+    <div class="agent-info">
+      <div class="agent-name">代理/楊依靈/台南</div>
+      <div class="agent-orders">5 筆</div>
+    </div>
+    <div class="agent-rev">NT$78K</div>
+  </div>
+
+  <div class="agent-row">
+    <div class="rank ">#6</div>
+    <div class="agent-info">
+      <div class="agent-name">業務跟單 /江瑩/ 深圳</div>
+      <div class="agent-orders">2 筆</div>
+    </div>
+    <div class="agent-rev">NT$29K</div>
+  </div>
+
+  <div class="agent-row">
+    <div class="rank ">#7</div>
+    <div class="agent-info">
+      <div class="agent-name">代理/林志娟/台中</div>
+      <div class="agent-orders">2 筆</div>
+    </div>
+    <div class="agent-rev">NT$29K</div>
+  </div>
+
+  <div class="agent-row">
+    <div class="rank ">#8</div>
+    <div class="agent-info">
+      <div class="agent-name">代理/小葳/彰化</div>
+      <div class="agent-orders">1 筆</div>
+    </div>
+    <div class="agent-rev">NT$17K</div>
+  </div>
+
+  <div class="agent-row">
+    <div class="rank ">#9</div>
+    <div class="agent-info">
+      <div class="agent-name">跟單/王玉玲/深圳</div>
+      <div class="agent-orders">1 筆</div>
+    </div>
+    <div class="agent-rev">NT$16K</div>
+  </div>
+
+  <div class="agent-row">
+    <div class="rank ">#10</div>
+    <div class="agent-info">
+      <div class="agent-name">銷售客服/雯熏/桃園</div>
+      <div class="agent-orders">2 筆</div>
+    </div>
+    <div class="agent-rev">NT$5K</div>
+  </div>
+</div>
+
+<div class="footer">此頁面僅供內部參考 · 請勿對外分享</div>
+</body>
+</html>

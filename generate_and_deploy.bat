@@ -87,6 +87,15 @@ echo.
 echo [5/6] Dashboard generated OK
 echo.
 
+REM ============ Step 5b: Generate Employee Dashboard ============
+python generate_employee.py
+if errorlevel 1 (
+    echo WARNING: Employee dashboard generation failed, continuing...
+) else (
+    echo [5b] Employee dashboard generated OK
+)
+echo.
+
 REM ============ Step 6: Git commit + push ============
 echo ===================================================
 echo  Deploying to GitHub...
@@ -105,8 +114,9 @@ REM Get current date/time for commit message
 for /f "tokens=2 delims==" %%I in ('wmic os get localdatetime /value ^| find "="') do set datetime=%%I
 set TIMESTAMP=%datetime:~0,4%-%datetime:~4,2%-%datetime:~6,2% %datetime:~8,2%:%datetime:~10,2%
 
-REM Stage only the output file (you can change this to "git add ." if you want to push everything)
+REM Stage dashboard files
 git add output/dashboard_latest.html
+git add output/dashboard_employee_latest.html
 
 REM Check if there are changes
 git diff-index --quiet HEAD output/dashboard_latest.html
