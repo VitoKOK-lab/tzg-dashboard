@@ -7,6 +7,18 @@ data/*.xlsx
 
 # ========== 時間戳備份：只保留 latest ==========
 output/dashboard_2*.html
+output/dashboard_employee_*.html
+
+# ========== 備份與舊檔資料夾 ==========
+backup_all*/
+old_data/
+
+# ========== 除錯截圖 ==========
+debug_*.png
+discover_*.png
+
+# ========== Claude 工作目錄 ==========
+.claude/
 
 # ========== 執行記錄 ==========
 logs/
