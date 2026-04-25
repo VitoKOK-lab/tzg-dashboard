@@ -505,36 +505,6 @@ def compute(df):
     D['hour_dist'] = hour_agg(mtd_ord)
     
     # ═══════════════════════════════════════════════════════
-    # 🆕 近 7 天每日業績（今天 + 往前 6 天 = 7 天）
-    # ═══════════════════════════════════════════════════════
-    DAILY_TARGET = 150000  # 平均業績要求線：NT$ 150,000/天（月 450 萬 / 30 天）
-    last_7 = []
-    dow_cn_full = ['週一','週二','週三','週四','週五','週六','週日']
-    for offset in range(6, -1, -1):  # 從 6 天前到今天
-        d = today - timedelta(days=offset)
-        d_start = datetime(d.year, d.month, d.day)
-        d_end = d_start + timedelta(days=1)
-        d_orders = order_level(in_range(vd, d_start, d_end))
-        d_rev = int(d_orders['訂單合計'].sum()) if len(d_orders) else 0
-        d_cnt = int(len(d_orders))
-        last_7.append({
-            'date': d.strftime('%m/%d'),
-            'day_of_week': dow_cn_full[d.weekday()],
-            'rev': d_rev,
-            'orders': d_cnt,
-            'is_today': offset == 0,
-            'above_target': d_rev >= DAILY_TARGET,
-        })
-    
-    D['last_7_days'] = {
-        'data': last_7,
-        'daily_target': DAILY_TARGET,
-        'days_above_target': sum(1 for d in last_7 if d['above_target']),
-        'total_rev': sum(d['rev'] for d in last_7),
-    }
-    print(f'[近7天] 達標天數 {D["last_7_days"]["days_above_target"]}/7 · 累計 NT$ {D["last_7_days"]["total_rev"]:,}')
-    
-    # ═══════════════════════════════════════════════════════
     # 🆕 平日 vs 假日 下單熱門時段（近 90 天）
     # ═══════════════════════════════════════════════════════
     # 演算法：

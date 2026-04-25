@@ -47,27 +47,6 @@ if errorlevel 1 (
 echo [4/6] Git OK
 echo.
 
-REM ============ Step 5a: Auto Download from Shopline ============
-if exist ".env" (
-    echo ===================================================
-    echo  Downloading from Shopline...
-    echo ===================================================
-    echo.
-    python auto_shopline.py
-    if errorlevel 1 (
-        echo.
-        echo WARNING: Shopline download failed. Continuing with existing data...
-        echo.
-    ) else (
-        echo [5a] Shopline download OK
-        echo.
-    )
-) else (
-    echo [5a] .env not found, skipping auto-download
-    echo      To enable: copy .env.example .env and fill in credentials
-    echo.
-)
-
 REM ============ Step 5: Generate Dashboard ============
 echo ===================================================
 echo  Generating Dashboard...
@@ -87,7 +66,6 @@ echo.
 echo [5/6] Dashboard generated OK
 echo.
 
-
 REM ============ Step 6: Git commit + push ============
 echo ===================================================
 echo  Deploying to GitHub...
@@ -106,7 +84,7 @@ REM Get current date/time for commit message
 for /f "tokens=2 delims==" %%I in ('wmic os get localdatetime /value ^| find "="') do set datetime=%%I
 set TIMESTAMP=%datetime:~0,4%-%datetime:~4,2%-%datetime:~6,2% %datetime:~8,2%:%datetime:~10,2%
 
-REM Stage dashboard files
+REM Stage only the output file (you can change this to "git add ." if you want to push everything)
 git add output/dashboard_latest.html
 
 REM Check if there are changes
@@ -156,10 +134,5 @@ if exist "output\dashboard_latest.html" (
     start "" "output\dashboard_latest.html"
 )
 
-REM 如果以 --shutdown 參數執行（排程自動執行模式），完成後詢問關機
-if "%1"=="--shutdown" (
-    powershell.exe -WindowStyle Normal -ExecutionPolicy Bypass -File "%~dp0shutdown_prompt.ps1"
-) else (
-    pause
-)
+pause
 endlocal

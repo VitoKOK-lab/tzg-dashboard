@@ -1,0 +1,26 @@
+# ========== 客戶個資：絕對不能上傳 ==========
+data/*.csv
+data/*.xls
+data/*.xlsx
+# 但保留 templates 子資料夾（HTML 模板要上傳）
+!data/templates/
+
+# ========== 時間戳備份：只保留 latest ==========
+output/dashboard_2*.html
+
+# ========== 執行記錄 ==========
+logs/
+
+# ========== Python 暫存 ==========
+__pycache__/
+*.pyc
+
+# ========== 系統檔案 ==========
+Thumbs.db
+.DS_Store
+
+# ========== 測試/暫存腳本（視需要取消註解） ==========
+# diagnose.py
+# fix_template.py
+# validate_dashboard.py
+# 測試資料正確.bat

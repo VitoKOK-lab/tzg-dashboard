@@ -9,73 +9,63 @@
 <title>電商部每日簡報</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&family=Cormorant+Garamond:wght@600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
 <style>
 :root{
   --bg:#FAFAF7;--bg2:#F4F2EC;--bg3:#EDEAE2;--card:#FFFFFF;--card2:#FBFAF6;
   --line:rgba(30,58,95,.12);--line2:rgba(30,58,95,.06);
   --coral:#D94B6B;--gold:#B8902A;--teal:#0F8F85;--blue:#3B7DD8;--pur:#7B5FC7;--grn:#10A37F;--org:#E67E22;
-  --ink:#1E3A5F;--sub:rgba(30,58,95,.62);--dim:rgba(30,58,95,.35);--mute:rgba(30,58,95,.42);
+  --ink:#1E3A5F;--sub:rgba(30,58,95,.62);--dim:rgba(30,58,95,.35);
   --up:#10A37F;--dn:#D94B6B;
   --shadow-sm:0 1px 2px rgba(30,58,95,.04),0 2px 8px rgba(30,58,95,.03);
   --shadow-md:0 2px 4px rgba(30,58,95,.06),0 4px 12px rgba(30,58,95,.04);
-  /* 🆕 字體分級系統（財經報表標準） */
-  --fs-kpi-xl:32px;  /* 頭條主數字 */
-  --fs-kpi-lg:24px;  /* KPI 大數字 */
-  --fs-kpi-md:18px;  /* KPI 中等數字 */
-  --fs-body:13px;    /* 內文標準 */
-  --fs-sm:12px;      /* 次要內文 */
-  --fs-xs:11px;      /* 小字 */
-  --fs-micro:10px;   /* 標籤 */
-  --fs-tag:9px;      /* 角標 */
 }
 *{margin:0;padding:0;box-sizing:border-box;}
-html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-family:'Noto Sans TC',sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;font-size:var(--fs-body);}
+html,body{width:1920px;height:1080px;overflow:hidden;background:var(--bg);font-family:'Noto Sans TC',sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
 @media (max-width:768px){
   html,body{width:100%;height:auto;min-height:100vh;overflow-x:hidden;overflow-y:auto;}
 }
 
-#topbar{position:fixed;top:0;left:0;right:0;height:56px;background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:stretch;z-index:500;box-shadow:var(--shadow-sm);}
-.tb-logo{display:flex;flex-direction:column;justify-content:center;padding:0 22px;border-right:1px solid var(--line);white-space:nowrap;}
-.tb-logo-n{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:700;color:var(--ink);}
+#topbar{position:fixed;top:0;left:0;right:0;height:52px;background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:stretch;z-index:500;box-shadow:var(--shadow-sm);}
+.tb-logo{display:flex;flex-direction:column;justify-content:center;padding:0 20px;border-right:1px solid var(--line);white-space:nowrap;}
+.tb-logo-n{font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:700;color:var(--ink);}
 .tb-logo-n em{color:var(--coral);font-style:normal;}
-.tb-logo-s{font-size:9px;letter-spacing:2px;color:var(--sub);text-transform:uppercase;margin-top:2px;}
+.tb-logo-s{font-size:8px;letter-spacing:3px;color:var(--sub);text-transform:uppercase;margin-top:1px;}
 .tb-kpis{display:flex;align-items:stretch;flex:1;}
-.tbk{display:flex;flex-direction:column;justify-content:center;padding:0 16px;border-right:1px solid var(--line);flex-shrink:0;}
-.tbk-l{font-size:9px;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase;margin-bottom:2px;}
-.tbk-v{font-family:'DM Mono',monospace;font-size:17px;font-weight:500;color:var(--ink);white-space:nowrap;}
-.tbk-c{font-size:11px;margin-top:1px;}
+.tbk{display:flex;flex-direction:column;justify-content:center;padding:0 14px;border-right:1px solid var(--line);flex-shrink:0;}
+.tbk-l{font-size:8px;letter-spacing:2px;color:var(--sub);text-transform:uppercase;margin-bottom:1px;}
+.tbk-v{font-family:'DM Mono',monospace;font-size:16px;font-weight:500;color:var(--ink);white-space:nowrap;}
+.tbk-c{font-size:10px;margin-top:1px;}
 .u{color:var(--up);}.d{color:var(--dn);}
-.tb-right{display:flex;align-items:center;gap:14px;padding:0 18px;border-left:1px solid var(--line);margin-left:auto;}
+.tb-right{display:flex;align-items:center;gap:12px;padding:0 16px;border-left:1px solid var(--line);margin-left:auto;}
 .live-dot{width:7px;height:7px;border-radius:50%;background:var(--up);box-shadow:0 0 6px rgba(16,163,127,.5);animation:pulse 2s infinite;}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-#clock{font-family:'DM Mono',monospace;font-size:17px;color:var(--ink);}
-#dlbl{font-size:10px;color:var(--sub);margin-top:2px;}
-.sdot{width:20px;height:4px;border-radius:2px;background:var(--line);cursor:pointer;transition:all .2s;}
-.sdot.on{background:var(--gold);width:28px;}
-#snum{font-family:'DM Mono',monospace;font-size:11px;color:var(--sub);}
+#clock{font-family:'DM Mono',monospace;font-size:16px;color:var(--ink);}
+#dlbl{font-size:9px;color:var(--sub);margin-top:1px;}
+.sdot{width:18px;height:4px;border-radius:2px;background:var(--line);cursor:pointer;transition:all .2s;}
+.sdot.on{background:var(--gold);width:26px;}
+#snum{font-family:'DM Mono',monospace;font-size:10px;color:var(--sub);}
 
-#astrip{position:fixed;top:56px;left:0;right:0;height:30px;background:var(--bg2);border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 22px;gap:14px;z-index:400;}
-.al{font-size:9px;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase;white-space:nowrap;}
-.av2{font-family:'DM Mono',monospace;font-size:14px;color:var(--ink);white-space:nowrap;font-weight:500;}
+#astrip{position:fixed;top:52px;left:0;right:0;height:28px;background:var(--bg2);border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 20px;gap:12px;z-index:400;}
+.al{font-size:8px;letter-spacing:2px;color:var(--sub);text-transform:uppercase;white-space:nowrap;}
+.av2{font-family:'DM Mono',monospace;font-size:13px;color:var(--ink);white-space:nowrap;font-weight:500;}
 .abar{flex:1;height:7px;background:rgba(30,58,95,.08);border-radius:4px;overflow:hidden;position:relative;}
 .abar-f{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--teal),var(--blue));transition:width 2s cubic-bezier(.23,1,.32,1);}
 .abar-t{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--coral);}
 .adiv{width:1px;height:14px;background:var(--line);}
-.cmp{display:inline-flex;align-items:center;gap:2px;font-family:'DM Mono',monospace;font-size:11px;padding:1px 6px;border-radius:8px;font-weight:500;}
+.cmp{display:inline-flex;align-items:center;gap:2px;font-family:'DM Mono',monospace;font-size:10px;padding:1px 5px;border-radius:8px;font-weight:500;}
 .cup{background:rgba(16,163,127,.12);color:var(--up);}
 .cdn{background:rgba(217,75,107,.12);color:var(--dn);}
 
 #prog{position:fixed;bottom:0;left:0;right:0;height:2px;background:rgba(30,58,95,.06);z-index:500;}
 #pfill{height:100%;width:0%;background:linear-gradient(90deg,var(--coral),var(--gold));transition:width .12s linear;}
 
-#slides{position:absolute;top:86px;left:0;right:0;bottom:2px;}
-.slide{position:absolute;inset:0;opacity:0;pointer-events:none;transition:opacity .5s ease;padding:14px 22px 12px;display:flex;flex-direction:column;gap:12px;}
+#slides{position:absolute;top:80px;left:0;right:0;bottom:2px;}
+.slide{position:absolute;inset:0;opacity:0;pointer-events:none;transition:opacity .5s ease;padding:12px 20px 10px;display:flex;flex-direction:column;gap:10px;}
 .slide.on{opacity:1;pointer-events:all;}
 
-.sh{display:flex;align-items:baseline;gap:12px;flex-shrink:0;}
-.sh-t{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:700;color:var(--ink);}
-.stag{font-size:10px;letter-spacing:1.5px;padding:2px 8px;border-radius:2px;text-transform:uppercase;border:1px solid;}
+.sh{display:flex;align-items:baseline;gap:10px;flex-shrink:0;}
+.sh-t{font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:700;color:var(--ink);}
+.stag{font-size:9px;letter-spacing:2px;padding:2px 8px;border-radius:2px;text-transform:uppercase;border:1px solid;}
 .tc{border-color:var(--coral);color:var(--coral);background:rgba(217,75,107,.06);}
 .tg{border-color:var(--gold);color:var(--gold);background:rgba(184,144,42,.06);}
 .tt{border-color:var(--teal);color:var(--teal);background:rgba(15,143,133,.06);}
@@ -83,44 +73,44 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
 .tp{border-color:var(--pur);color:var(--pur);background:rgba(123,95,199,.06);}
 .tn{border-color:var(--dim);color:var(--sub);background:rgba(30,58,95,.03);}
 
-.panel{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:14px 16px;display:flex;flex-direction:column;box-shadow:var(--shadow-sm);min-height:0;}
-.pl{font-size:13px;font-weight:600;color:var(--ink);letter-spacing:0;text-transform:none;margin-bottom:4px;line-height:1.3;}
-.pt{font-size:11px;font-weight:400;color:var(--sub);margin-bottom:10px;font-family:inherit;line-height:1.3;}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:7px;padding:12px 16px;display:flex;flex-direction:column;box-shadow:var(--shadow-sm);}
+.pl{font-size:8px;letter-spacing:2.5px;color:var(--sub);text-transform:uppercase;margin-bottom:3px;}
+.pt{font-family:'Cormorant Garamond',serif;font-size:14px;font-weight:700;color:var(--ink);margin-bottom:8px;}
 .sc{overflow-y:auto;flex:1;}.sc::-webkit-scrollbar{width:4px;}.sc::-webkit-scrollbar-thumb{background:rgba(30,58,95,.15);border-radius:2px;}
 
-.rr{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line2);opacity:0;transform:translateY(5px);transition:opacity .35s ease,transform .35s ease;}
+.rr{display:flex;align-items:center;gap:7px;padding:6px 0;border-bottom:1px solid var(--line2);opacity:0;transform:translateY(5px);transition:opacity .35s ease,transform .35s ease;}
 .rr.vis{opacity:1;transform:none;}.rr:last-child{border-bottom:none;}
-.rn{font-family:'DM Mono',monospace;font-size:12px;color:var(--sub);width:18px;text-align:right;flex-shrink:0;}
-.r1 .rn{color:var(--gold);font-size:15px;font-weight:700;}.r2 .rn{color:#9CA3AF;}.r3 .rn{color:#CD7F32;}
-.rv{font-family:'DM Mono',monospace;font-size:13px;color:var(--ink);text-align:right;flex-shrink:0;font-weight:500;}
-.rs{font-size:10px;color:var(--sub);}
+.rn{font-family:'DM Mono',monospace;font-size:11px;color:var(--sub);width:16px;text-align:right;flex-shrink:0;}
+.r1 .rn{color:var(--gold);font-size:14px;font-weight:700;}.r2 .rn{color:#9CA3AF;}.r3 .rn{color:#CD7F32;}
+.rv{font-family:'DM Mono',monospace;font-size:12px;color:var(--ink);text-align:right;flex-shrink:0;font-weight:500;}
+.rs{font-size:9px;color:var(--sub);}
 .rbar-w{flex:1;height:5px;background:rgba(30,58,95,.06);border-radius:3px;overflow:hidden;}
 .rbar{height:100%;border-radius:3px;width:0%;transition:width 1.3s cubic-bezier(.23,1,.32,1);}
-.av{width:30px;height:30px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;}
+.av{width:28px;height:28px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;}
 
-.hrow{display:flex;align-items:center;gap:8px;margin-bottom:7px;opacity:0;transform:translateX(-8px);transition:opacity .35s ease,transform .35s ease;}
+.hrow{display:flex;align-items:center;gap:7px;margin-bottom:6px;opacity:0;transform:translateX(-8px);transition:opacity .35s ease,transform .35s ease;}
 .hrow.vis{opacity:1;transform:none;}.hrow:last-child{margin-bottom:0;}
-.hlbl{font-size:12px;color:var(--ink);flex-shrink:0;}
+.hlbl{font-size:11px;color:var(--ink);flex-shrink:0;}
 .hw{flex:1;height:16px;background:rgba(30,58,95,.05);border-radius:3px;overflow:hidden;}
-.hb{height:100%;border-radius:3px;display:flex;align-items:center;padding-left:6px;font-size:10px;font-weight:700;color:#fff;width:0%;transition:width 1.3s cubic-bezier(.23,1,.32,1);}
-.hend{font-family:'DM Mono',monospace;font-size:12px;color:var(--sub);flex-shrink:0;text-align:right;min-width:62px;}
+.hb{height:100%;border-radius:3px;display:flex;align-items:center;padding-left:5px;font-size:9px;font-weight:700;color:#fff;width:0%;transition:width 1.3s cubic-bezier(.23,1,.32,1);}
+.hend{font-family:'DM Mono',monospace;font-size:11px;color:var(--sub);flex-shrink:0;text-align:right;min-width:58px;}
 
-.cbrow{display:flex;align-items:center;padding:11px 14px;background:var(--card2);border-radius:5px;border:1px solid var(--line2);gap:10px;margin-bottom:7px;}
+.cbrow{display:flex;align-items:center;padding:10px 14px;background:var(--card2);border-radius:6px;border:1px solid var(--line2);gap:10px;margin-bottom:7px;}
 .cbrow:last-child{margin-bottom:0;}
-.cbrow-lbl{font-size:12px;color:var(--sub);white-space:nowrap;min-width:70px;}
-.cbrow-main{font-family:'DM Mono',monospace;font-size:24px;font-weight:500;color:var(--ink);flex-shrink:0;}
+.cbrow-lbl{font-size:11px;color:var(--sub);white-space:nowrap;min-width:64px;}
+.cbrow-main{font-family:'DM Mono',monospace;font-size:22px;font-weight:500;color:var(--ink);flex-shrink:0;}
 .cbrow-sub{font-family:'DM Mono',monospace;font-size:14px;color:var(--sub);flex-shrink:0;}
 
 .mt{width:100%;border-collapse:collapse;}
-.mt th{font-size:10px;letter-spacing:1px;color:var(--sub);text-transform:uppercase;padding:6px 6px;border-bottom:1.5px solid var(--line);text-align:right;font-weight:500;}
+.mt th{font-size:8px;letter-spacing:2px;color:var(--sub);text-transform:uppercase;padding:5px 5px;border-bottom:1.5px solid var(--line);text-align:right;}
 .mt th:first-child{text-align:left;}
-.mt td{padding:7px 6px;border-bottom:1px solid var(--line2);font-size:12px;color:var(--ink);}
-.mt td:not(:first-child){text-align:right;font-family:'DM Mono',monospace;font-size:12px;}
+.mt td{padding:6px 5px;border-bottom:1px solid var(--line2);font-size:12px;color:var(--ink);}
+.mt td:not(:first-child){text-align:right;font-family:'DM Mono',monospace;font-size:11px;}
 .mt tr:last-child td{border-bottom:none;}
-.mt tr.cur td{background:rgba(59,125,216,.05);font-weight:500;}
+.mt tr.cur td{background:rgba(59,125,216,.05);}
 .mt tr:hover td{background:var(--bg2);}
 
-.badge{font-size:10px;padding:1px 6px;border-radius:3px;font-weight:700;margin-left:4px;}
+.badge{font-size:10px;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px;}
 .bup{background:rgba(16,163,127,.15);color:var(--up);}
 .bdn{background:rgba(217,75,107,.15);color:var(--dn);}
 .bnew{background:rgba(184,144,42,.15);color:var(--gold);}
@@ -135,15 +125,10 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
 .unpaid-order.u2{background:rgba(217,75,107,.05);border:1px solid rgba(217,75,107,.15);}
 .unpaid-order.u0{background:var(--card2);border:1px solid var(--line2);}
 
-#s1 > .body{display:flex;gap:10px;min-height:0;overflow:hidden;}
-#s1 > .body > div{flex:1;display:flex;flex-direction:column;min-width:0;}
-#s1 > .body:first-of-type{flex:0 0 auto;align-items:stretch;}
-#s1 > .body:nth-of-type(2){flex:1 1 auto;margin-top:10px;min-height:0;}
-#s1 > .body:nth-of-type(2) > div:first-child{flex:3;}
-#s1 > .body:nth-of-type(2) > div:last-child{flex:1;}
-#s1 > .body:first-of-type .panel{flex:1;}
-#s1 > .body:nth-of-type(2) .panel{flex:1;min-height:0;}
-#s2 .body{display:grid;grid-template-columns:1.5fr 1fr;gap:10px;flex:1;min-height:0;}
+#s1 .body{display:grid;grid-template-columns:1fr 1fr;gap:10px;min-height:0;}
+#s1 > .body:first-of-type{flex:1;}
+#s1 > .body:nth-of-type(2){flex:1.3;}
+#s2 .body{display:grid;grid-template-columns:1.6fr 1fr;gap:10px;flex:1;min-height:0;}
 #s3 .body{display:grid;grid-template-columns:1fr 1fr 1.1fr;gap:10px;flex:1;min-height:0;}
 #s4 .body{display:grid;grid-template-columns:1fr 1fr 1.2fr;gap:10px;flex:1;min-height:0;}
 #s5 .body{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;flex:1;min-height:0;}
@@ -172,14 +157,6 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
   .stag{font-size:8px;padding:1px 6px;}
   #s1 .body,#s2 .body,#s3 .body,#s5 .body,#s7 .body,#s8 .body{display:flex;flex-direction:column;gap:10px;}
   #s4 .body,#s6 .body{grid-template-columns:1fr!important;}
-  /* s8 季度回顧手機強制 grid 重排 */
-  #s8 .panel > div[style*="grid-template-columns:1.2fr"]{grid-template-columns:1fr!important;gap:8px!important;}
-  #s8 .panel > div[style*="grid-template-columns:1fr 1fr 1fr 1fr"]{grid-template-columns:1fr 1fr!important;gap:10px!important;}
-  #s8 .panel > div[style*="grid-template-columns:1fr 1fr"]:not([style*="1fr 1fr 1fr"]){grid-template-columns:1fr!important;gap:10px!important;}
-  #s8 .panel > div > div[style*="border-left:1px solid"]{border-left:none!important;border-top:1px solid var(--line)!important;padding-top:8px!important;}
-  #s8 .sh{flex-wrap:wrap;}
-  /* s2 訂單來源條狀圖手機調整 */
-  #s2 #src-list > div > div:first-child > div:nth-last-child(2){font-size:12px!important;}
   .panel{padding:10px 12px;}
   .pt{font-size:13px;}
   .sc{max-height:none;overflow:visible;}
@@ -265,7 +242,7 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
     </div>
   </div>
   <!-- 下排：區塊 3（寬版 3 單位）+ 區塊 4（窄版 1 單位） -->
-  <div class="body">
+  <div class="body" style="margin-top:10px;">
     <div style="display:flex;flex-direction:column;gap:10px;flex:3;">
       <!-- 區塊 3：本月決策焦點（寬版） -->
       <div class="panel" style="flex:1;">
@@ -290,34 +267,18 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
 </div>
 
 <div class="slide" id="s2">
-  <div class="sh"><div class="sh-t">年度業績對比 · 訂單來源</div><div class="stag tg">2026 vs 2025</div><div class="stag tb">近 7 天</div></div>
+  <div class="sh"><div class="sh-t">年度業績對比 · 訂單來源</div><div class="stag tg">2026 vs 2025</div></div>
   <div class="body">
-    <div style="display:flex;flex-direction:column;gap:10px;min-height:0;">
-      <div class="panel" style="flex:1;min-height:0;">
-        <div class="pl">月度業績</div>
-        <div style="display:flex;gap:12px;margin-bottom:7px;">
-          <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--sub);"><div style="width:10px;height:5px;background:var(--blue);border-radius:1px;"></div>2026</div>
-          <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--sub);"><div style="width:10px;height:5px;background:rgba(30,58,95,.3);border-radius:1px;"></div>2025</div>
-        </div>
-        <div class="sc" id="monthly-tbl"></div>
-      </div>
-      <div class="panel" style="flex:1;min-height:0;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-          <div><div class="pl" style="margin:0;">近 7 天業績</div><div class="pt" style="margin:2px 0 0;">含星期幾 · 平均線 NT$ 150,000/天</div></div>
-          <span style="font-size:9px;padding:2px 7px;background:rgba(15,143,133,.1);color:var(--teal);border-radius:10px;letter-spacing:.5px;">本月目標 450萬 ÷ 30</span>
-        </div>
-        <div class="chart-box" style="min-height:160px;"><canvas id="last7-chart"></canvas></div>
-      </div>
-    </div>
     <div class="panel">
-      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px;">
-        <div>
-          <div class="pl">訂單來源</div>
-          <div class="pt" style="margin:0;">依推薦活動 · 共 <span id="src-total-orders">—</span> 筆</div>
-        </div>
-        <span style="font-size:9px;padding:2px 7px;background:rgba(59,125,216,.1);color:var(--blue);border-radius:10px;letter-spacing:.5px;">本月</span>
+      <div class="pl">月度業績</div>
+      <div style="display:flex;gap:12px;margin-bottom:7px;">
+        <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--sub);"><div style="width:10px;height:5px;background:var(--blue);border-radius:1px;"></div>2026</div>
+        <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--sub);"><div style="width:10px;height:5px;background:rgba(30,58,95,.3);border-radius:1px;"></div>2025</div>
       </div>
-      <div id="src-list" style="display:flex;flex-direction:column;gap:10px;flex:1;min-height:0;overflow-y:auto;"></div>
+      <div class="sc" id="monthly-tbl"></div>
+    </div>
+    <div class="panel"><div class="pl">訂單來源</div><div class="pt">依推薦活動分類</div>
+      <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:6px;" id="src-chart"></div>
     </div>
   </div>
 </div>
@@ -572,8 +533,6 @@ Chart.defaults.color='rgba(30,58,95,.62)';
 Chart.defaults.borderColor='rgba(30,58,95,.08)';
 Chart.defaults.font.family="'DM Mono','Noto Sans TC',sans-serif";
 Chart.defaults.font.size=11;
-// 註冊 annotation plugin（給近 7 天平均線用）
-if(typeof window.ChartAnnotation!=='undefined'){Chart.register(window.ChartAnnotation);}
 
 function stagger(el,delay=55){if(!el)return;el.querySelectorAll('.rr,.hrow').forEach((r,i)=>{setTimeout(()=>{r.classList.add('vis');r.querySelectorAll('.rbar,.hb').forEach(b=>{if(b.dataset.w)b.style.width=b.dataset.w+'%';});},i*delay);});}
 function onVis(el,cb){if(!el)return;const io=new IntersectionObserver(en=>{en.forEach(e=>{if(e.isIntersecting){cb();io.disconnect();}});},{threshold:.05});io.observe(el);}
@@ -738,22 +697,28 @@ function renderS1Action(){
 
 function renderS1Health(){
   const h=D.health||{}, ch=h.champions||{}, sr=h.senior||{}, vp=h.vip||{};
-  const items=[
-    {icon:'⬆', label:'新客',   val:h.new_customers||0, unit:'位', sub:`${h.new_pct||0}%`, col:'var(--up)',   bg:'rgba(16,163,127,.06)'},
-    {icon:'⟲', label:'回購',   val:h.returning||0,    unit:'位', sub:`${h.return_pct||0}%`, col:'var(--blue)', bg:'rgba(59,125,216,.06)'},
-    {icon:'★', label:'冠軍',   val:ch.count||0,        unit:'位', sub:fN(ch.month_rev||0), col:'var(--gold)', bg:'rgba(184,144,42,.06)'},
-    {icon:'◆', label:'VIP',    val:vp.count||0,        unit:'位', sub:`資深 ${sr.count||0}`, col:'var(--coral)', bg:'rgba(217,75,107,.06)'},
-  ];
   document.getElementById('s1-health').innerHTML=`
-    <div style="display:flex;flex-direction:column;gap:5px;">
-      ${items.map(it=>`
-        <div style="display:flex;align-items:center;gap:8px;padding:6px 9px;background:${it.bg};border-radius:4px;border-left:2px solid ${it.col};">
-          <span style="color:${it.col};font-size:13px;font-weight:700;flex-shrink:0;width:14px;text-align:center;">${it.icon}</span>
-          <span style="font-size:10px;color:var(--sub);flex-shrink:0;width:28px;">${it.label}</span>
-          <span style="font-family:'DM Mono',monospace;font-size:15px;font-weight:700;color:${it.col};flex-shrink:0;margin-left:auto;">${it.val}</span>
-          <span style="font-size:9px;color:var(--sub);flex-shrink:0;width:48px;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${it.sub}</span>
-        </div>
-      `).join('')}
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div style="padding:10px;background:rgba(16,163,127,.06);border-radius:6px;border:1px solid rgba(16,163,127,.15);">
+        <div style="font-size:9px;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase;margin-bottom:3px;">本月新客</div>
+        <div style="font-family:'DM Mono',monospace;font-size:22px;font-weight:700;color:var(--up);line-height:1;">${h.new_customers||0}</div>
+        <div style="font-size:9px;color:var(--sub);margin-top:3px;">佔比 ${h.new_pct||0}%</div>
+      </div>
+      <div style="padding:10px;background:rgba(59,125,216,.06);border-radius:6px;border:1px solid rgba(59,125,216,.15);">
+        <div style="font-size:9px;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase;margin-bottom:3px;">本月回購</div>
+        <div style="font-family:'DM Mono',monospace;font-size:22px;font-weight:700;color:var(--blue);line-height:1;">${h.returning||0}</div>
+        <div style="font-size:9px;color:var(--sub);margin-top:3px;">佔比 ${h.return_pct||0}%</div>
+      </div>
+      <div style="padding:10px;background:rgba(184,144,42,.06);border-radius:6px;border:1px solid rgba(184,144,42,.15);">
+        <div style="font-size:9px;letter-spacing:1.5px;color:var(--gold);text-transform:uppercase;margin-bottom:3px;">冠軍客戶</div>
+        <div style="font-family:'DM Mono',monospace;font-size:22px;font-weight:700;color:var(--gold);line-height:1;">${ch.count||0} 位</div>
+        <div style="font-size:9px;color:var(--sub);margin-top:3px;">貢獻 ${fN(ch.month_rev||0)}</div>
+      </div>
+      <div style="padding:10px;background:rgba(217,75,107,.06);border-radius:6px;border:1px solid rgba(217,75,107,.15);">
+        <div style="font-size:9px;letter-spacing:1.5px;color:var(--coral);text-transform:uppercase;margin-bottom:3px;">VIP 頂級</div>
+        <div style="font-family:'DM Mono',monospace;font-size:22px;font-weight:700;color:var(--coral);line-height:1;">${vp.count||0} 位</div>
+        <div style="font-size:9px;color:var(--sub);margin-top:3px;">資深 ${sr.count||0} 位</div>
+      </div>
     </div>`;
 }
 function renderMonthlyTbl(){
@@ -770,150 +735,11 @@ function renderMonthlyTbl(){
   onVis(el,()=>el.querySelectorAll('.mt-bar').forEach((b,i)=>{setTimeout(()=>{b.style.width=b.dataset.w+'%';},i*26);}));
 }
 function renderSrcChart(){
-  const sources=D.sources||[];
-  if(!sources.length)return;
-  
-  // 財經報表色階（深藍 → 灰）
-  const cols=['#1E3A5F','#3B7DD8','#0F8F85','#B8902A','#94A3B8','#CBD5E1','#7B5FC7','#D94B6B'];
-  const total=sources.reduce((a,b)=>a+b.rev,0)||1;
-  const totalOrders=sources.reduce((a,b)=>a+b.orders,0);
-  const totalCusts=sources.reduce((a,b)=>a+b.customers,0);
-  const max=sources[0].rev;  // 用最大值當條長基準
-  
-  // 更新總計（顯示在標題旁）
-  const tot=document.getElementById('src-total-orders');
-  if(tot)tot.textContent=totalOrders.toLocaleString();
-  
-  const el=document.getElementById('src-list');
-  if(!el)return;
-  
-  el.innerHTML=sources.map((s,i)=>{
-    const pct=(s.rev/total*100).toFixed(1);
-    const widthPct=Math.round(s.rev/max*100);
-    const rankBadge=i===0?'🥇':i===1?'🥈':i===2?'🥉':`<span style="font-family:'DM Mono',monospace;font-weight:700;color:var(--sub);">${i+1}</span>`;
-    return `<div style="display:flex;flex-direction:column;gap:5px;">
-      <!-- 第一行：排名 + 名稱 + 金額 + 佔比 -->
-      <div style="display:flex;align-items:baseline;gap:10px;">
-        <div style="width:22px;text-align:center;font-size:14px;flex-shrink:0;">${rankBadge}</div>
-        <div style="flex:1;min-width:0;font-size:13px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${s.src}</div>
-        <div style="font-family:'DM Mono',monospace;font-size:14px;font-weight:700;color:var(--ink);flex-shrink:0;">${fN(s.rev)}</div>
-        <div style="font-family:'DM Mono',monospace;font-size:12px;color:${cols[i]};font-weight:700;flex-shrink:0;min-width:48px;text-align:right;">${pct}%</div>
-      </div>
-      <!-- 第二行：條狀進度條 -->
-      <div style="display:flex;align-items:center;gap:10px;">
-        <div style="width:22px;flex-shrink:0;"></div>
-        <div style="flex:1;height:8px;background:rgba(30,58,95,.06);border-radius:2px;overflow:hidden;">
-          <div class="src-bar" data-w="${widthPct}" style="height:100%;background:${cols[i]};width:0;border-radius:2px;transition:width 1.2s cubic-bezier(.23,1,.32,1);"></div>
-        </div>
-        <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--sub);flex-shrink:0;min-width:90px;text-align:right;">${s.orders} 筆 · ${s.customers} 人</div>
-      </div>
-    </div>`;
-  }).join('');
-  
-  // 動畫填充
-  setTimeout(()=>{
-    el.querySelectorAll('.src-bar').forEach(bar=>{
-      bar.style.width=bar.dataset.w+'%';
-    });
-  },300);
-}
-
-// ═══════════════════════════════════════════════════════
-// 🆕 近 7 天業績長條圖（含平均線）
-// ═══════════════════════════════════════════════════════
-function renderLast7Days(){
-  const d7=D.last_7_days;
-  if(!d7||!d7.data)return;
-  const data=d7.data;
-  const target=d7.daily_target||150000;
-  
-  const labels=data.map(d=>`${d.date}\n${d.day_of_week}`);
-  const values=data.map(d=>d.rev);
-  const colors=data.map(d=>{
-    if(d.is_today) return 'rgba(217,75,107,.85)';  // 今天：珊瑚紅
-    return d.above_target ? 'rgba(15,143,133,.75)' : 'rgba(148,163,184,.65)';  // 達標綠、未達灰
-  });
-  const borders=data.map(d=>{
-    if(d.is_today) return '#D94B6B';
-    return d.above_target ? '#0F8F85' : '#94A3B8';
-  });
-  
-  makeChart('last7-chart',{
-    type:'bar',
-    data:{
-      labels:labels,
-      datasets:[{
-        label:'當日業績',
-        data:values,
-        backgroundColor:colors,
-        borderColor:borders,
-        borderWidth:1.5,
-        borderRadius:4,
-      }]
-    },
-    options:{
-      animation:{duration:900,easing:'easeOutQuart'},
-      responsive:true,
-      maintainAspectRatio:false,
-      plugins:{
-        legend:{display:false},
-        tooltip:{
-          callbacks:{
-            label:i=>{
-              const row=data[i.dataIndex];
-              const diff=row.rev-target;
-              const pct=((row.rev/target-1)*100).toFixed(1);
-              const sym=diff>=0?'超標 ↑':'差距 ↓';
-              return [`NT$ ${row.rev.toLocaleString()} · ${row.orders}筆`,
-                      `${sym} ${Math.abs(diff).toLocaleString()} (${pct>0?'+':''}${pct}%)`];
-            }
-          }
-        },
-        annotation:{
-          annotations:{
-            targetLine:{
-              type:'line',
-              yMin:target,
-              yMax:target,
-              borderColor:'rgba(217,75,107,.85)',
-              borderWidth:2,
-              borderDash:[6,4],
-              label:{
-                display:true,
-                content:`平均目標 ${fN(target)}/天`,
-                position:'end',
-                backgroundColor:'rgba(217,75,107,.9)',
-                color:'#fff',
-                font:{size:10,weight:'600'},
-                padding:{top:3,bottom:3,left:6,right:6},
-                borderRadius:3,
-              }
-            }
-          }
-        }
-      },
-      scales:{
-        x:{
-          grid:{display:false},
-          ticks:{
-            font:{size:10},
-            callback:function(v){
-              const lbl=this.getLabelForValue(v);
-              return lbl.split('\n');
-            }
-          }
-        },
-        y:{
-          grid:{color:'rgba(30,58,95,.05)'},
-          ticks:{
-            font:{size:10},
-            callback:v=>fN(v)
-          },
-          beginAtZero:true,
-        }
-      }
-    }
-  });
+  const max=D.sources[0].rev;
+  const cols=['var(--coral)','var(--blue)','#1D5AA8','var(--teal)','var(--gold)','var(--pur)'];
+  const el=document.getElementById('src-chart');
+  el.innerHTML=D.sources.map((s,i)=>`<div class="hrow"><div style="text-align:right;flex-shrink:0;min-width:80px;"><div style="font-family:'DM Mono',monospace;font-size:13px;font-weight:500;">${fN(s.rev)}</div><div style="font-size:9px;color:var(--sub);">${s.orders}筆·${s.customers}人</div></div><div class="hw" style="height:20px;"><div class="hb" data-w="${Math.round(s.rev/max*100)}" style="background:${cols[i]};height:100%;font-size:10px;justify-content:flex-end;padding-right:7px;">${s.src}</div></div></div>`).join('');
+  onVis(el,()=>stagger(el));
 }
 function renderAgents(){
   const max=D.agents[0]?.rev||1;const el=document.getElementById('agent-list');
@@ -1264,7 +1090,7 @@ setInterval(tick,1000);tick();
 const IS_MOBILE=window.matchMedia('(max-width:768px)').matches;
 renderTopBar();renderAchStrip();
 renderS1Kpi();renderS1Quarter();renderS1Action();renderS1Health();
-renderMonthlyTbl();renderSrcChart();renderLast7Days();
+renderMonthlyTbl();renderSrcChart();
 renderAgents();renderCustomers();renderUnpaid();
 renderRegionCards();renderCityTbl();renderCityInsight();
 renderProdRows('prod-rev',D.prod_rev,'var(--teal)',false);

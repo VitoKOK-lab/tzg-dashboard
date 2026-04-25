@@ -443,7 +443,7 @@ def compute(df):
                                         rev=('訂單合計','sum')).reset_index().sort_values('rev', ascending=False)
     cg['aov'] = cg['rev'] / cg['orders'].replace(0, 1)
     D['cities'] = [{'city':r['_city'], 'customers':int(r['customers']), 'orders':int(r['orders']),
-                    'rev':int(r['rev']), 'aov':int(r['aov'])} for _, r in cg.head(10).iterrows()]
+                    'rev':int(r['rev']), 'aov':int(r['aov'])} for _, r in cg.head(15).iterrows()]
     regs = []
     for reg in REGIONS:
         rd = mtd_ord2[mtd_ord2['_city'].isin(reg['cities'])]
@@ -451,6 +451,28 @@ def compute(df):
                      'rev':int(rd['訂單合計'].sum()),
                      'aov':int(rd['訂單合計'].sum()/len(rd)) if len(rd) else 0})
     D['regions'] = regs
+    
+    # Towns
+    towns = {}
+    addr2_col = None
+    for c in ['地址2', '地址 2', 'address2', '收件地址2']:
+        if c in mtd_lines.columns:
+            addr2_col = c; break
+    if addr2_col:
+        addr2_map = mtd_lines.drop_duplicates('訂單號碼').set_index('訂單號碼')[addr2_col].to_dict()
+        mtd_ord2['_addr2'] = mtd_ord2['訂單號碼'].map(addr2_map)
+        mtd_ord2['_town2'] = mtd_ord2['_addr2'].apply(extract_town)
+        for city in cg['_city'].head(10):
+            if city == '未知': continue
+            sub = mtd_ord2[(mtd_ord2['_city']==city) & mtd_ord2['_town2'].notna() & (mtd_ord2['_town2'] != '')]
+            if not len(sub): continue
+            tg = sub.groupby('_town2').agg(orders=('訂單號碼','count'), rev=('訂單合計','sum'),
+                                            customers=(ccol,'nunique')).reset_index().sort_values('rev', ascending=False)
+            tg['aov'] = tg['rev'] / tg['orders'].replace(0, 1)
+            towns[city] = [{'town':r['_town2'], 'orders':int(r['orders']), 'rev':int(r['rev']),
+                            'customers':int(r['customers']), 'aov':int(r['aov'])} for _, r in tg.iterrows()]
+        print(f'[鄉鎮] 建立 {len(towns)} 個城市')
+    D['towns'] = towns
     
     # Products
     ml = mtd_lines.copy()
@@ -462,14 +484,13 @@ def compute(df):
     D['prod_qty'] = [{'name':r['商品名稱'], 'qty':int(r['qty']), 'price':int(r['price']), 'rev':int(r['rev'])}
                      for _, r in pg.sort_values('qty', ascending=False).head(10).iterrows()]
     
-    # Dormant（沒人買 ≥ 60 天）
-    DORMANT_THRESHOLD = 60
+    # Dormant
     last_sold = vd.groupby('商品名稱')['訂單日期'].max()
     dormant = [{'name':p, 'days':int((today - d.to_pydatetime()).days)}
-               for p, d in last_sold.items() if (today - d.to_pydatetime()).days >= DORMANT_THRESHOLD]
+               for p, d in last_sold.items() if (today - d.to_pydatetime()).days >= DORMANT_DAYS]
     dormant.sort(key=lambda x: -x['days'])
-    D['dormant_45'] = dormant[:10]  # 變數名保留相容性，實際是 60 天 Top 10
-    print(f'[沒人買] ≥{DORMANT_THRESHOLD}天：{len(dormant)} 項（取 Top 10）')
+    D['dormant_45'] = dormant[:30]
+    print(f'[沒人買] ≥{DORMANT_DAYS}天：{len(dormant)} 項')
     
     # Customers TOP 10
     cs = mtd_ord2.groupby(ccol).agg(orders=('訂單號碼','count'), rev=('訂單合計','sum')).reset_index()
@@ -488,6 +509,9 @@ def compute(df):
         return {'dist':d, 'pct':{k:round(v/t*100,1) for k,v in d.items()},
                 'median':int(ordf['訂單合計'].median()) if len(ordf) else 0}
     D['interval'] = interval_dist(mtd_ord)
+    prev_s, prev_e = month_range(yr, mo-1) if mo > 1 else month_range(yr-1, 12)
+    prev_ord = order_level(in_range(vd, prev_s, prev_e))
+    D['interval_mar'] = interval_dist(prev_ord)
     
     # DOW / Hour
     dow_cn = ['週一','週二','週三','週四','週五','週六','週日']
@@ -502,107 +526,40 @@ def compute(df):
         g = o.groupby('_h').size()
         return [{'hour':h, 'orders':int(g.get(h, 0))} for h in range(24)]
     D['dow'] = dow_agg(mtd_ord)
+    D['dow_mar'] = dow_agg(prev_ord)
     D['hour_dist'] = hour_agg(mtd_ord)
+    D['hour_dist_mar'] = hour_agg(prev_ord)
     
-    # ═══════════════════════════════════════════════════════
-    # 🆕 近 7 天每日業績（今天 + 往前 6 天 = 7 天）
-    # ═══════════════════════════════════════════════════════
-    DAILY_TARGET = 150000  # 平均業績要求線：NT$ 150,000/天（月 450 萬 / 30 天）
-    last_7 = []
-    dow_cn_full = ['週一','週二','週三','週四','週五','週六','週日']
-    for offset in range(6, -1, -1):  # 從 6 天前到今天
-        d = today - timedelta(days=offset)
-        d_start = datetime(d.year, d.month, d.day)
-        d_end = d_start + timedelta(days=1)
-        d_orders = order_level(in_range(vd, d_start, d_end))
-        d_rev = int(d_orders['訂單合計'].sum()) if len(d_orders) else 0
-        d_cnt = int(len(d_orders))
-        last_7.append({
-            'date': d.strftime('%m/%d'),
-            'day_of_week': dow_cn_full[d.weekday()],
-            'rev': d_rev,
-            'orders': d_cnt,
-            'is_today': offset == 0,
-            'above_target': d_rev >= DAILY_TARGET,
-        })
-    
-    D['last_7_days'] = {
-        'data': last_7,
-        'daily_target': DAILY_TARGET,
-        'days_above_target': sum(1 for d in last_7 if d['above_target']),
-        'total_rev': sum(d['rev'] for d in last_7),
+    # Heatmap 近 90 天
+    hm_start = today - timedelta(days=90)
+    hm = order_level(in_range(vd, hm_start, today + timedelta(days=1))).copy()
+    hm['_d'] = hm['訂單日期'].dt.weekday
+    hm['_h'] = hm['訂單日期'].dt.hour
+    matrix = [[0]*24 for _ in range(7)]
+    for _, r in hm.iterrows():
+        matrix[int(r['_d'])][int(r['_h'])] += 1
+    mx = max((max(row) for row in matrix), default=1) or 1
+    D['heatmap'] = {
+        'days': dow_cn,
+        'matrix': [[round(v/mx*10) for v in row] for row in matrix],
+        'matrix_raw': matrix,
+        'max': int(mx),
     }
-    print(f'[近7天] 達標天數 {D["last_7_days"]["days_above_target"]}/7 · 累計 NT$ {D["last_7_days"]["total_rev"]:,}')
+    print(f'[熱力圖] 近90天 {len(hm):,} 張 / 最熱 {mx}')
     
-    # ═══════════════════════════════════════════════════════
-    # 🆕 平日 vs 假日 下單熱門時段（近 90 天）
-    # ═══════════════════════════════════════════════════════
-    # 演算法：
-    # 1. 取近 90 天訂單，分成「平日」(週一到週五) 和「假日」(週六日)
-    # 2. 對每組找出「連續 2 小時的最大下單密度區間」（下單高峰）
-    # 3. 同時輸出「建議上片時段」= 下單高峰起點 - 5 小時（考慮影片高峰時差）
-    
-    PEAK_HOURS_SPAN = 2       # 下單密集區寬度（小時）
-    VIEW_DELAY = 0.5           # 看影片到下單的延遲（小時）
-    VIDEO_PEAK_OFFSET = 4.5    # 影片上片到觀看高峰的中位時差（小時）
-    UPLOAD_OFFSET = VIEW_DELAY + VIDEO_PEAK_OFFSET
-    
-    post_start = today - timedelta(days=90)
-    post_data = order_level(in_range(vd, post_start, today + timedelta(days=1))).copy()
-    post_data['_d'] = post_data['訂單日期'].dt.weekday
-    post_data['_h'] = post_data['訂單日期'].dt.hour
-    
-    def analyze_group(data, group_name):
-        if len(data) < 5:
-            return {
-                'name': group_name,
-                'sample_size': int(len(data)),
-                'peak': None,
-                'upload_suggest': None,
-            }
-        hour_counts = data.groupby('_h').size().reindex(range(24), fill_value=0)
-        total = int(hour_counts.sum())
-        
-        # 找連續 2 小時最大區間
-        windows = []
-        for h in range(24):
-            win_total = sum(hour_counts.iloc[(h + o) % 24] for o in range(PEAK_HOURS_SPAN))
-            windows.append((h, int(win_total)))
-        windows.sort(key=lambda x: -x[1])
-        best_start, best_total = windows[0]
-        best_end = (best_start + PEAK_HOURS_SPAN) % 24
-        upload_start = int((best_start - UPLOAD_OFFSET) % 24)
-        upload_end = (upload_start + 1) % 24
-        
-        return {
-            'name': group_name,
-            'sample_size': total,
-            'peak': {
-                'start': best_start,
-                'end': best_end,
-                'count': int(best_total),
-                'pct': round(best_total / total * 100, 1) if total else 0,
-            },
-            'upload_suggest': {
-                'start': upload_start,
-                'end': upload_end,
-            },
-        }
-    
-    weekday_data = post_data[post_data['_d'] < 5]  # 週一到週五
-    weekend_data = post_data[post_data['_d'] >= 5]  # 週六日
-    
-    D['weekday_hour'] = {
-        'weekday': analyze_group(weekday_data, '平日'),
-        'weekend': analyze_group(weekend_data, '假日'),
-    }
-    wd_peak = D['weekday_hour']['weekday']['peak']
-    we_peak = D['weekday_hour']['weekend']['peak']
-    if wd_peak and we_peak:
-        print(f'[下單時段] 平日高峰 {wd_peak["start"]:02d}:00-{wd_peak["end"]:02d}:00 ({wd_peak["pct"]}%) / 假日高峰 {we_peak["start"]:02d}:00-{we_peak["end"]:02d}:00 ({we_peak["pct"]}%)')
-    
-    # Shopping habits（本月 MTD）- 精簡版
+    # Shopping habits（本月 MTD）
+    sd = {'<2千':0, '2–5千':0, '5千–1萬':0, '1–3萬':0, '>3萬':0}
+    for v in mtd_ord['訂單合計']:
+        if v < 2000: sd['<2千'] += 1
+        elif v < 5000: sd['2–5千'] += 1
+        elif v < 10000: sd['5千–1萬'] += 1
+        elif v < 30000: sd['1–3萬'] += 1
+        else: sd['>3萬'] += 1
     items_per = mtd_lines.groupby('訂單號碼')['數量'].sum()
+    idist = {k:0 for k in ['1','2','3','4','5','6']}
+    for v in items_per:
+        k = str(int(v)) if v < 6 else '6'
+        idist[k] = idist.get(k, 0) + 1
     combos = Counter()
     for _, grp in mtd_lines[mtd_lines['訂單號碼'].isin(items_per[items_per > 1].index)].groupby('訂單號碼'):
         ps = sorted([p for p in grp['商品名稱'].unique() if is_real_product(p)])
@@ -610,6 +567,11 @@ def compute(df):
             for j in range(i+1, len(ps)):
                 combos[(ps[i], ps[j])] += 1
     D['shopping_habits'] = {
+        'spend_dist': sd,
+        'single_item': int((items_per == 1).sum()),
+        'multi_item': int((items_per > 1).sum()),
+        'avg_items': round(items_per.mean(), 1) if len(items_per) else 0,
+        'item_dist': idist,
         'pay_speed': {'10分鐘內':int(n_ord*0.9), '10分–1小時':int(n_ord*0.05),
                       '1–24小時':int(n_ord*0.03), '>24小時':int(n_ord*0.02), 'median_min':5},
         'top_combos': [[[a, b], c] for (a, b), c in combos.most_common(5)],
@@ -649,215 +611,24 @@ def compute(df):
         'top3_q1': [],
         'prev_quarter_label': f'Q1（{yr}年）',
     }
+    if '推薦活動' in vd.columns:
+        q1s, q1e = datetime(yr, 1, 1), datetime(yr, 4, 1)
+        q1_base = vd[vd['推薦活動'].notna() & vd['推薦活動'].apply(is_real_agent)]
+        q1a = order_level(in_range(q1_base, q1s, q1e))
+        if '推薦活動' in q1a.columns and len(q1a) > 0:
+            q1t = q1a.groupby('推薦活動').agg(
+                orders=('訂單號碼','count'), rev=('訂單合計','sum')
+            ).sort_values('rev', ascending=False).head(10)
+            D['strategy']['top3_q1'] = [{'name':str(n), 'orders':int(r['orders']), 'rev':int(r['rev'])} for n, r in q1t.iterrows()]
+    print(f'[季度排行] Q1 TOP 業務: {len(D["strategy"]["top3_q1"])} 位')
     
-    # ═══════════════════════════════════════════════════════
-    # 🆕 季度策略回顧（雙視角：上季完整回顧 + 本季 vs 去年同期）
-    # ═══════════════════════════════════════════════════════
-    
-    def quarter_bounds(year, q):
-        """回傳指定年份季度的 (起始日期, 結束日期)"""
-        start_mo = (q - 1) * 3 + 1
-        end_mo = start_mo + 2
-        start = datetime(year, start_mo, 1)
-        if end_mo >= 12:
-            end = datetime(year + 1, 1, 1)
-        else:
-            end = datetime(year, end_mo + 1, 1)
-        return start, end, start_mo
-    
-    def get_prev_quarter(year, q):
-        """取得上一個季度（考慮跨年）"""
-        if q == 1:
-            return year - 1, 4
-        return year, q - 1
-    
-    def quarter_stats(start_date, end_date, start_mo, label_prefix=''):
-        """計算指定季度的完整統計資料"""
-        # Top 業務
-        top_agents = []
-        if '推薦活動' in vd.columns:
-            q_base = vd[vd['推薦活動'].notna() & vd['推薦活動'].apply(is_real_agent)]
-            q_orders = order_level(in_range(q_base, start_date, end_date))
-            if len(q_orders) > 0:
-                q_agg = q_orders.groupby('推薦活動').agg(
-                    orders=('訂單號碼', 'count'),
-                    rev=('訂單合計', 'sum')
-                ).sort_values('rev', ascending=False).head(10)
-                for n, r in q_agg.iterrows():
-                    agent_orders = q_orders[q_orders['推薦活動'] == n]
-                    months_active = agent_orders['訂單日期'].dt.month.nunique()
-                    top_agents.append({
-                        'name': str(n),
-                        'orders': int(r['orders']),
-                        'rev': int(r['rev']),
-                        'months_active': int(months_active),
-                    })
-        
-        # 月度趨勢（3 個月）
-        monthly = []
-        for m_offset in range(3):
-            m = start_mo + m_offset
-            m_year = start_date.year if m <= 12 else start_date.year + 1
-            m_actual = m if m <= 12 else m - 12
-            m_start = datetime(m_year, m_actual, 1)
-            m_end = datetime(m_year + 1, 1, 1) if m_actual == 12 else datetime(m_year, m_actual + 1, 1)
-            m_orders_lv = order_level(in_range(vd, m_start, m_end))
-            m_rev = int(m_orders_lv['訂單合計'].sum()) if len(m_orders_lv) else 0
-            m_cnt = int(len(m_orders_lv))
-            # 判斷是否為當前正在進行的月份
-            is_cur = (m_year == yr) and (m_actual == mo)
-            monthly.append({
-                'month': m_actual,
-                'label': f'{m_actual}月',
-                'rev': m_rev,
-                'orders': m_cnt,
-                'is_current': is_cur,
-                'is_partial': is_cur,
-            })
-        
-        # 新客 vs 回購
-        new_count = 0
-        ret_count = 0
-        q_custs = order_level(in_range(vd, start_date, end_date))
-        if len(q_custs) > 0 and ccol in q_custs.columns:
-            prev_custs = set(order_level(vd[vd['訂單日期'] < start_date])[ccol].dropna().unique())
-            for cust in q_custs[ccol].dropna().unique():
-                if cust in prev_custs:
-                    ret_count += 1
-                else:
-                    new_count += 1
-        
-        # 總計
-        total_rev = sum(m['rev'] for m in monthly)
-        total_orders = sum(m['orders'] for m in monthly)
-        
-        return {
-            'top_agents': top_agents,
-            'monthly': monthly,
-            'total_rev': total_rev,
-            'total_orders': total_orders,
-            'new_customers': new_count,
-            'returning': ret_count,
-            'new_pct': round(new_count / (new_count + ret_count) * 100, 1) if (new_count + ret_count) else 0,
-        }
-    
-    # 本季 & 上季
-    cur_quarter = (mo - 1) // 3 + 1
-    prev_yr, prev_q = get_prev_quarter(yr, cur_quarter)
-    
-    cur_q_start, cur_q_end, cur_q_start_mo = quarter_bounds(yr, cur_quarter)
-    prev_q_start, prev_q_end, prev_q_start_mo = quarter_bounds(prev_yr, prev_q)
-    
-    # 去年同季（for 對比）
-    ly_q_start, ly_q_end, ly_q_start_mo = quarter_bounds(yr - 1, cur_quarter)
-    # 去年同季同日（至 去年的「今天對應日」）—— 公平比較
-    try:
-        ly_same_day_end = datetime(yr - 1, mo, today.day) + timedelta(days=1)
-    except ValueError:
-        # 處理 2/29 之類的極端情況
-        ly_same_day_end = datetime(yr - 1, mo, today.day - 1) + timedelta(days=1)
-    
-    # 上季完整回顧
-    prev_q_stats = quarter_stats(prev_q_start, prev_q_end, prev_q_start_mo, '上季')
-    
-    # 本季至今（2026 Q2: 4/1 ~ 4/22+1）
-    cur_to_today_end = today + timedelta(days=1)
-    cur_q_rev = int(order_level(in_range(vd, cur_q_start, cur_to_today_end))['訂單合計'].sum())
-    cur_q_orders_cnt = int(len(order_level(in_range(vd, cur_q_start, cur_to_today_end))))
-    
-    # 去年同季至「去年同日」（公平比較：2025 Q2 4/1-4/22）
-    ly_same_rev = int(order_level(in_range(vd, ly_q_start, ly_same_day_end))['訂單合計'].sum())
-    ly_same_orders = int(len(order_level(in_range(vd, ly_q_start, ly_same_day_end))))
-    
-    # 去年同季完整（2025 Q2 4/1-6/30）
-    ly_full_rev = int(order_level(in_range(vd, ly_q_start, ly_q_end))['訂單合計'].sum())
-    ly_full_orders = int(len(order_level(in_range(vd, ly_q_start, ly_q_end))))
-    
-    # 天數資訊
-    days_into_q = (today - cur_q_start).days + 1
-    days_total_q = (cur_q_end - cur_q_start).days
-    
-    # 成長率計算
-    if ly_same_rev > 0:
-        yoy_rev_pct = round((cur_q_rev - ly_same_rev) / ly_same_rev * 100, 1)
-    else:
-        yoy_rev_pct = None
-    if ly_full_rev > 0:
-        progress_pct = round(cur_q_rev / ly_full_rev * 100, 1)
-    else:
-        progress_pct = None
-    
-    # 上季總結文字
-    prev_summary_parts = []
-    if prev_q_stats['top_agents']:
-        top_a = prev_q_stats['top_agents'][0]
-        prev_summary_parts.append(f"業績王 {top_a['name']} 貢獻 NT$ {top_a['rev']:,}")
-    prev_summary_parts.append(f"總營收 NT$ {prev_q_stats['total_rev']:,}")
-    if prev_q_stats['new_customers'] + prev_q_stats['returning'] > 0:
-        prev_summary_parts.append(f"新客佔 {prev_q_stats['new_pct']:.0f}%")
-    
-    D['quarter_review'] = {
-        # 本季進行中 + vs 去年同期
-        'current': {
-            'quarter_label': f'Q{cur_quarter}（{yr}年）',
-            'period_label': f'{cur_q_start.strftime("%m/%d")}–{today.strftime("%m/%d")}',
-            'rev': cur_q_rev,
-            'orders': cur_q_orders_cnt,
-            'days_into': days_into_q,
-            'days_total': days_total_q,
-        },
-        'ly_same_day': {
-            'quarter_label': f'Q{cur_quarter}（{yr-1}年）',
-            'period_label': f'{ly_q_start.strftime("%m/%d")}–{ly_same_day_end.strftime("%m/%d") if ly_same_day_end else ""}',
-            'rev': ly_same_rev,
-            'orders': ly_same_orders,
-            'yoy_pct': yoy_rev_pct,  # 本季至今 vs 去年同期同日的成長率
-        },
-        'ly_full': {
-            'quarter_label': f'Q{cur_quarter}（{yr-1}年全季）',
-            'period_label': f'{ly_q_start.strftime("%m/%d")}–{(ly_q_end - timedelta(days=1)).strftime("%m/%d")}',
-            'rev': ly_full_rev,
-            'orders': ly_full_orders,
-            'progress_pct': progress_pct,  # 本季至今 已達 去年全季的 X%
-        },
-        # 上季完整回顧
-        'previous': {
-            'quarter_label': f'Q{prev_q}（{prev_yr}年）',
-            'period_label': f'{prev_q_start.strftime("%m/%d")}–{(prev_q_end - timedelta(days=1)).strftime("%m/%d")}',
-            'top_agents': prev_q_stats['top_agents'],
-            'monthly': prev_q_stats['monthly'],
-            'total_rev': prev_q_stats['total_rev'],
-            'total_orders': prev_q_stats['total_orders'],
-            'new_customers': prev_q_stats['new_customers'],
-            'returning': prev_q_stats['returning'],
-            'new_pct': prev_q_stats['new_pct'],
-            'summary': ' · '.join(prev_summary_parts),
-        },
-    }
-    print(f'[季度回顧] 上季={prev_q_start.year}Q{prev_q} 營收={prev_q_stats["total_rev"]:,} / '
-          f'本季進行中 {cur_q_rev:,} vs 去年同期 {ly_same_rev:,} (YoY {yoy_rev_pct}%)')
-    
-    # 保留舊的 top3_q1 相容性（給 s1 用，這裡改成「上季」資料）
-    D['strategy']['top3_q1'] = prev_q_stats['top_agents'][:10]
-    D['strategy']['prev_quarter_label'] = f'Q{prev_q}（{prev_yr}年）'
-    
-    # Unpaid - 新邏輯：付款狀態有值 且 不是已付款類 且 訂單狀態不是已取消類，48h 內
+    # Unpaid
     if '付款狀態' in df.columns:
-        pay_str = df['付款狀態'].fillna('').astype(str).str.strip()
-        has_pay_value = pay_str != ''           # 必須有值（排除歷史 NaN）
-        not_paid = ~pay_str.isin(PAID_STATUSES) # 不是已付款類
-        
-        if '訂單狀態' in df.columns:
-            ord_str = df['訂單狀態'].fillna('').astype(str).str.strip()
-            not_cancelled = ~ord_str.isin(CANCELLED_STATUSES)
-        else:
-            not_cancelled = pd.Series([True] * len(df), index=df.index)
-        
-        up_raw = df[has_pay_value & not_paid & not_cancelled]
+        up_raw = df[df['付款狀態'].astype(str).isin(UNPAID_STATUSES)]
         up = order_level(up_raw)
         cutoff = today - timedelta(hours=UNPAID_WINDOW_HOURS)
         up = up[up['訂單日期'] >= cutoff]
-        print(f'[未付款] 48h 內：{len(up)} 筆（付款狀態非已付款 且 訂單狀態非已取消）')
+        print(f'[未付款] 48h 內：{len(up)} 筆')
         ol = []
         for _, r in up.iterrows():
             hours_wait = (today - r['訂單日期']).total_seconds() / 3600
@@ -951,170 +722,6 @@ def compute(df):
         'avg_days': int(np.mean(intervals)) if intervals else 0,
         'repeat_rate': round(rc/tc*100) if tc else 0,
     }
-    
-    # ═══════════════════════════════════════════════════════
-    # 🆕 客戶健康度（Health）
-    # ═══════════════════════════════════════════════════════
-    senior_count = 0
-    senior_rev = 0
-    vip_count = 0
-    vip_rev = 0
-    if D.get('member_funnel'):
-        for m in D['member_funnel']:
-            lvl = str(m.get('level', ''))
-            if '資深' in lvl:
-                senior_count = m['count']
-                senior_rev = m['rev']
-            elif 'VIP' in lvl or '頂級' in lvl:
-                vip_count = m['count']
-                vip_rev = m['rev']
-    
-    champ_count = senior_count + vip_count
-    champ_rev = senior_rev + vip_rev
-    
-    new_ret_total = D['kpi']['new_customers'] + D['kpi']['returning']
-    new_pct = round(D['kpi']['new_customers'] / new_ret_total * 100, 1) if new_ret_total else 0
-    
-    D['health'] = {
-        'new_customers': D['kpi']['new_customers'],
-        'returning': D['kpi']['returning'],
-        'new_pct': new_pct,
-        'return_pct': round(100 - new_pct, 1),
-        'champions': {
-            'count': champ_count,
-            'month_rev': champ_rev,
-        },
-        'senior': {'count': senior_count, 'month_rev': senior_rev},
-        'vip': {'count': vip_count, 'month_rev': vip_rev},
-    }
-    print(f'[健康度] 新客 {D["kpi"]["new_customers"]} / 回購 {D["kpi"]["returning"]} / 冠軍 {champ_count} 位')
-    
-    # ═══════════════════════════════════════════════════════
-    # 🆕 決策焦點（Action Focus）
-    # ═══════════════════════════════════════════════════════
-    # 1. 流失風險：RFM「無法失去」（r=1, fm=3）+「即將流失」（r=1, fm=2）
-    churn_count = 0
-    churn_rev = 0
-    for row in D['rfm']['grid']:
-        for cell in row:
-            if cell.get('k') in ['無法失去', '即將流失']:
-                churn_count += cell['c']
-                churn_rev += cell['rev']
-    
-    # 2. 達標缺口計算 + 補救策略
-    rev_mtd = D['kpi']['rev_mtd']
-    target = MONTHLY_TARGET
-    remaining = max(0, target - rev_mtd)
-    days_elapsed = D['meta']['days_elapsed']
-    days_total = D['meta']['days_total']
-    days_left = max(1, days_total - days_elapsed)
-    
-    daily_needed = int(remaining / days_left) if days_left else 0
-    current_daily_avg = int(rev_mtd / days_elapsed) if days_elapsed else 0
-    on_track = D['kpi']['rev_projected'] >= target
-    
-    # 補救策略（動態選擇最相關的）
-    recovery = None
-    if remaining > 0 and not on_track:
-        # 策略：以資深+VIP 為核心回購對象
-        # 計算平均客單價（用資深+VIP 本月已經實現的平均）
-        if champ_count > 0 and champ_rev > 0:
-            avg_aov_champ = int(champ_rev / champ_count) if champ_count else 0
-        else:
-            # 退路：用 first_vs_return 的 return_aov
-            avg_aov_champ = D.get('first_vs_return', {}).get('return_aov', D['kpi']['avg_order'])
-        
-        # 假設全台資深+VIP 客戶（全歷史累積）
-        # 以會員漏斗的總人數為母體
-        total_champ_pool = 0
-        for m in D.get('member_funnel', []):
-            lvl = str(m.get('level', ''))
-            if '資深' in lvl or 'VIP' in lvl or '頂級' in lvl:
-                total_champ_pool += m['count']
-        
-        # 用預設 10% 觸達率
-        response_rate = 10
-        target_count = max(1, int(total_champ_pool * response_rate / 100))
-        potential_recovery = target_count * avg_aov_champ
-        coverage_pct = round(potential_recovery / remaining * 100, 1) if remaining else 0
-        
-        recovery = {
-            'strategy_name': '資深 + VIP 頂級藏家回購觸達',
-            'target_segment': f'資深藏家 + VIP 頂級藏家（共 {total_champ_pool} 位）',
-            'response_rate': response_rate,
-            'target_count': target_count,
-            'avg_aov': avg_aov_champ,
-            'potential_recovery': potential_recovery,
-            'coverage_pct': coverage_pct,
-        }
-    
-    # 3. 推薦組合（top_combos 前 3）
-    top_combos = D.get('shopping_habits', {}).get('top_combos', [])
-    cross_sell = [{'combo': list(c[0]), 'count': c[1]} for c in top_combos[:3]]
-    
-    # 4. 未付款（維持現有資料，拿出摘要）
-    unpaid_list = D.get('unpaid', [])
-    unpaid_summary = {
-        'count': unpaid_list[0]['count'] if unpaid_list else 0,
-        'total_amount': unpaid_list[0]['total_amount'] if unpaid_list else 0,
-        'max_days': unpaid_list[0]['max_days'] if unpaid_list else 0,
-    }
-    
-    D['action_focus'] = {
-        'target_gap': {
-            'rev_mtd': rev_mtd,
-            'target': target,
-            'remaining': remaining,
-            'days_left': days_left,
-            'daily_needed': daily_needed,
-            'current_daily_avg': current_daily_avg,
-            'on_track': on_track,
-            'rev_projected': D['kpi']['rev_projected'],
-            'proj_achievement_pct': D['kpi']['proj_achievement_pct'],
-        },
-        'recovery_strategy': recovery,
-        'churn_risk': {
-            'count': churn_count,
-            'potential_loss_90d': churn_rev,
-        },
-        'unpaid_summary': unpaid_summary,
-        'cross_sell': cross_sell,
-    }
-    print(f'[決策焦點] 缺口 {remaining:,} / 流失風險 {churn_count} 位 / 潛損 {churn_rev:,}')
-    
-    # ═══════════════════════════════════════════════════════
-    # 🆕 預估達標（Projection）升級
-    # ═══════════════════════════════════════════════════════
-    # 相比上月同期（用月度營收比較）
-    monthly_26 = D.get('monthly_26', [])
-    cur_month_idx = mo - 1  # 0-based
-    prev_month_idx = cur_month_idx - 1 if cur_month_idx > 0 else 11
-    cur_rev = rev_mtd
-    prev_rev = 0
-    if 0 <= prev_month_idx < len(monthly_26):
-        prev_rev = monthly_26[prev_month_idx]['rev']
-    
-    trend_vs_last = 0
-    if prev_rev > 0:
-        trend_vs_last = round((D['kpi']['rev_projected'] - prev_rev) / prev_rev * 100, 1)
-    
-    # 信心度（基於進度 vs 時間佔比）
-    time_pct = days_elapsed / days_total * 100 if days_total else 0
-    rev_pct = rev_mtd / target * 100 if target else 0
-    if rev_pct >= time_pct:
-        confidence = 'high'  # 進度超前
-    elif rev_pct >= time_pct * 0.85:
-        confidence = 'medium'  # 進度稍落後
-    else:
-        confidence = 'low'  # 進度明顯落後
-    
-    D['projection'] = {
-        'rev_projected': D['kpi']['rev_projected'],
-        'proj_achievement_pct': D['kpi']['proj_achievement_pct'],
-        'confidence': confidence,
-        'trend_vs_last_month': trend_vs_last,
-    }
-    print(f'[預估達標] 信心度 {confidence} / 相比上月 {trend_vs_last:+.1f}%')
     
     return D
 

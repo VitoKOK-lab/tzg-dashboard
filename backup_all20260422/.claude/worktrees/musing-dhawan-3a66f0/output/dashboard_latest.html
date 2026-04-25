@@ -7,75 +7,84 @@
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>電商部每日簡報</title>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&family=Cormorant+Garamond:wght@600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* 字體加載策略：Google Fonts > 國內 CDN > 本地系統字體 */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&family=Cormorant+Garamond:wght@600;700&family=DM+Mono:wght@400;500&display=swap');
+@import url('https://fonts.loli.net/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap');
+
+/* 本地系統字體 Fallback */
+@font-face {
+  font-family: 'Noto Sans TC Fallback';
+  src: local('Noto Sans CJK TC'), local('思源黑體'), local('Source Han Sans TC'), 
+       local('微軟正黑體'), local('Microsoft JhengHei'), local('Heiti TC');
+}
+@font-face {
+  font-family: 'Cormorant Garamond Fallback';
+  src: local('Times New Roman'), local('Times'), serif;
+}
+@font-face {
+  font-family: 'DM Mono Fallback';
+  src: local('Menlo'), local('Monaco'), local('Courier New'), monospace;
+}
+</style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
 <style>
 :root{
   --bg:#FAFAF7;--bg2:#F4F2EC;--bg3:#EDEAE2;--card:#FFFFFF;--card2:#FBFAF6;
   --line:rgba(30,58,95,.12);--line2:rgba(30,58,95,.06);
   --coral:#D94B6B;--gold:#B8902A;--teal:#0F8F85;--blue:#3B7DD8;--pur:#7B5FC7;--grn:#10A37F;--org:#E67E22;
-  --ink:#1E3A5F;--sub:rgba(30,58,95,.62);--dim:rgba(30,58,95,.35);--mute:rgba(30,58,95,.42);
+  --ink:#1E3A5F;--sub:rgba(30,58,95,.62);--dim:rgba(30,58,95,.35);
   --up:#10A37F;--dn:#D94B6B;
   --shadow-sm:0 1px 2px rgba(30,58,95,.04),0 2px 8px rgba(30,58,95,.03);
   --shadow-md:0 2px 4px rgba(30,58,95,.06),0 4px 12px rgba(30,58,95,.04);
-  /* 🆕 字體分級系統（財經報表標準） */
-  --fs-kpi-xl:32px;  /* 頭條主數字 */
-  --fs-kpi-lg:24px;  /* KPI 大數字 */
-  --fs-kpi-md:18px;  /* KPI 中等數字 */
-  --fs-body:13px;    /* 內文標準 */
-  --fs-sm:12px;      /* 次要內文 */
-  --fs-xs:11px;      /* 小字 */
-  --fs-micro:10px;   /* 標籤 */
-  --fs-tag:9px;      /* 角標 */
 }
 *{margin:0;padding:0;box-sizing:border-box;}
-html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-family:'Noto Sans TC',sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;font-size:var(--fs-body);}
+html,body{width:1920px;height:1080px;overflow:hidden;background:var(--bg);font-family:'Noto Sans TC','思源黑體','Source Han Sans TC','微軟正黑體','Microsoft JhengHei',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
 @media (max-width:768px){
   html,body{width:100%;height:auto;min-height:100vh;overflow-x:hidden;overflow-y:auto;}
 }
 
-#topbar{position:fixed;top:0;left:0;right:0;height:56px;background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:stretch;z-index:500;box-shadow:var(--shadow-sm);}
-.tb-logo{display:flex;flex-direction:column;justify-content:center;padding:0 22px;border-right:1px solid var(--line);white-space:nowrap;}
-.tb-logo-n{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:700;color:var(--ink);}
+#topbar{position:fixed;top:0;left:0;right:0;height:52px;background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:stretch;z-index:500;box-shadow:var(--shadow-sm);}
+.tb-logo{display:flex;flex-direction:column;justify-content:center;padding:0 20px;border-right:1px solid var(--line);white-space:nowrap;}
+.tb-logo-n{font-family:'Cormorant Garamond','Times New Roman','Times',serif;font-size:18px;font-weight:700;color:var(--ink);}
 .tb-logo-n em{color:var(--coral);font-style:normal;}
-.tb-logo-s{font-size:9px;letter-spacing:2px;color:var(--sub);text-transform:uppercase;margin-top:2px;}
+.tb-logo-s{font-size:8px;letter-spacing:3px;color:var(--sub);text-transform:uppercase;margin-top:1px;}
 .tb-kpis{display:flex;align-items:stretch;flex:1;}
-.tbk{display:flex;flex-direction:column;justify-content:center;padding:0 16px;border-right:1px solid var(--line);flex-shrink:0;}
-.tbk-l{font-size:9px;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase;margin-bottom:2px;}
-.tbk-v{font-family:'DM Mono',monospace;font-size:17px;font-weight:500;color:var(--ink);white-space:nowrap;}
-.tbk-c{font-size:11px;margin-top:1px;}
+.tbk{display:flex;flex-direction:column;justify-content:center;padding:0 14px;border-right:1px solid var(--line);flex-shrink:0;}
+.tbk-l{font-size:8px;letter-spacing:2px;color:var(--sub);text-transform:uppercase;margin-bottom:1px;}
+.tbk-v{font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:16px;font-weight:500;color:var(--ink);white-space:nowrap;}
+.tbk-c{font-size:10px;margin-top:1px;}
 .u{color:var(--up);}.d{color:var(--dn);}
-.tb-right{display:flex;align-items:center;gap:14px;padding:0 18px;border-left:1px solid var(--line);margin-left:auto;}
+.tb-right{display:flex;align-items:center;gap:12px;padding:0 16px;border-left:1px solid var(--line);margin-left:auto;}
 .live-dot{width:7px;height:7px;border-radius:50%;background:var(--up);box-shadow:0 0 6px rgba(16,163,127,.5);animation:pulse 2s infinite;}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-#clock{font-family:'DM Mono',monospace;font-size:17px;color:var(--ink);}
-#dlbl{font-size:10px;color:var(--sub);margin-top:2px;}
-.sdot{width:20px;height:4px;border-radius:2px;background:var(--line);cursor:pointer;transition:all .2s;}
-.sdot.on{background:var(--gold);width:28px;}
-#snum{font-family:'DM Mono',monospace;font-size:11px;color:var(--sub);}
+#clock{font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:16px;color:var(--ink);}
+#dlbl{font-size:9px;color:var(--sub);margin-top:1px;}
+.sdot{width:18px;height:4px;border-radius:2px;background:var(--line);cursor:pointer;transition:all .2s;}
+.sdot.on{background:var(--gold);width:26px;}
+#snum{font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:10px;color:var(--sub);}
 
-#astrip{position:fixed;top:56px;left:0;right:0;height:30px;background:var(--bg2);border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 22px;gap:14px;z-index:400;}
-.al{font-size:9px;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase;white-space:nowrap;}
-.av2{font-family:'DM Mono',monospace;font-size:14px;color:var(--ink);white-space:nowrap;font-weight:500;}
+#astrip{position:fixed;top:52px;left:0;right:0;height:28px;background:var(--bg2);border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 20px;gap:12px;z-index:400;}
+.al{font-size:8px;letter-spacing:2px;color:var(--sub);text-transform:uppercase;white-space:nowrap;}
+.av2{font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:13px;color:var(--ink);white-space:nowrap;font-weight:500;}
 .abar{flex:1;height:7px;background:rgba(30,58,95,.08);border-radius:4px;overflow:hidden;position:relative;}
 .abar-f{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--teal),var(--blue));transition:width 2s cubic-bezier(.23,1,.32,1);}
 .abar-t{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--coral);}
 .adiv{width:1px;height:14px;background:var(--line);}
-.cmp{display:inline-flex;align-items:center;gap:2px;font-family:'DM Mono',monospace;font-size:11px;padding:1px 6px;border-radius:8px;font-weight:500;}
+.cmp{display:inline-flex;align-items:center;gap:2px;font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:10px;padding:1px 5px;border-radius:8px;font-weight:500;}
 .cup{background:rgba(16,163,127,.12);color:var(--up);}
 .cdn{background:rgba(217,75,107,.12);color:var(--dn);}
 
 #prog{position:fixed;bottom:0;left:0;right:0;height:2px;background:rgba(30,58,95,.06);z-index:500;}
 #pfill{height:100%;width:0%;background:linear-gradient(90deg,var(--coral),var(--gold));transition:width .12s linear;}
 
-#slides{position:absolute;top:86px;left:0;right:0;bottom:2px;}
-.slide{position:absolute;inset:0;opacity:0;pointer-events:none;transition:opacity .5s ease;padding:14px 22px 12px;display:flex;flex-direction:column;gap:12px;}
+#slides{position:absolute;top:80px;left:0;right:0;bottom:2px;}
+.slide{position:absolute;inset:0;opacity:0;pointer-events:none;transition:opacity .5s ease;padding:12px 20px 10px;display:flex;flex-direction:column;gap:10px;}
 .slide.on{opacity:1;pointer-events:all;}
 
-.sh{display:flex;align-items:baseline;gap:12px;flex-shrink:0;}
-.sh-t{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:700;color:var(--ink);}
-.stag{font-size:10px;letter-spacing:1.5px;padding:2px 8px;border-radius:2px;text-transform:uppercase;border:1px solid;}
+.sh{display:flex;align-items:baseline;gap:10px;flex-shrink:0;}
+.sh-t{font-family:'Cormorant Garamond','Times New Roman','Times',serif;font-size:18px;font-weight:700;color:var(--ink);}
+.stag{font-size:9px;letter-spacing:2px;padding:2px 8px;border-radius:2px;text-transform:uppercase;border:1px solid;}
 .tc{border-color:var(--coral);color:var(--coral);background:rgba(217,75,107,.06);}
 .tg{border-color:var(--gold);color:var(--gold);background:rgba(184,144,42,.06);}
 .tt{border-color:var(--teal);color:var(--teal);background:rgba(15,143,133,.06);}
@@ -83,44 +92,44 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
 .tp{border-color:var(--pur);color:var(--pur);background:rgba(123,95,199,.06);}
 .tn{border-color:var(--dim);color:var(--sub);background:rgba(30,58,95,.03);}
 
-.panel{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:14px 16px;display:flex;flex-direction:column;box-shadow:var(--shadow-sm);min-height:0;}
-.pl{font-size:13px;font-weight:600;color:var(--ink);letter-spacing:0;text-transform:none;margin-bottom:4px;line-height:1.3;}
-.pt{font-size:11px;font-weight:400;color:var(--sub);margin-bottom:10px;font-family:inherit;line-height:1.3;}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:7px;padding:12px 16px;display:flex;flex-direction:column;box-shadow:var(--shadow-sm);}
+.pl{font-size:8px;letter-spacing:2.5px;color:var(--sub);text-transform:uppercase;margin-bottom:3px;}
+.pt{font-family:'Cormorant Garamond','Times New Roman','Times',serif;font-size:14px;font-weight:700;color:var(--ink);margin-bottom:8px;}
 .sc{overflow-y:auto;flex:1;}.sc::-webkit-scrollbar{width:4px;}.sc::-webkit-scrollbar-thumb{background:rgba(30,58,95,.15);border-radius:2px;}
 
-.rr{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line2);opacity:0;transform:translateY(5px);transition:opacity .35s ease,transform .35s ease;}
+.rr{display:flex;align-items:center;gap:7px;padding:6px 0;border-bottom:1px solid var(--line2);opacity:0;transform:translateY(5px);transition:opacity .35s ease,transform .35s ease;}
 .rr.vis{opacity:1;transform:none;}.rr:last-child{border-bottom:none;}
-.rn{font-family:'DM Mono',monospace;font-size:12px;color:var(--sub);width:18px;text-align:right;flex-shrink:0;}
-.r1 .rn{color:var(--gold);font-size:15px;font-weight:700;}.r2 .rn{color:#9CA3AF;}.r3 .rn{color:#CD7F32;}
-.rv{font-family:'DM Mono',monospace;font-size:13px;color:var(--ink);text-align:right;flex-shrink:0;font-weight:500;}
-.rs{font-size:10px;color:var(--sub);}
+.rn{font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:11px;color:var(--sub);width:16px;text-align:right;flex-shrink:0;}
+.r1 .rn{color:var(--gold);font-size:14px;font-weight:700;}.r2 .rn{color:#9CA3AF;}.r3 .rn{color:#CD7F32;}
+.rv{font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:12px;color:var(--ink);text-align:right;flex-shrink:0;font-weight:500;}
+.rs{font-size:9px;color:var(--sub);}
 .rbar-w{flex:1;height:5px;background:rgba(30,58,95,.06);border-radius:3px;overflow:hidden;}
 .rbar{height:100%;border-radius:3px;width:0%;transition:width 1.3s cubic-bezier(.23,1,.32,1);}
-.av{width:30px;height:30px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;}
+.av{width:28px;height:28px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;}
 
-.hrow{display:flex;align-items:center;gap:8px;margin-bottom:7px;opacity:0;transform:translateX(-8px);transition:opacity .35s ease,transform .35s ease;}
+.hrow{display:flex;align-items:center;gap:7px;margin-bottom:6px;opacity:0;transform:translateX(-8px);transition:opacity .35s ease,transform .35s ease;}
 .hrow.vis{opacity:1;transform:none;}.hrow:last-child{margin-bottom:0;}
-.hlbl{font-size:12px;color:var(--ink);flex-shrink:0;}
+.hlbl{font-size:11px;color:var(--ink);flex-shrink:0;}
 .hw{flex:1;height:16px;background:rgba(30,58,95,.05);border-radius:3px;overflow:hidden;}
-.hb{height:100%;border-radius:3px;display:flex;align-items:center;padding-left:6px;font-size:10px;font-weight:700;color:#fff;width:0%;transition:width 1.3s cubic-bezier(.23,1,.32,1);}
-.hend{font-family:'DM Mono',monospace;font-size:12px;color:var(--sub);flex-shrink:0;text-align:right;min-width:62px;}
+.hb{height:100%;border-radius:3px;display:flex;align-items:center;padding-left:5px;font-size:9px;font-weight:700;color:#fff;width:0%;transition:width 1.3s cubic-bezier(.23,1,.32,1);}
+.hend{font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:11px;color:var(--sub);flex-shrink:0;text-align:right;min-width:58px;}
 
-.cbrow{display:flex;align-items:center;padding:11px 14px;background:var(--card2);border-radius:5px;border:1px solid var(--line2);gap:10px;margin-bottom:7px;}
+.cbrow{display:flex;align-items:center;padding:10px 14px;background:var(--card2);border-radius:6px;border:1px solid var(--line2);gap:10px;margin-bottom:7px;}
 .cbrow:last-child{margin-bottom:0;}
-.cbrow-lbl{font-size:12px;color:var(--sub);white-space:nowrap;min-width:70px;}
-.cbrow-main{font-family:'DM Mono',monospace;font-size:24px;font-weight:500;color:var(--ink);flex-shrink:0;}
-.cbrow-sub{font-family:'DM Mono',monospace;font-size:14px;color:var(--sub);flex-shrink:0;}
+.cbrow-lbl{font-size:11px;color:var(--sub);white-space:nowrap;min-width:64px;}
+.cbrow-main{font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:22px;font-weight:500;color:var(--ink);flex-shrink:0;}
+.cbrow-sub{font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:14px;color:var(--sub);flex-shrink:0;}
 
 .mt{width:100%;border-collapse:collapse;}
-.mt th{font-size:10px;letter-spacing:1px;color:var(--sub);text-transform:uppercase;padding:6px 6px;border-bottom:1.5px solid var(--line);text-align:right;font-weight:500;}
+.mt th{font-size:8px;letter-spacing:2px;color:var(--sub);text-transform:uppercase;padding:5px 5px;border-bottom:1.5px solid var(--line);text-align:right;}
 .mt th:first-child{text-align:left;}
-.mt td{padding:7px 6px;border-bottom:1px solid var(--line2);font-size:12px;color:var(--ink);}
-.mt td:not(:first-child){text-align:right;font-family:'DM Mono',monospace;font-size:12px;}
+.mt td{padding:6px 5px;border-bottom:1px solid var(--line2);font-size:12px;color:var(--ink);}
+.mt td:not(:first-child){text-align:right;font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:11px;}
 .mt tr:last-child td{border-bottom:none;}
-.mt tr.cur td{background:rgba(59,125,216,.05);font-weight:500;}
+.mt tr.cur td{background:rgba(59,125,216,.05);}
 .mt tr:hover td{background:var(--bg2);}
 
-.badge{font-size:10px;padding:1px 6px;border-radius:3px;font-weight:700;margin-left:4px;}
+.badge{font-size:10px;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px;}
 .bup{background:rgba(16,163,127,.15);color:var(--up);}
 .bdn{background:rgba(217,75,107,.15);color:var(--dn);}
 .bnew{background:rgba(184,144,42,.15);color:var(--gold);}
@@ -135,15 +144,10 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
 .unpaid-order.u2{background:rgba(217,75,107,.05);border:1px solid rgba(217,75,107,.15);}
 .unpaid-order.u0{background:var(--card2);border:1px solid var(--line2);}
 
-#s1 > .body{display:flex;gap:10px;min-height:0;overflow:hidden;}
-#s1 > .body > div{flex:1;display:flex;flex-direction:column;min-width:0;}
-#s1 > .body:first-of-type{flex:0 0 auto;align-items:stretch;}
-#s1 > .body:nth-of-type(2){flex:1 1 auto;margin-top:10px;min-height:0;}
-#s1 > .body:nth-of-type(2) > div:first-child{flex:3;}
-#s1 > .body:nth-of-type(2) > div:last-child{flex:1;}
-#s1 > .body:first-of-type .panel{flex:1;}
-#s1 > .body:nth-of-type(2) .panel{flex:1;min-height:0;}
-#s2 .body{display:grid;grid-template-columns:1.5fr 1fr;gap:10px;flex:1;min-height:0;}
+#s1 .body{display:grid;grid-template-columns:1fr 1fr;gap:10px;min-height:0;}
+#s1 > .body:first-of-type{flex:1;}
+#s1 > .body:nth-of-type(2){flex:1.3;}
+#s2 .body{display:grid;grid-template-columns:1.6fr 1fr;gap:10px;flex:1;min-height:0;}
 #s3 .body{display:grid;grid-template-columns:1fr 1fr 1.1fr;gap:10px;flex:1;min-height:0;}
 #s4 .body{display:grid;grid-template-columns:1fr 1fr 1.2fr;gap:10px;flex:1;min-height:0;}
 #s5 .body{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;flex:1;min-height:0;}
@@ -172,14 +176,6 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
   .stag{font-size:8px;padding:1px 6px;}
   #s1 .body,#s2 .body,#s3 .body,#s5 .body,#s7 .body,#s8 .body{display:flex;flex-direction:column;gap:10px;}
   #s4 .body,#s6 .body{grid-template-columns:1fr!important;}
-  /* s8 季度回顧手機強制 grid 重排 */
-  #s8 .panel > div[style*="grid-template-columns:1.2fr"]{grid-template-columns:1fr!important;gap:8px!important;}
-  #s8 .panel > div[style*="grid-template-columns:1fr 1fr 1fr 1fr"]{grid-template-columns:1fr 1fr!important;gap:10px!important;}
-  #s8 .panel > div[style*="grid-template-columns:1fr 1fr"]:not([style*="1fr 1fr 1fr"]){grid-template-columns:1fr!important;gap:10px!important;}
-  #s8 .panel > div > div[style*="border-left:1px solid"]{border-left:none!important;border-top:1px solid var(--line)!important;padding-top:8px!important;}
-  #s8 .sh{flex-wrap:wrap;}
-  /* s2 訂單來源條狀圖手機調整 */
-  #s2 #src-list > div > div:first-child > div:nth-last-child(2){font-size:12px!important;}
   .panel{padding:10px 12px;}
   .pt{font-size:13px;}
   .sc{max-height:none;overflow:visible;}
@@ -229,7 +225,7 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
 <div id="astrip">
   <div class="al">當月累計</div><div class="av2" id="a-rev"></div>
   <div class="abar"><div class="abar-f" id="a-fill" style="width:0%"></div><div class="abar-t" id="a-tgt"></div></div>
-  <div id="a-pct" style="font-family:'DM Mono',monospace;font-size:15px;font-weight:700;"></div>
+  <div id="a-pct" style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:15px;font-weight:700;"></div>
   <div class="adiv"></div><div class="al">本週至今</div><div id="a-week" class="av2"></div>
   <div class="adiv"></div><div class="al">昨日</div><div id="a-yday" class="av2"></div>
   <div class="adiv"></div><div class="al">均價 / 中位</div><div id="a-aov" class="av2"></div>
@@ -265,7 +261,7 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
     </div>
   </div>
   <!-- 下排：區塊 3（寬版 3 單位）+ 區塊 4（窄版 1 單位） -->
-  <div class="body">
+  <div class="body" style="margin-top:10px;">
     <div style="display:flex;flex-direction:column;gap:10px;flex:3;">
       <!-- 區塊 3：本月決策焦點（寬版） -->
       <div class="panel" style="flex:1;">
@@ -290,34 +286,18 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
 </div>
 
 <div class="slide" id="s2">
-  <div class="sh"><div class="sh-t">年度業績對比 · 訂單來源</div><div class="stag tg">2026 vs 2025</div><div class="stag tb">近 7 天</div></div>
+  <div class="sh"><div class="sh-t">年度業績對比 · 訂單來源</div><div class="stag tg">2026 vs 2025</div></div>
   <div class="body">
-    <div style="display:flex;flex-direction:column;gap:10px;min-height:0;">
-      <div class="panel" style="flex:1;min-height:0;">
-        <div class="pl">月度業績</div>
-        <div style="display:flex;gap:12px;margin-bottom:7px;">
-          <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--sub);"><div style="width:10px;height:5px;background:var(--blue);border-radius:1px;"></div>2026</div>
-          <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--sub);"><div style="width:10px;height:5px;background:rgba(30,58,95,.3);border-radius:1px;"></div>2025</div>
-        </div>
-        <div class="sc" id="monthly-tbl"></div>
-      </div>
-      <div class="panel" style="flex:1;min-height:0;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-          <div><div class="pl" style="margin:0;">近 7 天業績</div><div class="pt" style="margin:2px 0 0;">含星期幾 · 平均線 NT$ 150,000/天</div></div>
-          <span style="font-size:9px;padding:2px 7px;background:rgba(15,143,133,.1);color:var(--teal);border-radius:10px;letter-spacing:.5px;">本月目標 450萬 ÷ 30</span>
-        </div>
-        <div class="chart-box" style="min-height:160px;"><canvas id="last7-chart"></canvas></div>
-      </div>
-    </div>
     <div class="panel">
-      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px;">
-        <div>
-          <div class="pl">訂單來源</div>
-          <div class="pt" style="margin:0;">依推薦活動 · 共 <span id="src-total-orders">—</span> 筆</div>
-        </div>
-        <span style="font-size:9px;padding:2px 7px;background:rgba(59,125,216,.1);color:var(--blue);border-radius:10px;letter-spacing:.5px;">本月</span>
+      <div class="pl">月度業績</div>
+      <div style="display:flex;gap:12px;margin-bottom:7px;">
+        <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--sub);"><div style="width:10px;height:5px;background:var(--blue);border-radius:1px;"></div>2026</div>
+        <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--sub);"><div style="width:10px;height:5px;background:rgba(30,58,95,.3);border-radius:1px;"></div>2025</div>
       </div>
-      <div id="src-list" style="display:flex;flex-direction:column;gap:10px;flex:1;min-height:0;overflow-y:auto;"></div>
+      <div class="sc" id="monthly-tbl"></div>
+    </div>
+    <div class="panel"><div class="pl">訂單來源</div><div class="pt">依推薦活動分類</div>
+      <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:6px;" id="src-chart"></div>
     </div>
   </div>
 </div>
@@ -330,7 +310,7 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
     <div style="display:flex;flex-direction:column;gap:8px;">
       <div style="padding:10px 14px;background:rgba(217,75,107,.06);border:1px solid rgba(217,75,107,.3);border-radius:7px;display:flex;align-items:center;gap:12px;flex-shrink:0;">
         <div style="font-size:28px;">⚠️</div>
-        <div><div id="unpaid-summary" style="font-family:'DM Mono',monospace;font-size:20px;color:var(--coral);font-weight:700;"></div>
+        <div><div id="unpaid-summary" style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:20px;color:var(--coral);font-weight:700;"></div>
           <div style="font-size:10px;color:var(--sub);">未付款且未取消 · 需跟進</div></div>
       </div>
       <div class="sc" id="unpaid-cards" style="flex:1;display:flex;flex-direction:column;gap:7px;"></div>
@@ -481,20 +461,20 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
         <!-- 本季至今 -->
         <div style="padding:12px 14px;background:rgba(217,75,107,.06);border-left:3px solid var(--coral);border-radius:4px;">
           <div style="font-size:9px;letter-spacing:1.5px;color:var(--coral);text-transform:uppercase;margin-bottom:6px;font-weight:700;">🔴 本季至今</div>
-          <div id="s9-cur-rev" style="font-family:'DM Mono',monospace;font-size:24px;font-weight:700;color:var(--coral);line-height:1;"></div>
+          <div id="s9-cur-rev" style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:24px;font-weight:700;color:var(--coral);line-height:1;"></div>
           <div id="s9-cur-orders" style="font-size:10px;color:var(--sub);margin-top:4px;"></div>
         </div>
         <!-- 去年同期同日 -->
         <div style="padding:12px 14px;background:rgba(59,125,216,.05);border-left:3px solid var(--blue);border-radius:4px;">
           <div style="font-size:9px;letter-spacing:1.5px;color:var(--blue);text-transform:uppercase;margin-bottom:6px;font-weight:700;">🔵 去年同期同日</div>
-          <div id="s9-ly-same-rev" style="font-family:'DM Mono',monospace;font-size:20px;font-weight:700;color:var(--blue);line-height:1;"></div>
+          <div id="s9-ly-same-rev" style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:20px;font-weight:700;color:var(--blue);line-height:1;"></div>
           <div id="s9-ly-same-period" style="font-size:9px;color:var(--sub);margin-top:2px;"></div>
           <div id="s9-yoy" style="font-size:11px;margin-top:5px;font-weight:600;"></div>
         </div>
         <!-- 去年全季 -->
         <div style="padding:12px 14px;background:rgba(100,116,139,.06);border-left:3px solid var(--sub);border-radius:4px;">
           <div style="font-size:9px;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase;margin-bottom:6px;font-weight:700;">⚫ 去年全季</div>
-          <div id="s9-ly-full-rev" style="font-family:'DM Mono',monospace;font-size:20px;font-weight:700;color:var(--ink);line-height:1;"></div>
+          <div id="s9-ly-full-rev" style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:20px;font-weight:700;color:var(--ink);line-height:1;"></div>
           <div id="s9-ly-full-period" style="font-size:9px;color:var(--sub);margin-top:2px;"></div>
           <div id="s9-progress" style="font-size:11px;margin-top:5px;font-weight:600;"></div>
         </div>
@@ -514,16 +494,16 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;padding-bottom:12px;border-bottom:1px dashed var(--line);margin-bottom:12px;">
         <div style="text-align:center;">
           <div style="font-size:9px;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase;margin-bottom:4px;">總營收</div>
-          <div id="s9-rev" style="font-family:'DM Mono',monospace;font-size:22px;font-weight:700;color:var(--blue);line-height:1;"></div>
+          <div id="s9-rev" style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:22px;font-weight:700;color:var(--blue);line-height:1;"></div>
         </div>
         <div style="text-align:center;border-left:1px solid var(--line);">
           <div style="font-size:9px;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase;margin-bottom:4px;">總訂單</div>
-          <div id="s9-orders" style="font-family:'DM Mono',monospace;font-size:22px;font-weight:700;color:var(--teal);line-height:1;"></div>
+          <div id="s9-orders" style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:22px;font-weight:700;color:var(--teal);line-height:1;"></div>
           <div id="s9-orders-sub" style="font-size:9px;color:var(--sub);margin-top:3px;"></div>
         </div>
         <div style="text-align:center;border-left:1px solid var(--line);">
           <div style="font-size:9px;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase;margin-bottom:4px;">新客／回購</div>
-          <div id="s9-custs" style="font-family:'DM Mono',monospace;font-size:20px;font-weight:700;line-height:1;"></div>
+          <div id="s9-custs" style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:20px;font-weight:700;line-height:1;"></div>
           <div id="s9-custs-sub" style="font-size:9px;color:var(--sub);margin-top:3px;"></div>
         </div>
         <div style="text-align:center;border-left:1px solid var(--line);">
@@ -558,7 +538,7 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
 
 <script>
 /* 使用者日後用 shopline_to_dashboard.py 產生的 D JSON 直接取代下面這段 */
-const D={"meta":{"report_month":"2026年4月","data_as_of":"2026-04-16","days_elapsed":16,"days_total":30,"yesterday":"2026-04-16"},"target":4500000,"kpi":{"rev_mtd":2795806,"rev_projected":5242136,"achievement_pct":62.1,"proj_achievement_pct":116.5,"orders_mtd":424,"avg_order":6593,"median_order":2500,"new_customers":248,"returning":133,"rev_25_apr":2981757,"rev_jan":3606932,"rev_feb":4360250,"rev_mar":4608234},"week":{"this_rev":968670,"last_rev":457629,"this_orders":86,"last_orders":79,"this_avg":11263,"ly_rev":356700,"ly_orders":32},"yesterday":{"rev":135147,"orders":18,"rev_ly_same":129150,"orders_ly_same":9,"agents":[],"products":[]},"monthly_26":[{"month":"1月","rev":3606932},{"month":"2月","rev":4360250},{"month":"3月","rev":4608234},{"month":"4月","rev":2795806,"current":true},{"month":"5月","rev":0},{"month":"6月","rev":0},{"month":"7月","rev":0},{"month":"8月","rev":0},{"month":"9月","rev":0},{"month":"10月","rev":0},{"month":"11月","rev":0},{"month":"12月","rev":0}],"monthly_25":[{"month":"1月","rev":991786},{"month":"2月","rev":1905087},{"month":"3月","rev":2685469},{"month":"4月","rev":2981757},{"month":"5月","rev":2588350},{"month":"6月","rev":2073963},{"month":"7月","rev":4243254},{"month":"8月","rev":4650533},{"month":"9月","rev":2940865},{"month":"10月","rev":4610805},{"month":"11月","rev":4706874},{"month":"12月","rev":2975102}],"new_6m":[{"month":"2025/11","label":"11月","new":262,"old":144,"total":406,"new_pct":64.5,"old_pct":35.5},{"month":"2025/12","label":"12月","new":257,"old":159,"total":416,"new_pct":61.8,"old_pct":38.2},{"month":"2026/01","label":"1月","new":338,"old":143,"total":481,"new_pct":70.3,"old_pct":29.7},{"month":"2026/02","label":"2月","new":593,"old":195,"total":788,"new_pct":75.3,"old_pct":24.7},{"month":"2026/03","label":"3月","new":567,"old":186,"total":753,"new_pct":75.3,"old_pct":24.7},{"month":"2026/04","label":"4月","new":248,"old":133,"total":381,"new_pct":65.1,"old_pct":34.9}],"churn":{"monthly":[],"churned_90":2250,"new_90":1621,"ret_90":329},"agents":[{"name":"陳怡萍（深圳）","orders":19,"rev":451618,"rank":1,"prev_rank":1},{"name":"江瑩（深圳）","orders":18,"rev":239615,"rank":2,"prev_rank":2},{"name":"均睿（彰化）","orders":13,"rev":129770,"rank":3,"prev_rank":3},{"name":"楊依靈（台南）","orders":4,"rev":74548,"rank":4,"prev_rank":4},{"name":"林志娟（台中）","orders":2,"rev":28600,"rank":5,"prev_rank":null},{"name":"小葳（彰化）","orders":1,"rev":16954,"rank":6,"prev_rank":null}],"sources":[{"src":"業務推薦","orders":57,"customers":51,"rev":941105},{"src":"直接/官網","orders":161,"customers":153,"rev":720567},{"src":"Facebook 來源","orders":88,"customers":84,"rev":487490},{"src":"LINE 來源","orders":75,"customers":69,"rev":443158},{"src":"其他","orders":20,"customers":20,"rev":108567},{"src":"Instagram 來源","orders":23,"customers":22,"rev":94919}],"cities":[{"city":"新北市","customers":64,"orders":74,"rev":537638,"aov":7265},{"city":"台北市","customers":53,"orders":55,"rev":418545,"aov":7609},{"city":"高雄市","customers":56,"orders":62,"rev":393175,"aov":6341},{"city":"台中市","customers":39,"orders":45,"rev":323360,"aov":7185},{"city":"新竹縣","customers":14,"orders":19,"rev":248405,"aov":13073},{"city":"台南市","customers":27,"orders":30,"rev":228301,"aov":7610},{"city":"桃園市","customers":22,"orders":22,"rev":117599,"aov":5345},{"city":"苗栗縣","customers":11,"orders":11,"rev":82584,"aov":7507},{"city":"新竹市","customers":14,"orders":15,"rev":75990,"aov":5066},{"city":"雲林縣","customers":6,"orders":6,"rev":48040,"aov":8006}],"regions":[{"key":"north","name":"北北基桃","cities":["新北市","台北市","桃園市","基隆市"],"customers":139,"orders":151,"rev":1073782,"aov":7111,"color":"#3B7DD8"},{"key":"hsinchu","name":"桃竹苗","cities":["新竹縣","新竹市","苗栗縣"],"customers":39,"orders":45,"rev":406979,"aov":9044,"color":"#0F8F85"},{"key":"central","name":"中彰投","cities":["台中市","彰化縣","南投縣"],"customers":51,"orders":58,"rev":398420,"aov":6869,"color":"#B8902A"},{"key":"south","name":"雲嘉南","cities":["雲林縣","嘉義縣","嘉義市","台南市"],"customers":41,"orders":44,"rev":304821,"aov":6928,"color":"#7B5FC7"},{"key":"kp","name":"高屏","cities":["高雄市","屏東縣"],"customers":63,"orders":70,"rev":428560,"aov":6122,"color":"#D94B6B"},{"key":"east","name":"東部離島","cities":["宜蘭縣","花蓮縣","台東縣","澎湖縣"],"customers":12,"orders":14,"rev":69200,"aov":4943,"color":"#E67E22"}],"towns":{"新北市":[{"town":"板橋區","orders":18,"rev":138500,"customers":16,"aov":7694},{"town":"中和區","orders":13,"rev":102400,"customers":12,"aov":7877},{"town":"新莊區","orders":11,"rev":88200,"customers":10,"aov":8018},{"town":"三重區","orders":9,"rev":64300,"customers":8,"aov":7144},{"town":"永和區","orders":8,"rev":58900,"customers":7,"aov":7363},{"town":"汐止區","orders":7,"rev":48200,"customers":6,"aov":6886},{"town":"淡水區","orders":5,"rev":29800,"customers":4,"aov":5960},{"town":"土城區","orders":3,"rev":7338,"customers":3,"aov":2446}],"台北市":[{"town":"信義區","orders":12,"rev":138200,"customers":11,"aov":11517},{"town":"大安區","orders":10,"rev":98600,"customers":9,"aov":9860},{"town":"中山區","orders":9,"rev":72400,"customers":8,"aov":8044},{"town":"內湖區","orders":8,"rev":51800,"customers":7,"aov":6475},{"town":"士林區","orders":6,"rev":32400,"customers":6,"aov":5400},{"town":"松山區","orders":5,"rev":15300,"customers":5,"aov":3060},{"town":"文山區","orders":3,"rev":6800,"customers":3,"aov":2267},{"town":"中正區","orders":2,"rev":3045,"customers":2,"aov":1523}],"台中市":[{"town":"北屯區","orders":11,"rev":96300,"customers":9,"aov":8755},{"town":"西屯區","orders":9,"rev":78400,"customers":8,"aov":8711},{"town":"南屯區","orders":7,"rev":52100,"customers":6,"aov":7443},{"town":"北區","orders":6,"rev":38900,"customers":5,"aov":6483},{"town":"西區","orders":5,"rev":28400,"customers":5,"aov":5680},{"town":"豐原區","orders":4,"rev":19200,"customers":3,"aov":4800},{"town":"大里區","orders":3,"rev":10060,"customers":3,"aov":3353}],"高雄市":[{"town":"左營區","orders":14,"rev":102400,"customers":12,"aov":7314},{"town":"鼓山區","orders":11,"rev":82600,"customers":10,"aov":7509},{"town":"苓雅區","orders":9,"rev":61300,"customers":8,"aov":6811},{"town":"三民區","orders":8,"rev":52800,"customers":7,"aov":6600},{"town":"鳳山區","orders":7,"rev":41200,"customers":6,"aov":5886},{"town":"前鎮區","orders":6,"rev":28400,"customers":6,"aov":4733},{"town":"楠梓區","orders":4,"rev":17475,"customers":4,"aov":4369},{"town":"小港區","orders":3,"rev":7000,"customers":3,"aov":2333}],"台南市":[{"town":"東區","orders":8,"rev":78400,"customers":7,"aov":9800},{"town":"安平區","orders":6,"rev":52300,"customers":5,"aov":8717},{"town":"中西區","orders":5,"rev":38200,"customers":4,"aov":7640},{"town":"永康區","orders":5,"rev":29600,"customers":5,"aov":5920},{"town":"仁德區","orders":3,"rev":17300,"customers":3,"aov":5767},{"town":"歸仁區","orders":3,"rev":12501,"customers":3,"aov":4167}],"桃園市":[{"town":"桃園區","orders":7,"rev":42300,"customers":7,"aov":6043},{"town":"中壢區","orders":6,"rev":38200,"customers":6,"aov":6367},{"town":"八德區","orders":4,"rev":18400,"customers":4,"aov":4600},{"town":"平鎮區","orders":3,"rev":11099,"customers":3,"aov":3700},{"town":"龜山區","orders":2,"rev":7600,"customers":2,"aov":3800}],"新竹縣":[{"town":"竹北市","orders":12,"rev":184300,"customers":9,"aov":15358},{"town":"竹東鎮","orders":4,"rev":42100,"customers":3,"aov":10525},{"town":"新埔鎮","orders":2,"rev":15200,"customers":1,"aov":7600},{"town":"湖口鄉","orders":1,"rev":6805,"customers":1,"aov":6805}],"新竹市":[{"town":"東區","orders":9,"rev":48200,"customers":8,"aov":5356},{"town":"北區","orders":4,"rev":21500,"customers":4,"aov":5375},{"town":"香山區","orders":2,"rev":6290,"customers":2,"aov":3145}],"苗栗縣":[{"town":"頭份市","orders":5,"rev":42800,"customers":5,"aov":8560},{"town":"苗栗市","orders":3,"rev":24100,"customers":3,"aov":8033},{"town":"竹南鎮","orders":2,"rev":11200,"customers":2,"aov":5600},{"town":"公館鄉","orders":1,"rev":4484,"customers":1,"aov":4484}],"雲林縣":[{"town":"斗六市","orders":3,"rev":28400,"customers":3,"aov":9467},{"town":"虎尾鎮","orders":2,"rev":13200,"customers":2,"aov":6600},{"town":"西螺鎮","orders":1,"rev":6440,"customers":1,"aov":6440}]},"prod_rev":[{"name":"帝王拓帕石系列｜裸石 ｜寵粉","qty":14,"price":10314,"rev":144400},{"name":"簡約緋紅｜紅寶石套組","qty":1,"price":72000,"rev":72000},{"name":"首選大克拉鴿子蛋｜奢華紫玉髓套組","qty":2,"price":36000,"rev":72000},{"name":"(11.13A)哥倫比亞祖母綠 套組","qty":1,"price":72000,"rev":72000},{"name":"蕭邦同款｜彩寶可開關寶盒｜吊墜","qty":6,"price":11833,"rev":71000},{"name":"限量特價 天然藍寶石套組","qty":1,"price":65000,"rev":65000},{"name":"倫敦藍拓帕｜方枕型裸石","qty":49,"price":1193,"rev":58500},{"name":"招財旺事業｜平步青雲&綠幽靈｜手串","qty":31,"price":1854,"rev":57476},{"name":"璀璨藍光｜托帕石套組","qty":3,"price":18000,"rev":54000},{"name":"海洋之淚｜托帕石套組","qty":2,"price":27000,"rev":54000}],"prod_qty":[{"name":"財富能量| 黃鐵礦","qty":54,"price":419,"rev":22650},{"name":"倫敦藍拓帕｜方枕型裸石","qty":49,"price":1193,"rev":58500},{"name":"爆款彩色｜尖晶石","qty":45,"price":500,"rev":22500},{"name":"能量手串｜水草瑪瑙","qty":33,"price":800,"rev":26400},{"name":"能量手串｜金髮晶","qty":32,"price":800,"rev":25600},{"name":"圓足球切｜檸檬水晶","qty":32,"price":771,"rev":24700},{"name":"消磁聚寶盆｜瑪瑙晶洞","qty":31,"price":400,"rev":12400},{"name":"橢圓足球切｜檸檬水晶","qty":31,"price":712,"rev":22100},{"name":"招財旺事業｜平步青雲手串","qty":31,"price":1854,"rev":57476},{"name":"能量手串｜葡萄晶","qty":30,"price":800,"rev":24000}],"dormant_45":[{"name":"3克拉18k銀色蛋白石吊墜","days":467},{"name":"補莫桑鑽3mm+鍍金","days":467},{"name":"18K銀色蛋白石戒指","days":467},{"name":"溱姊祖母綠婚戒款35000","days":465},{"name":"紫色藍寶石","days":463},{"name":"18k莫桑小粉鑽-附證書","days":460},{"name":"葡萄石5.77克拉","days":459},{"name":"天然磷灰石耳釘料","days":456},{"name":"祖母綠s925莫桑吊墜","days":455},{"name":"GIA鑽石現金優惠","days":453},{"name":"極光的肌 美白膠囊","days":453},{"name":"1克拉溱姊祖母綠婚戒","days":452},{"name":"金博氏爆塑燃60錠","days":452},{"name":"1.01克拉黃藍寶戒指","days":452},{"name":"龜鹿鴕鳥精","days":452},{"name":"天然芬達石 4.18克拉","days":451},{"name":"海藍寶 2.37ct","days":451},{"name":"帕拉依巴磷灰石耳勾","days":449},{"name":"紅燒牛三寶麵","days":453},{"name":"蔥燒排骨麵","days":453}],"customers":[{"name":"陳O惠","orders":8,"rev":151050},{"name":"王O雯","orders":4,"rev":107850},{"name":"徐O芝","orders":1,"rev":88500},{"name":"紀O韻","orders":4,"rev":69085},{"name":"莊O芬","orders":2,"rev":55943},{"name":"陳O佐","orders":1,"rev":41900},{"name":"LOOOy","orders":1,"rev":41190},{"name":"高O芳","orders":1,"rev":40364},{"name":"楊O妮","orders":1,"rev":39900},{"name":"林O珍","orders":1,"rev":38000}],"interval":{"dist":{"低 <3千":230,"中 3–10千":101,"高 >1萬":93},"pct":{"低 <3千":54.2,"中 3–10千":23.8,"高 >1萬":21.9},"median":2500},"interval_mar":{"dist":{"低 <3千":538,"中 3–10千":181,"高 >1萬":125},"pct":{"低 <3千":63.7,"中 3–10千":21.4,"高 >1萬":14.8},"median":1960},"dow":[{"day":"週一","orders":44,"rev":402369},{"day":"週二","orders":45,"rev":335098},{"day":"週三","orders":78,"rev":652439},{"day":"週四","orders":86,"rev":380325},{"day":"週五","orders":78,"rev":419861},{"day":"週六","orders":48,"rev":311441},{"day":"週日","orders":45,"rev":294273}],"dow_mar":[{"day":"週一","orders":114,"rev":725291},{"day":"週二","orders":132,"rev":956909},{"day":"週三","orders":104,"rev":740241},{"day":"週四","orders":84,"rev":458518},{"day":"週五","orders":117,"rev":684401},{"day":"週六","orders":153,"rev":612710},{"day":"週日","orders":140,"rev":430164}],"hour_dist":[{"hour":0,"orders":15},{"hour":1,"orders":15},{"hour":2,"orders":5},{"hour":3,"orders":3},{"hour":4,"orders":1},{"hour":5,"orders":2},{"hour":6,"orders":4},{"hour":7,"orders":7},{"hour":8,"orders":7},{"hour":9,"orders":20},{"hour":10,"orders":12},{"hour":11,"orders":18},{"hour":12,"orders":18},{"hour":13,"orders":26},{"hour":14,"orders":22},{"hour":15,"orders":24},{"hour":16,"orders":23},{"hour":17,"orders":26},{"hour":18,"orders":25},{"hour":19,"orders":17},{"hour":20,"orders":31},{"hour":21,"orders":29},{"hour":22,"orders":38},{"hour":23,"orders":36}],"hour_dist_mar":[{"hour":0,"orders":30},{"hour":1,"orders":20},{"hour":2,"orders":6},{"hour":3,"orders":5},{"hour":4,"orders":5},{"hour":5,"orders":3},{"hour":6,"orders":11},{"hour":7,"orders":9},{"hour":8,"orders":23},{"hour":9,"orders":29},{"hour":10,"orders":35},{"hour":11,"orders":35},{"hour":12,"orders":42},{"hour":13,"orders":48},{"hour":14,"orders":43},{"hour":15,"orders":46},{"hour":16,"orders":52},{"hour":17,"orders":55},{"hour":18,"orders":43},{"hour":19,"orders":52},{"hour":20,"orders":56},{"hour":21,"orders":68},{"hour":22,"orders":66},{"hour":23,"orders":62}],"shopping_habits":{"spend_dist":{"<2千":166,"2–5千":112,"5千–1萬":53,"1–3萬":75,">3萬":18},"single_item":96,"multi_item":324,"avg_items":3.1,"item_dist":{"1":96,"2":132,"3":77,"4":40,"5":28,"6":47},"pay_speed":{"10分鐘內":402,"10分–1小時":6,"1–24小時":10,">24小時":6,"median_min":0},"top_combos":[[["招財之石｜金運石吊墜","黑金超七｜項鏈"],33],[["招財之石｜金運石吊墜","招財旺事業｜平步青雲｜手串"],26],[["天然琥珀｜能量守護","平步青雲｜手串"],23],[["天然琥珀","太陽之石｜橄欖石｜手鍊"],23],[["天選三石｜一生守護","招財旺事業手串"],23]]},"member_funnel":[{"level":"入門藏家","count":89,"orders":106,"rev":892214,"aov":8417},{"level":"精選藏家","count":11,"orders":14,"rev":138396,"aov":9885},{"level":"資深藏家","count":1,"orders":8,"rev":151050,"aov":18881},{"level":"VIP頂級藏家","count":1,"orders":2,"rev":0,"aov":0}],"first_vs_return":{"first_aov":5018,"return_aov":8814,"first_med":2100,"return_med":4191},"strategy":{"keep":["帝王拓帕石系列","簡約緋紅｜紅寶石套組","首選大克拉鴿子蛋｜紫玉髓","哥倫比亞祖母綠 套組","蕭邦同款｜彩寶吊墜","限量 天然藍寶石套組"],"exit":["3克拉18k銀色蛋白石","補莫桑鑽3mm+鍍金","18K銀色蛋白石戒指","溱姊祖母綠婚戒款","紫色藍寶石","18k莫桑小粉鑽"],"top3_agents":["陳怡萍（深圳）⚡本週王","江瑩（深圳）","均睿（彰化）","楊依靈（台南）","林志娟（台中）","小葳（彰化）"],"top3_q1":[{"name":"均睿（彰化）","orders":78,"rev":1372145},{"name":"以恩（彰化）","orders":38,"rev":895069},{"name":"Ling Ling（深圳）","orders":89,"rev":555626},{"name":"楊依靈（台南）","orders":16,"rev":309420},{"name":"嘉玲（彰化）","orders":4,"rev":117790},{"name":"木木emily（台中）","orders":3,"rev":59060}],"prev_quarter_label":"Q1（2026年）"},"unpaid":[{"owner":"客服統一跟進","role":"客服","orders":[{"order_id":"#20260413121443103","customer":"林O媛","amount":1300,"days_waiting":2,"date":"2026-04-13"},{"order_id":"#20260414020446125","customer":"陳O君","amount":1600,"days_waiting":1,"date":"2026-04-14"},{"order_id":"#20260415075627393","customer":"羅O美","amount":700,"days_waiting":0,"date":"2026-04-15"},{"order_id":"#20260416133704932","customer":"潘O娟","amount":1476,"days_waiting":0,"date":"2026-04-16"}],"count":4,"total_amount":5076,"max_days":2}],"rfm":{"grid":[[{"k":"潛在忠實","c":61,"rev":458900,"r":3,"fm":1,"action":"培養","color":"#0F8F85"},{"k":"忠實客戶","c":42,"rev":612300,"r":3,"fm":2,"action":"回饋","color":"#B8902A"},{"k":"冠軍客戶","c":28,"rev":891400,"r":3,"fm":3,"action":"維繫","color":"#D94B6B"}],[{"k":"有希望","c":54,"rev":148600,"r":2,"fm":1,"action":"首購回訪","color":"#3B7DD8"},{"k":"需關心","c":38,"rev":226800,"r":2,"fm":2,"action":"優惠券","color":"#7B5FC7"},{"k":"關注中","c":24,"rev":342100,"r":2,"fm":3,"action":"再激活","color":"#E67E22"}],[{"k":"流失","c":84,"rev":98400,"r":1,"fm":1,"action":"放手","color":"#94A3B8"},{"k":"即將流失","c":31,"rev":183200,"r":1,"fm":2,"action":"問卷/補貼","color":"#64748B"},{"k":"無法失去","c":19,"rev":512400,"r":1,"fm":3,"action":"召回","color":"#BE185D"}]]},"active_tiers":[{"name":"活躍","desc":"近30天下單","count":287,"pct":22,"color":"#10A37F"},{"name":"溫層","desc":"30-90天","count":341,"pct":26,"color":"#0F8F85"},{"name":"冷卻","desc":"90-180天","count":298,"pct":23,"color":"#B8902A"},{"name":"沉睡","desc":"180-365天","count":234,"pct":18,"color":"#E67E22"},{"name":"流失","desc":">365天","count":144,"pct":11,"color":"#D94B6B"}],"heatmap":{"days":["週一","週二","週三","週四","週五","週六","週日"],"matrix":[[1,1,0,0,0,0,0,0,1,2,2,2,3,3,3,4,4,3,2,2,4,4,5,4],[1,1,0,0,0,0,0,0,1,2,2,3,3,4,4,4,4,3,2,2,4,4,5,4],[1,1,0,0,0,0,0,0,2,3,3,3,3,4,4,4,5,4,3,2,4,5,5,4],[1,1,0,0,0,0,0,0,2,3,3,3,4,5,4,4,5,4,3,2,4,4,5,5],[1,1,0,0,0,0,0,0,1,2,2,3,3,4,4,5,5,4,3,2,4,4,5,5],[1,1,0,0,0,0,0,0,1,1,2,2,3,3,3,3,3,3,2,1,3,3,4,3],[1,0,0,0,0,0,0,0,1,1,2,2,3,3,3,3,3,3,2,1,3,3,4,3]],"max":5},"repurchase":{"buckets":[{"range":"7天內","count":38,"pct":10},{"range":"8-30天","count":72,"pct":19},{"range":"31-60天","count":94,"pct":24},{"range":"61-90天","count":68,"pct":18},{"range":"91-180天","count":62,"pct":16},{"range":">180天","count":54,"pct":14}],"median_days":48,"avg_days":72,"repeat_rate":34}};
+const D={"target": 4500000, "meta": {"report_month": "2026年4月", "data_as_of": "2026-04-21", "days_elapsed": 21, "days_total": 30, "yesterday": "2026-04-21", "timezone": "UTC+08:00"}, "kpi": {"rev_mtd": 3442375, "rev_projected": 4917678, "achievement_pct": 76.5, "proj_achievement_pct": 109.3, "orders_mtd": 501, "avg_order": 6871, "median_order": 2788, "new_customers": 288, "returning": 151, "rev_25_apr": 2981757, "rev_jan": 3605872, "rev_feb": 4360250, "rev_mar": 4571268}, "week": {"this_rev": 186347, "last_rev": 590070, "this_orders": 21, "last_orders": 54, "this_avg": 8873, "ly_rev": 220600, "ly_orders": 30}, "yesterday": {"rev": 71718, "orders": 9, "rev_ly_same": 110800, "orders_ly_same": 7, "agents": [], "products": []}, "monthly_26": [{"month": "1月", "rev": 3605872}, {"month": "2月", "rev": 4360250}, {"month": "3月", "rev": 4571268}, {"month": "4月", "rev": 3442375, "current": true}, {"month": "5月", "rev": 0}, {"month": "6月", "rev": 0}, {"month": "7月", "rev": 0}, {"month": "8月", "rev": 0}, {"month": "9月", "rev": 0}, {"month": "10月", "rev": 0}, {"month": "11月", "rev": 0}, {"month": "12月", "rev": 0}], "monthly_25": [{"month": "1月", "rev": 991786}, {"month": "2月", "rev": 1905087}, {"month": "3月", "rev": 2685469}, {"month": "4月", "rev": 2981757}, {"month": "5月", "rev": 2553800}, {"month": "6月", "rev": 1951963}, {"month": "7月", "rev": 4243254}, {"month": "8月", "rev": 4630533}, {"month": "9月", "rev": 2940865}, {"month": "10月", "rev": 4610805}, {"month": "11月", "rev": 4706874}, {"month": "12月", "rev": 2975102}], "new_6m": [{"month": "2025/11", "label": "11月", "new": 262, "old": 144, "total": 406, "new_pct": 64.5, "old_pct": 35.5}, {"month": "2025/12", "label": "12月", "new": 257, "old": 159, "total": 416, "new_pct": 61.8, "old_pct": 38.2}, {"month": "2026/01", "label": "1月", "new": 338, "old": 143, "total": 481, "new_pct": 70.3, "old_pct": 29.7}, {"month": "2026/02", "label": "2月", "new": 593, "old": 195, "total": 788, "new_pct": 75.3, "old_pct": 24.7}, {"month": "2026/03", "label": "3月", "new": 567, "old": 186, "total": 753, "new_pct": 75.3, "old_pct": 24.7}, {"month": "2026/04", "label": "4月", "new": 288, "old": 151, "total": 439, "new_pct": 65.6, "old_pct": 34.4}], "churn": {"monthly": [{"month": "2026/02", "churn": 0}, {"month": "2026/03", "churn": 0}, {"month": "2026/04", "churn": 677}, {"month": "2026/04", "churn": 677}], "churned_90": 880, "new_90": 1682, "ret_90": 240}, "agents": [{"name": "客服跟單/陳怡萍/深圳", "orders": 18, "rev": 425763, "rank": 1, "prev_rank": 1}, {"name": "業務 /江瑩/ 深圳", "orders": 21, "rev": 289721, "rank": 2, "prev_rank": 3}, {"name": "跟單客服/ping/深圳", "orders": 8, "rev": 198260, "rank": 3, "prev_rank": null}, {"name": "業務/均睿/彰化", "orders": 14, "rev": 194540, "rank": 4, "prev_rank": 2}, {"name": "代理/楊依靈/台南", "orders": 5, "rev": 77704, "rank": 5, "prev_rank": 4}, {"name": "業務跟單 /江瑩/ 深圳", "orders": 2, "rev": 28960, "rank": 6, "prev_rank": null}, {"name": "代理/林志娟/台中", "orders": 2, "rev": 28600, "rank": 7, "prev_rank": null}, {"name": "代理/小葳/彰化", "orders": 1, "rev": 17127, "rank": 8, "prev_rank": null}, {"name": "跟單/王玉玲/深圳", "orders": 1, "rev": 15500, "rank": 9, "prev_rank": 5}, {"name": "銷售客服/雯熏/桃園", "orders": 2, "rev": 4860, "rank": 10, "prev_rank": null}], "sources": [{"src": "業務推薦", "orders": 74, "customers": 65, "rev": 1281035}, {"src": "其他", "orders": 170, "customers": 164, "rev": 747132}, {"src": "Facebook 來源", "orders": 125, "customers": 114, "rev": 693977}, {"src": "LINE 來源", "orders": 100, "customers": 85, "rev": 555368}, {"src": "Instagram 來源", "orders": 29, "customers": 28, "rev": 153305}, {"src": "廣告推廣", "orders": 2, "customers": 2, "rev": 9399}, {"src": "TikTok 來源", "orders": 1, "customers": 1, "rev": 2159}], "cities": [{"city": "新北市", "customers": 73, "orders": 91, "rev": 715254, "aov": 7859}, {"city": "台北市", "customers": 60, "orders": 62, "rev": 451430, "aov": 7281}, {"city": "高雄市", "customers": 61, "orders": 70, "rev": 431508, "aov": 6164}, {"city": "台中市", "customers": 44, "orders": 52, "rev": 420651, "aov": 8089}, {"city": "新竹縣", "customers": 16, "orders": 22, "rev": 254897, "aov": 11586}, {"city": "台南市", "customers": 29, "orders": 33, "rev": 241370, "aov": 7314}, {"city": "桃園市", "customers": 28, "orders": 29, "rev": 162273, "aov": 5595}, {"city": "未知", "customers": 33, "orders": 38, "rev": 146591, "aov": 3857}, {"city": "新竹市", "customers": 16, "orders": 17, "rev": 99800, "aov": 5870}, {"city": "苗栗縣", "customers": 11, "orders": 12, "rev": 91967, "aov": 7663}], "regions": [{"key": "north", "name": "北北基桃", "cities": ["新北市", "台北市", "桃園市", "基隆市"], "color": "#3B7DD8", "customers": 168, "orders": 190, "rev": 1390104, "aov": 7316}, {"key": "hsinchu", "name": "桃竹苗", "cities": ["新竹縣", "新竹市", "苗栗縣"], "color": "#0F8F85", "customers": 43, "orders": 51, "rev": 446664, "aov": 8758}, {"key": "central", "name": "中彰投", "cities": ["台中市", "彰化縣", "南投縣"], "color": "#B8902A", "customers": 57, "orders": 65, "rev": 488515, "aov": 7515}, {"key": "south", "name": "雲嘉南", "cities": ["雲林縣", "嘉義縣", "嘉義市", "台南市"], "color": "#7B5FC7", "customers": 47, "orders": 52, "rev": 374718, "aov": 7206}, {"key": "kp", "name": "高屏", "cities": ["高雄市", "屏東縣"], "color": "#D94B6B", "customers": 78, "orders": 88, "rev": 505316, "aov": 5742}, {"key": "east", "name": "東部離島", "cities": ["宜蘭縣", "花蓮縣", "台東縣", "澎湖縣", "金門縣", "連江縣"], "color": "#E67E22", "customers": 17, "orders": 17, "rev": 90467, "aov": 5321}], "prod_rev": [{"name": "帝王拓帕石系列｜裸石 ｜寵粉", "qty": 16, "price": 10525, "rev": 168400}, {"name": "蕭邦同款｜彩寶可開關寶盒｜吊墜", "qty": 7, "price": 11428, "rev": 80000}, {"name": "(11.13A)哥倫比亞祖母綠 套組", "qty": 1, "price": 72000, "rev": 72000}, {"name": "首選大克拉鴿子蛋｜奢華紫玉髓套組", "qty": 2, "price": 36000, "rev": 72000}, {"name": "星芒緋紅｜紅寶石套組", "qty": 2, "price": 36000, "rev": 72000}, {"name": "簡約緋紅｜紅寶石套組", "qty": 1, "price": 72000, "rev": 72000}, {"name": "倫敦藍拓帕｜方枕型裸石", "qty": 56, "price": 1278, "rev": 71600}, {"name": "限量特價 天然藍寶石套組", "qty": 1, "price": 65000, "rev": 65000}, {"name": "招財旺事業｜平步青雲&綠幽靈｜手串", "qty": 37, "price": 1715, "rev": 63470}, {"name": "海洋之淚｜托帕石套組", "qty": 2, "price": 27000, "rev": 54000}], "prod_qty": [{"name": "光之淨化石｜原礦透石膏山", "qty": 67, "price": 419, "rev": 28100}, {"name": "財富能量| 黃鐵礦", "qty": 58, "price": 423, "rev": 24550}, {"name": "倫敦藍拓帕｜方枕型裸石", "qty": 56, "price": 1278, "rev": 71600}, {"name": "爆款彩色｜尖晶石", "qty": 47, "price": 500, "rev": 23500}, {"name": "消磁聚寶盆| 瑪瑙晶洞", "qty": 45, "price": 400, "rev": 18000}, {"name": "精品級精美包裝禮盒", "qty": 41, "price": 97, "rev": 4000}, {"name": "招財旺事業｜平步青雲&綠幽靈｜手串", "qty": 37, "price": 1715, "rev": 63470}, {"name": "能量手串｜水草瑪瑙 · 綠髮晶 · 草莓晶", "qty": 36, "price": 800, "rev": 28800}, {"name": "能量手串｜葡萄晶 · 黃水晶 · 紫水晶", "qty": 33, "price": 800, "rev": 26400}, {"name": "✨ 天選三石｜一生守護 ✨", "qty": 33, "price": 590, "rev": 19500}], "dormant_45": [{"name": "18K銀色蛋白石戒指 國際圍#12", "days": 473}, {"name": "3克拉18k銀色蛋白石吊墜", "days": 473}, {"name": "補莫桑鑽3mm+從新鍍金+牢固其他鑽", "days": 473}, {"name": "溱姊祖母綠婚戒款35000", "days": 471}, {"name": "紫色藍寶石", "days": 469}, {"name": "18k莫桑小粉鑽-附證書", "days": 466}, {"name": "葡萄石5.77克拉 7000元", "days": 465}, {"name": "天然磷灰石耳釘料  帕拉伊巴既視感 霓虹綠 1.78克拉 做個小輕奢很美 玻璃體 顏色很美很夢幻 🔥 滿螢光 霓虹感漂亮 6.5×5.4mm  市價1.6萬  特價🉐4500一對", "days": 462}, {"name": "祖母綠s925莫桑吊墜+蕭邦鏈50cm", "days": 461}, {"name": "GIA鑽石市價27萬現金優惠價格15萬(1/14付款鑽石訂金3000元)", "days": 459}], "customers": [{"name": "陳O惠", "orders": 12, "rev": 242185}, {"name": "王O雯", "orders": 4, "rev": 107850}, {"name": "徐O芝", "orders": 1, "rev": 88500}, {"name": "紀O韻", "orders": 5, "rev": 71760}, {"name": "rO2", "orders": 1, "rev": 63900}, {"name": "莊O芬", "orders": 2, "rev": 55959}, {"name": "林O卿", "orders": 2, "rev": 42700}, {"name": "陳O佐", "orders": 1, "rev": 41900}, {"name": "LOy", "orders": 1, "rev": 41220}, {"name": "高O芳", "orders": 1, "rev": 40382}], "interval": {"dist": {"低 <3千": 262, "中 3–10千": 126, "高 >1萬": 113}, "pct": {"低 <3千": 52.3, "中 3–10千": 25.1, "高 >1萬": 22.6}, "median": 2788}, "dow": [{"day": "週一", "orders": 56, "rev": 522096}, {"day": "週二", "orders": 55, "rev": 413055}, {"day": "週三", "orders": 78, "rev": 662434}, {"day": "週四", "orders": 87, "rev": 393453}, {"day": "週五", "orders": 100, "rev": 567062}, {"day": "週六", "orders": 70, "rev": 533446}, {"day": "週日", "orders": 55, "rev": 350829}], "hour_dist": [{"hour": 0, "orders": 19}, {"hour": 1, "orders": 17}, {"hour": 2, "orders": 5}, {"hour": 3, "orders": 4}, {"hour": 4, "orders": 2}, {"hour": 5, "orders": 3}, {"hour": 6, "orders": 5}, {"hour": 7, "orders": 8}, {"hour": 8, "orders": 9}, {"hour": 9, "orders": 20}, {"hour": 10, "orders": 15}, {"hour": 11, "orders": 21}, {"hour": 12, "orders": 22}, {"hour": 13, "orders": 30}, {"hour": 14, "orders": 26}, {"hour": 15, "orders": 29}, {"hour": 16, "orders": 29}, {"hour": 17, "orders": 30}, {"hour": 18, "orders": 27}, {"hour": 19, "orders": 21}, {"hour": 20, "orders": 35}, {"hour": 21, "orders": 36}, {"hour": 22, "orders": 44}, {"hour": 23, "orders": 44}], "weekday_hour": {"weekday": {"name": "平日", "sample_size": 1678, "peak": {"start": 21, "end": 23, "count": 294, "pct": 17.5}, "upload_suggest": {"start": 16, "end": 17}}, "weekend": {"name": "假日", "sample_size": 830, "peak": {"start": 12, "end": 14, "count": 125, "pct": 15.1}, "upload_suggest": {"start": 7, "end": 8}}}, "shopping_habits": {"pay_speed": {"10分鐘內": 450, "10分–1小時": 25, "1–24小時": 15, ">24小時": 10, "median_min": 5}, "top_combos": [[["能量手串｜水草瑪瑙 · 綠髮晶 · 草莓晶", "能量手串｜金髮晶 · 鈦晶 · 粉晶"], 9], [["招財旺事業｜平步青雲&綠幽靈｜手串", "財富能量| 黃鐵礦"], 6], [["能量手串｜葡萄晶 · 黃水晶 · 紫水晶", "能量手串｜鈦赫茲 · 鈦晶 · 月光石"], 6], [["能量手串｜石榴石 · 黃水晶 · 粉水晶", "能量手串｜葡萄晶 · 黃水晶 · 紫水晶"], 6], [["招財旺事業｜平步青雲&綠幽靈｜手串", "黑金超七｜項鏈（星輝骨幹）"], 6]]}, "member_funnel": [{"level": "VIP頂級藏家", "count": 1, "orders": 2, "rev": 0, "aov": 0}, {"level": "入門藏家", "count": 101, "orders": 124, "rev": 1012248, "aov": 8163}, {"level": "精選藏家", "count": 13, "orders": 17, "rev": 163125, "aov": 9595}, {"level": "資深藏家", "count": 1, "orders": 12, "rev": 242185, "aov": 20182}], "first_vs_return": {"first_aov": 5627, "return_aov": 9876, "first_med": 1950, "return_med": 4141}, "strategy": {"keep": ["帝王拓帕石系列｜裸石 ｜寵粉", "蕭邦同款｜彩寶可開關寶盒｜吊墜", "(11.13A)哥倫比亞祖母綠 套組", "首選大克拉鴿子蛋｜奢華紫玉髓套組", "星芒緋紅｜紅寶石套組", "簡約緋紅｜紅寶石套組"], "exit": ["18K銀色蛋白石戒指 國際圍#12", "3克拉18k銀色蛋白石吊墜", "補莫桑鑽3mm+從新鍍金+牢固其他鑽", "溱姊祖母綠婚戒款35000", "紫色藍寶石", "18k莫桑小粉鑽-附證書"], "top3_agents": ["客服跟單/陳怡萍/深圳", "業務 /江瑩/ 深圳", "跟單客服/ping/深圳", "業務/均睿/彰化", "代理/楊依靈/台南", "業務跟單 /江瑩/ 深圳", "代理/林志娟/台中", "代理/小葳/彰化", "跟單/王玉玲/深圳", "銷售客服/雯熏/桃園"], "top3_q1": [{"name": "業務/均睿/彰化", "orders": 81, "rev": 1526765, "months_active": 3}, {"name": "銷售客服/雯熏/桃園", "orders": 44, "rev": 928253, "months_active": 3}, {"name": "業務/以恩/彰化", "orders": 38, "rev": 895069, "months_active": 2}, {"name": "業務/ling Ling /深圳", "orders": 89, "rev": 555626, "months_active": 3}, {"name": "業務跟單 /江瑩/ 深圳", "orders": 28, "rev": 449080, "months_active": 1}, {"name": "代理/楊依靈/台南", "orders": 16, "rev": 309420, "months_active": 3}, {"name": "店務/沛珊2/台中文心", "orders": 40, "rev": 299730, "months_active": 3}, {"name": "業務/嘉玲/彰化", "orders": 4, "rev": 117790, "months_active": 1}, {"name": "主播/lingling/深圳", "orders": 11, "rev": 109650, "months_active": 1}, {"name": "代理/木木emily/台中", "orders": 3, "rev": 59060, "months_active": 1}], "prev_quarter_label": "Q1（2026年）"}, "quarter_review": {"current": {"quarter_label": "Q2（2026年）", "period_label": "04/01–04/21", "rev": 3442375, "orders": 501, "days_into": 21, "days_total": 91}, "ly_same_day": {"quarter_label": "Q2（2025年）", "period_label": "04/01–04/22", "rev": 1881307, "orders": 171, "yoy_pct": 83.0}, "ly_full": {"quarter_label": "Q2（2025年全季）", "period_label": "04/01–06/30", "rev": 7487520, "orders": 847, "progress_pct": 46.0}, "previous": {"quarter_label": "Q1（2026年）", "period_label": "01/01–03/31", "top_agents": [{"name": "業務/均睿/彰化", "orders": 81, "rev": 1526765, "months_active": 3}, {"name": "銷售客服/雯熏/桃園", "orders": 44, "rev": 928253, "months_active": 3}, {"name": "業務/以恩/彰化", "orders": 38, "rev": 895069, "months_active": 2}, {"name": "業務/ling Ling /深圳", "orders": 89, "rev": 555626, "months_active": 3}, {"name": "業務跟單 /江瑩/ 深圳", "orders": 28, "rev": 449080, "months_active": 1}, {"name": "代理/楊依靈/台南", "orders": 16, "rev": 309420, "months_active": 3}, {"name": "店務/沛珊2/台中文心", "orders": 40, "rev": 299730, "months_active": 3}, {"name": "業務/嘉玲/彰化", "orders": 4, "rev": 117790, "months_active": 1}, {"name": "主播/lingling/深圳", "orders": 11, "rev": 109650, "months_active": 1}, {"name": "代理/木木emily/台中", "orders": 3, "rev": 59060, "months_active": 1}], "monthly": [{"month": 1, "label": "1月", "rev": 3605872, "orders": 608, "is_current": false, "is_partial": false}, {"month": 2, "label": "2月", "rev": 4360250, "orders": 919, "is_current": false, "is_partial": false}, {"month": 3, "label": "3月", "rev": 4571268, "orders": 844, "is_current": false, "is_partial": false}], "total_rev": 12537390, "total_orders": 2371, "new_customers": 1498, "returning": 299, "new_pct": 83.4, "summary": "業績王 業務/均睿/彰化 貢獻 NT$ 1,526,765 · 總營收 NT$ 12,537,390 · 新客佔 83%"}}, "unpaid": [], "rfm": {"grid": [[{"k": "潛在忠實", "action": "培養", "color": "#0F8F85", "c": 153, "rev": 271538, "r": 3, "fm": 1}, {"k": "忠實客戶", "action": "回饋", "color": "#B8902A", "c": 212, "rev": 673118, "r": 3, "fm": 2}, {"k": "冠軍客戶", "action": "維繫", "color": "#D94B6B", "c": 292, "rev": 9067746, "r": 3, "fm": 3}], [{"k": "有希望", "action": "首購回訪", "color": "#3B7DD8", "c": 258, "rev": 424829, "r": 2, "fm": 1}, {"k": "需關心", "action": "優惠券", "color": "#7B5FC7", "c": 223, "rev": 952689, "r": 2, "fm": 2}, {"k": "關注中", "action": "再激活", "color": "#E67E22", "c": 187, "rev": 6434691, "r": 2, "fm": 3}], [{"k": "流失", "action": "放手", "color": "#94A3B8", "c": 248, "rev": 366896, "r": 1, "fm": 1}, {"k": "即將流失", "action": "問卷/補貼", "color": "#64748B", "c": 194, "rev": 704021, "r": 1, "fm": 2}, {"k": "無法失去", "action": "召回", "color": "#BE185D", "c": 155, "rev": 3847948, "r": 1, "fm": 3}]], "total_customers": 1922}, "active_tiers": [{"name": "活躍", "desc": "近30天下單", "color": "#10A37F", "count": 741, "pct": 17}, {"name": "溫層", "desc": "30-90天", "color": "#0F8F85", "count": 1187, "pct": 28}, {"name": "冷卻", "desc": "90-180天", "color": "#B8902A", "count": 883, "pct": 21}, {"name": "沉睡", "desc": "180-365天", "color": "#E67E22", "count": 1213, "pct": 29}, {"name": "流失", "desc": ">365天", "color": "#D94B6B", "count": 222, "pct": 5}], "repurchase": {"buckets": [{"range": "7天內", "count": 372, "pct": 31}, {"range": "8-30天", "count": 377, "pct": 31}, {"range": "31-60天", "count": 194, "pct": 16}, {"range": "61-90天", "count": 81, "pct": 7}, {"range": "91-180天", "count": 124, "pct": 10}, {"range": ">180天", "count": 56, "pct": 5}], "median_days": 19, "avg_days": 42, "repeat_rate": 28}, "health": {"new_customers": 288, "returning": 151, "new_pct": 65.6, "return_pct": 34.4, "champions": {"count": 2, "month_rev": 242185}, "senior": {"count": 1, "month_rev": 242185}, "vip": {"count": 1, "month_rev": 0}}, "action_focus": {"target_gap": {"rev_mtd": 3442375, "target": 4500000, "remaining": 1057625, "days_left": 9, "daily_needed": 117513, "current_daily_avg": 163922, "on_track": true, "rev_projected": 4917678, "proj_achievement_pct": 109.3}, "recovery_strategy": null, "churn_risk": {"count": 349, "potential_loss_90d": 4551969}, "unpaid_summary": {"count": 0, "total_amount": 0, "max_days": 0}, "cross_sell": [{"combo": ["能量手串｜水草瑪瑙 · 綠髮晶 · 草莓晶", "能量手串｜金髮晶 · 鈦晶 · 粉晶"], "count": 9}, {"combo": ["招財旺事業｜平步青雲&綠幽靈｜手串", "財富能量| 黃鐵礦"], "count": 6}, {"combo": ["能量手串｜葡萄晶 · 黃水晶 · 紫水晶", "能量手串｜鈦赫茲 · 鈦晶 · 月光石"], "count": 6}]}, "projection": {"rev_projected": 4917678, "proj_achievement_pct": 109.3, "confidence": "high", "trend_vs_last_month": 7.6}};
 
 const f=n=>n>=1000000?(n/1000000).toFixed(2)+'M':n>=1000?(n/1000).toFixed(0)+'K':Math.round(n).toLocaleString();
 const fN=n=>'NT$'+f(n);
@@ -570,10 +550,8 @@ const AC=['#D94B6B','#B8902A','#0F8F85','#3B7DD8','#7B5FC7','#E67E22','#10A37F',
 
 Chart.defaults.color='rgba(30,58,95,.62)';
 Chart.defaults.borderColor='rgba(30,58,95,.08)';
-Chart.defaults.font.family="'DM Mono','Noto Sans TC',sans-serif";
+Chart.defaults.font.family="'DM Mono','Menlo','Monaco','Courier New','Noto Sans TC','-apple-system','BlinkMacSystemFont','Segoe UI',sans-serif";
 Chart.defaults.font.size=11;
-// 註冊 annotation plugin（給近 7 天平均線用）
-if(typeof window.ChartAnnotation!=='undefined'){Chart.register(window.ChartAnnotation);}
 
 function stagger(el,delay=55){if(!el)return;el.querySelectorAll('.rr,.hrow').forEach((r,i)=>{setTimeout(()=>{r.classList.add('vis');r.querySelectorAll('.rbar,.hb').forEach(b=>{if(b.dataset.w)b.style.width=b.dataset.w+'%';});},i*delay);});}
 function onVis(el,cb){if(!el)return;const io=new IntersectionObserver(en=>{en.forEach(e=>{if(e.isIntersecting){cb();io.disconnect();}});},{threshold:.05});io.observe(el);}
@@ -615,19 +593,19 @@ function renderS1Kpi(){
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
       <div>
         <div style="font-size:9px;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase;margin-bottom:4px;">本月營收</div>
-        <div style="font-family:'DM Mono',monospace;font-size:26px;font-weight:700;color:var(--blue);line-height:1;">${fF(k.rev_mtd)}</div>
+        <div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:26px;font-weight:700;color:var(--blue);line-height:1;">${fF(k.rev_mtd)}</div>
         <div style="font-size:10px;color:var(--sub);margin-top:4px;">目標 ${fF(D.target)} · Day ${meta.days_elapsed||0}/${meta.days_total||30}</div>
       </div>
       <div>
         <div style="font-size:9px;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase;margin-bottom:4px;">月底預估</div>
-        <div style="font-family:'DM Mono',monospace;font-size:26px;font-weight:700;color:${confColor};line-height:1;">${fF(k.rev_projected)}</div>
+        <div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:26px;font-weight:700;color:${confColor};line-height:1;">${fF(k.rev_projected)}</div>
         <div style="font-size:10px;color:${confColor};margin-top:4px;">預估達成 ${pAch}% · ${confText}</div>
       </div>
     </div>
     <div style="margin-bottom:12px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
         <span style="font-size:10px;color:var(--sub);">達成進度</span>
-        <span style="font-family:'DM Mono',monospace;font-size:13px;font-weight:700;color:${ach>=100?'var(--up)':'var(--blue)'};">${ach}%</span>
+        <span style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:13px;font-weight:700;color:${ach>=100?'var(--up)':'var(--blue)'};">${ach}%</span>
       </div>
       <div style="height:8px;background:rgba(30,58,95,.08);border-radius:4px;overflow:hidden;position:relative;">
         <div id="s1-progress" style="height:100%;width:0%;background:linear-gradient(90deg,var(--teal),var(--blue));border-radius:4px;transition:width 1.4s ease;"></div>
@@ -636,12 +614,12 @@ function renderS1Kpi(){
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding-top:10px;border-top:1px dashed var(--line);">
       <div>
         <div style="font-size:9px;color:var(--sub);letter-spacing:1px;margin-bottom:2px;">昨日業績</div>
-        <div style="font-family:'DM Mono',monospace;font-size:15px;font-weight:700;color:var(--ink);">${fN(y.rev)}</div>
+        <div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:15px;font-weight:700;color:var(--ink);">${fN(y.rev)}</div>
         <div style="font-size:10px;margin-top:2px;">去年同日 ${fN(y.rev_ly_same)} <span class="cmp c${ydr}">${ar(ydr)} ${pc(y.rev,y.rev_ly_same)}</span></div>
       </div>
       <div>
         <div style="font-size:9px;color:var(--sub);letter-spacing:1px;margin-bottom:2px;">本週業績</div>
-        <div style="font-family:'DM Mono',monospace;font-size:15px;font-weight:700;color:var(--ink);">${fN(w.this_rev)}</div>
+        <div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:15px;font-weight:700;color:var(--ink);">${fN(w.this_rev)}</div>
         <div style="font-size:10px;margin-top:2px;">上週同期 ${fN(w.last_rev||0)} <span class="cmp c${wdr}">${ar(wdr)} ${pc(w.this_rev,w.last_rev||0)}</span></div>
       </div>
     </div>`;
@@ -650,7 +628,7 @@ function renderS1Kpi(){
 
 function renderS1Quarter(){
   const list=(D.agents||[]).slice(0,6);
-  const rI=i=>i<3?['🥇','🥈','🥉'][i]:`<span style="font-family:'DM Mono',monospace;font-size:13px;font-weight:700;">${i+1}</span>`;
+  const rI=i=>i<3?['🥇','🥈','🥉'][i]:`<span style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:13px;font-weight:700;">${i+1}</span>`;
   const rC=i=>i===0?'var(--gold)':i===1?'#9CA3AF':i===2?'#CD7F32':'var(--dim)';
   if(!list.length){
     document.getElementById('s1-quarter-agents').innerHTML='<div style="padding:20px;text-align:center;color:var(--sub);font-size:11px;">尚無本月業績資料</div>';
@@ -672,7 +650,7 @@ function renderS1Quarter(){
         <div style="font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${a.name}${trendBadge}</div>
         <div style="font-size:9px;color:var(--sub);margin-top:1px;">${a.orders} 筆訂單</div>
       </div>
-      <div style="font-family:'DM Mono',monospace;font-size:13px;font-weight:700;color:${rC(i)};flex-shrink:0;">${fN(a.rev)}</div>
+      <div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:13px;font-weight:700;color:${rC(i)};flex-shrink:0;">${fN(a.rev)}</div>
     </div>`;
   }).join('');
 }
@@ -687,7 +665,7 @@ function renderS1Action(){
     html+=`<div style="padding:12px 14px;background:rgba(184,144,42,.08);border-left:3px solid var(--gold);border-radius:4px;margin-bottom:10px;">
       <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
         <span style="font-size:11px;font-weight:700;color:var(--gold);letter-spacing:1px;">🎯 達標補救</span>
-        <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--sub);">缺 ${fN(gap.remaining)} · 剩 ${gap.days_left} 天</span>
+        <span style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:11px;color:var(--sub);">缺 ${fN(gap.remaining)} · 剩 ${gap.days_left} 天</span>
       </div>`;
     if(rec){
       html+=`<div style="font-size:12px;line-height:1.7;color:var(--ink);">
@@ -709,12 +687,12 @@ function renderS1Action(){
   html+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
     <div style="padding:10px 12px;background:rgba(217,75,107,.06);border-left:3px solid var(--dn);border-radius:4px;">
       <div style="font-size:10px;font-weight:700;color:var(--dn);letter-spacing:1px;margin-bottom:4px;">⚠️ 流失風險</div>
-      <div style="font-family:'DM Mono',monospace;font-size:16px;font-weight:700;color:var(--dn);line-height:1;">${churn.count||0} 位</div>
+      <div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:16px;font-weight:700;color:var(--dn);line-height:1;">${churn.count||0} 位</div>
       <div style="font-size:10px;color:var(--sub);margin-top:3px;">潛在損失 ${fN(churn.potential_loss_90d||0)}</div>
     </div>
     <div style="padding:10px 12px;background:rgba(59,125,216,.06);border-left:3px solid var(--blue);border-radius:4px;">
       <div style="font-size:10px;font-weight:700;color:var(--blue);letter-spacing:1px;margin-bottom:4px;">🔔 48h 未付款</div>
-      <div style="font-family:'DM Mono',monospace;font-size:16px;font-weight:700;color:var(--blue);line-height:1;">${up.count||0} 筆</div>
+      <div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:16px;font-weight:700;color:var(--blue);line-height:1;">${up.count||0} 筆</div>
       <div style="font-size:10px;color:var(--sub);margin-top:3px;">金額 ${fN(up.total_amount||0)} · 最長 ${up.max_days||0} 天</div>
     </div>
   </div>`;
@@ -727,7 +705,7 @@ function renderS1Action(){
       const names=c.combo.map(n=>n.length>14?n.slice(0,14)+'…':n).join(' ✚ ');
       html+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px dashed rgba(30,58,95,.08);font-size:11px;">
         <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${names}</span>
-        <span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--sub);flex-shrink:0;margin-left:8px;">${c.count} 組</span>
+        <span style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:10px;color:var(--sub);flex-shrink:0;margin-left:8px;">${c.count} 組</span>
       </div>`;
     });
     html+=`</div>`;
@@ -738,22 +716,28 @@ function renderS1Action(){
 
 function renderS1Health(){
   const h=D.health||{}, ch=h.champions||{}, sr=h.senior||{}, vp=h.vip||{};
-  const items=[
-    {icon:'⬆', label:'新客',   val:h.new_customers||0, unit:'位', sub:`${h.new_pct||0}%`, col:'var(--up)',   bg:'rgba(16,163,127,.06)'},
-    {icon:'⟲', label:'回購',   val:h.returning||0,    unit:'位', sub:`${h.return_pct||0}%`, col:'var(--blue)', bg:'rgba(59,125,216,.06)'},
-    {icon:'★', label:'冠軍',   val:ch.count||0,        unit:'位', sub:fN(ch.month_rev||0), col:'var(--gold)', bg:'rgba(184,144,42,.06)'},
-    {icon:'◆', label:'VIP',    val:vp.count||0,        unit:'位', sub:`資深 ${sr.count||0}`, col:'var(--coral)', bg:'rgba(217,75,107,.06)'},
-  ];
   document.getElementById('s1-health').innerHTML=`
-    <div style="display:flex;flex-direction:column;gap:5px;">
-      ${items.map(it=>`
-        <div style="display:flex;align-items:center;gap:8px;padding:6px 9px;background:${it.bg};border-radius:4px;border-left:2px solid ${it.col};">
-          <span style="color:${it.col};font-size:13px;font-weight:700;flex-shrink:0;width:14px;text-align:center;">${it.icon}</span>
-          <span style="font-size:10px;color:var(--sub);flex-shrink:0;width:28px;">${it.label}</span>
-          <span style="font-family:'DM Mono',monospace;font-size:15px;font-weight:700;color:${it.col};flex-shrink:0;margin-left:auto;">${it.val}</span>
-          <span style="font-size:9px;color:var(--sub);flex-shrink:0;width:48px;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${it.sub}</span>
-        </div>
-      `).join('')}
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div style="padding:10px;background:rgba(16,163,127,.06);border-radius:6px;border:1px solid rgba(16,163,127,.15);">
+        <div style="font-size:9px;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase;margin-bottom:3px;">本月新客</div>
+        <div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:22px;font-weight:700;color:var(--up);line-height:1;">${h.new_customers||0}</div>
+        <div style="font-size:9px;color:var(--sub);margin-top:3px;">佔比 ${h.new_pct||0}%</div>
+      </div>
+      <div style="padding:10px;background:rgba(59,125,216,.06);border-radius:6px;border:1px solid rgba(59,125,216,.15);">
+        <div style="font-size:9px;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase;margin-bottom:3px;">本月回購</div>
+        <div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:22px;font-weight:700;color:var(--blue);line-height:1;">${h.returning||0}</div>
+        <div style="font-size:9px;color:var(--sub);margin-top:3px;">佔比 ${h.return_pct||0}%</div>
+      </div>
+      <div style="padding:10px;background:rgba(184,144,42,.06);border-radius:6px;border:1px solid rgba(184,144,42,.15);">
+        <div style="font-size:9px;letter-spacing:1.5px;color:var(--gold);text-transform:uppercase;margin-bottom:3px;">冠軍客戶</div>
+        <div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:22px;font-weight:700;color:var(--gold);line-height:1;">${ch.count||0} 位</div>
+        <div style="font-size:9px;color:var(--sub);margin-top:3px;">貢獻 ${fN(ch.month_rev||0)}</div>
+      </div>
+      <div style="padding:10px;background:rgba(217,75,107,.06);border-radius:6px;border:1px solid rgba(217,75,107,.15);">
+        <div style="font-size:9px;letter-spacing:1.5px;color:var(--coral);text-transform:uppercase;margin-bottom:3px;">VIP 頂級</div>
+        <div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:22px;font-weight:700;color:var(--coral);line-height:1;">${vp.count||0} 位</div>
+        <div style="font-size:9px;color:var(--sub);margin-top:3px;">資深 ${sr.count||0} 位</div>
+      </div>
     </div>`;
 }
 function renderMonthlyTbl(){
@@ -770,150 +754,11 @@ function renderMonthlyTbl(){
   onVis(el,()=>el.querySelectorAll('.mt-bar').forEach((b,i)=>{setTimeout(()=>{b.style.width=b.dataset.w+'%';},i*26);}));
 }
 function renderSrcChart(){
-  const sources=D.sources||[];
-  if(!sources.length)return;
-  
-  // 財經報表色階（深藍 → 灰）
-  const cols=['#1E3A5F','#3B7DD8','#0F8F85','#B8902A','#94A3B8','#CBD5E1','#7B5FC7','#D94B6B'];
-  const total=sources.reduce((a,b)=>a+b.rev,0)||1;
-  const totalOrders=sources.reduce((a,b)=>a+b.orders,0);
-  const totalCusts=sources.reduce((a,b)=>a+b.customers,0);
-  const max=sources[0].rev;  // 用最大值當條長基準
-  
-  // 更新總計（顯示在標題旁）
-  const tot=document.getElementById('src-total-orders');
-  if(tot)tot.textContent=totalOrders.toLocaleString();
-  
-  const el=document.getElementById('src-list');
-  if(!el)return;
-  
-  el.innerHTML=sources.map((s,i)=>{
-    const pct=(s.rev/total*100).toFixed(1);
-    const widthPct=Math.round(s.rev/max*100);
-    const rankBadge=i===0?'🥇':i===1?'🥈':i===2?'🥉':`<span style="font-family:'DM Mono',monospace;font-weight:700;color:var(--sub);">${i+1}</span>`;
-    return `<div style="display:flex;flex-direction:column;gap:5px;">
-      <!-- 第一行：排名 + 名稱 + 金額 + 佔比 -->
-      <div style="display:flex;align-items:baseline;gap:10px;">
-        <div style="width:22px;text-align:center;font-size:14px;flex-shrink:0;">${rankBadge}</div>
-        <div style="flex:1;min-width:0;font-size:13px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${s.src}</div>
-        <div style="font-family:'DM Mono',monospace;font-size:14px;font-weight:700;color:var(--ink);flex-shrink:0;">${fN(s.rev)}</div>
-        <div style="font-family:'DM Mono',monospace;font-size:12px;color:${cols[i]};font-weight:700;flex-shrink:0;min-width:48px;text-align:right;">${pct}%</div>
-      </div>
-      <!-- 第二行：條狀進度條 -->
-      <div style="display:flex;align-items:center;gap:10px;">
-        <div style="width:22px;flex-shrink:0;"></div>
-        <div style="flex:1;height:8px;background:rgba(30,58,95,.06);border-radius:2px;overflow:hidden;">
-          <div class="src-bar" data-w="${widthPct}" style="height:100%;background:${cols[i]};width:0;border-radius:2px;transition:width 1.2s cubic-bezier(.23,1,.32,1);"></div>
-        </div>
-        <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--sub);flex-shrink:0;min-width:90px;text-align:right;">${s.orders} 筆 · ${s.customers} 人</div>
-      </div>
-    </div>`;
-  }).join('');
-  
-  // 動畫填充
-  setTimeout(()=>{
-    el.querySelectorAll('.src-bar').forEach(bar=>{
-      bar.style.width=bar.dataset.w+'%';
-    });
-  },300);
-}
-
-// ═══════════════════════════════════════════════════════
-// 🆕 近 7 天業績長條圖（含平均線）
-// ═══════════════════════════════════════════════════════
-function renderLast7Days(){
-  const d7=D.last_7_days;
-  if(!d7||!d7.data)return;
-  const data=d7.data;
-  const target=d7.daily_target||150000;
-  
-  const labels=data.map(d=>`${d.date}\n${d.day_of_week}`);
-  const values=data.map(d=>d.rev);
-  const colors=data.map(d=>{
-    if(d.is_today) return 'rgba(217,75,107,.85)';  // 今天：珊瑚紅
-    return d.above_target ? 'rgba(15,143,133,.75)' : 'rgba(148,163,184,.65)';  // 達標綠、未達灰
-  });
-  const borders=data.map(d=>{
-    if(d.is_today) return '#D94B6B';
-    return d.above_target ? '#0F8F85' : '#94A3B8';
-  });
-  
-  makeChart('last7-chart',{
-    type:'bar',
-    data:{
-      labels:labels,
-      datasets:[{
-        label:'當日業績',
-        data:values,
-        backgroundColor:colors,
-        borderColor:borders,
-        borderWidth:1.5,
-        borderRadius:4,
-      }]
-    },
-    options:{
-      animation:{duration:900,easing:'easeOutQuart'},
-      responsive:true,
-      maintainAspectRatio:false,
-      plugins:{
-        legend:{display:false},
-        tooltip:{
-          callbacks:{
-            label:i=>{
-              const row=data[i.dataIndex];
-              const diff=row.rev-target;
-              const pct=((row.rev/target-1)*100).toFixed(1);
-              const sym=diff>=0?'超標 ↑':'差距 ↓';
-              return [`NT$ ${row.rev.toLocaleString()} · ${row.orders}筆`,
-                      `${sym} ${Math.abs(diff).toLocaleString()} (${pct>0?'+':''}${pct}%)`];
-            }
-          }
-        },
-        annotation:{
-          annotations:{
-            targetLine:{
-              type:'line',
-              yMin:target,
-              yMax:target,
-              borderColor:'rgba(217,75,107,.85)',
-              borderWidth:2,
-              borderDash:[6,4],
-              label:{
-                display:true,
-                content:`平均目標 ${fN(target)}/天`,
-                position:'end',
-                backgroundColor:'rgba(217,75,107,.9)',
-                color:'#fff',
-                font:{size:10,weight:'600'},
-                padding:{top:3,bottom:3,left:6,right:6},
-                borderRadius:3,
-              }
-            }
-          }
-        }
-      },
-      scales:{
-        x:{
-          grid:{display:false},
-          ticks:{
-            font:{size:10},
-            callback:function(v){
-              const lbl=this.getLabelForValue(v);
-              return lbl.split('\n');
-            }
-          }
-        },
-        y:{
-          grid:{color:'rgba(30,58,95,.05)'},
-          ticks:{
-            font:{size:10},
-            callback:v=>fN(v)
-          },
-          beginAtZero:true,
-        }
-      }
-    }
-  });
+  const max=D.sources[0].rev;
+  const cols=['var(--coral)','var(--blue)','#1D5AA8','var(--teal)','var(--gold)','var(--pur)'];
+  const el=document.getElementById('src-chart');
+  el.innerHTML=D.sources.map((s,i)=>`<div class="hrow"><div style="text-align:right;flex-shrink:0;min-width:80px;"><div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:13px;font-weight:500;">${fN(s.rev)}</div><div style="font-size:9px;color:var(--sub);">${s.orders}筆·${s.customers}人</div></div><div class="hw" style="height:20px;"><div class="hb" data-w="${Math.round(s.rev/max*100)}" style="background:${cols[i]};height:100%;font-size:10px;justify-content:flex-end;padding-right:7px;">${s.src}</div></div></div>`).join('');
+  onVis(el,()=>stagger(el));
 }
 function renderAgents(){
   const max=D.agents[0]?.rev||1;const el=document.getElementById('agent-list');
@@ -936,7 +781,7 @@ function renderUnpaid(){
   el.innerHTML=U.map(g=>{
     const urg=g.orders.some(o=>o.days_waiting>=2);
     const rc=g.role==='業務'?'var(--gold)':'var(--blue)';
-    return `<div class="unpaid-card ${urg?'unpaid-urgent':'unpaid-normal'}"><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:16px;">${g.role==='業務'?'👤':'🎧'}</span><div style="flex:1;"><div style="font-size:13px;font-weight:700;">${g.owner}</div><div style="font-size:9px;letter-spacing:1px;color:${rc};text-transform:uppercase;">${g.role}</div></div><div style="text-align:right;"><div style="font-family:'DM Mono',monospace;font-size:18px;color:var(--coral);font-weight:700;">${g.count} 筆</div><div style="font-size:10px;color:var(--sub);">${fF(g.total_amount)}</div></div></div>${g.orders.map(o=>{const u=o.days_waiting>=2;const lbl=o.days_waiting===0?'今日':o.days_waiting===1?'昨日':o.days_waiting+'天前';return `<div class="unpaid-order ${u?'u2':'u0'}"><div style="flex:1;min-width:0;"><div style="font-size:12px;font-weight:500;">${o.customer}</div><div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--sub);">${o.order_id}</div></div><div style="text-align:right;flex-shrink:0;"><div style="font-family:'DM Mono',monospace;font-size:13px;color:var(--coral);font-weight:600;">${fF(o.amount)}</div><div style="font-size:10px;color:${u?'var(--coral)':'var(--sub)'};font-weight:${u?700:400};">${lbl}${u?' ⚠️':''}</div></div></div>`;}).join('')}</div>`;
+    return `<div class="unpaid-card ${urg?'unpaid-urgent':'unpaid-normal'}"><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:16px;">${g.role==='業務'?'👤':'🎧'}</span><div style="flex:1;"><div style="font-size:13px;font-weight:700;">${g.owner}</div><div style="font-size:9px;letter-spacing:1px;color:${rc};text-transform:uppercase;">${g.role}</div></div><div style="text-align:right;"><div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:18px;color:var(--coral);font-weight:700;">${g.count} 筆</div><div style="font-size:10px;color:var(--sub);">${fF(g.total_amount)}</div></div></div>${g.orders.map(o=>{const u=o.days_waiting>=2;const lbl=o.days_waiting===0?'今日':o.days_waiting===1?'昨日':o.days_waiting+'天前';return `<div class="unpaid-order ${u?'u2':'u0'}"><div style="flex:1;min-width:0;"><div style="font-size:12px;font-weight:500;">${o.customer}</div><div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:10px;color:var(--sub);">${o.order_id}</div></div><div style="text-align:right;flex-shrink:0;"><div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:13px;color:var(--coral);font-weight:600;">${fF(o.amount)}</div><div style="font-size:10px;color:${u?'var(--coral)':'var(--sub)'};font-weight:${u?700:400};">${lbl}${u?' ⚠️':''}</div></div></div>`;}).join('')}</div>`;
   }).join('');
 }
 
@@ -945,7 +790,7 @@ function renderRegionCards(){
   const el=document.getElementById('region-cards');const max=Math.max(...D.regions.map(r=>r.rev));
   el.innerHTML=D.regions.map(r=>{
     const w=Math.round(r.rev/max*100),active=curR===r.key;
-    return `<div class="region-card" data-key="${r.key}" style="padding:10px 12px;background:${active?'var(--bg2)':'var(--card2)'};border:1px solid ${active?r.color:'var(--line2)'};border-left:3px solid ${r.color};border-radius:5px;cursor:pointer;transition:all .2s;"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;"><div style="font-size:12px;font-weight:700;">${r.name}</div><div style="font-family:'DM Mono',monospace;font-size:13px;font-weight:700;color:${r.color};">${fN(r.rev)}</div></div><div style="display:flex;gap:10px;font-size:9px;color:var(--sub);margin-bottom:5px;"><span>👤 ${r.customers}</span><span>📦 ${r.orders}</span><span>💰 ${fN(r.aov)}/單</span></div><div style="height:4px;background:rgba(30,58,95,.06);border-radius:2px;overflow:hidden;"><div style="height:100%;width:${w}%;background:${r.color};border-radius:2px;transition:width 1s ease;"></div></div></div>`;
+    return `<div class="region-card" data-key="${r.key}" style="padding:10px 12px;background:${active?'var(--bg2)':'var(--card2)'};border:1px solid ${active?r.color:'var(--line2)'};border-left:3px solid ${r.color};border-radius:5px;cursor:pointer;transition:all .2s;"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;"><div style="font-size:12px;font-weight:700;">${r.name}</div><div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:13px;font-weight:700;color:${r.color};">${fN(r.rev)}</div></div><div style="display:flex;gap:10px;font-size:9px;color:var(--sub);margin-bottom:5px;"><span>👤 ${r.customers}</span><span>📦 ${r.orders}</span><span>💰 ${fN(r.aov)}/單</span></div><div style="height:4px;background:rgba(30,58,95,.06);border-radius:2px;overflow:hidden;"><div style="height:100%;width:${w}%;background:${r.color};border-radius:2px;transition:width 1s ease;"></div></div></div>`;
   }).join('');
   el.querySelectorAll('.region-card').forEach(c=>c.addEventListener('click',()=>{curR=curR===c.dataset.key?null:c.dataset.key;curC=null;renderRegionCards();renderCityTbl();}));
 }
@@ -954,7 +799,7 @@ function renderCityTbl(){
   if(curR){const r=D.regions.find(x=>x.key===curR);cs=D.cities.filter(c=>r.cities.includes(c.city));title=r.name+' · 城市列表';sub=`共 ${cs.length} 個城市`;}
   document.getElementById('city-tbl-title').textContent=title;document.getElementById('city-tbl-sub').textContent=sub;
   const tot=cs.reduce((s,c)=>s+c.rev,0)||1;
-  document.getElementById('city-tbl').innerHTML=`<table class="mt"><tr><th>#</th><th style="text-align:left;">城市</th><th>客戶</th><th>訂單</th><th>客單價</th><th>業績</th><th>佔%</th></tr>${cs.map((c,i)=>{const sh=(c.rev/tot*100).toFixed(1);return `<tr><td style="font-family:'DM Mono',monospace;font-size:11px;color:${i<3?'var(--gold)':'var(--sub)'};">${i+1}</td><td style="font-size:12px;font-weight:500;">${c.city}</td><td>${c.customers}</td><td>${c.orders}</td><td style="color:${c.aov>8000?'var(--gold)':'var(--ink)'};">${fN(c.aov)}</td><td style="font-weight:600;">${fN(c.rev)}</td><td><div style="display:flex;align-items:center;justify-content:flex-end;gap:3px;"><div style="width:26px;height:4px;background:rgba(30,58,95,.08);border-radius:2px;overflow:hidden;"><div style="height:100%;width:${sh}%;background:var(--blue);border-radius:2px;transition:width 1.3s ease;"></div></div><span style="font-family:'DM Mono',monospace;font-size:10px;">${sh}%</span></div></td></tr>`;}).join('')}</table>`;
+  document.getElementById('city-tbl').innerHTML=`<table class="mt"><tr><th>#</th><th style="text-align:left;">城市</th><th>客戶</th><th>訂單</th><th>客單價</th><th>業績</th><th>佔%</th></tr>${cs.map((c,i)=>{const sh=(c.rev/tot*100).toFixed(1);return `<tr><td style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:11px;color:${i<3?'var(--gold)':'var(--sub)'};">${i+1}</td><td style="font-size:12px;font-weight:500;">${c.city}</td><td>${c.customers}</td><td>${c.orders}</td><td style="color:${c.aov>8000?'var(--gold)':'var(--ink)'};">${fN(c.aov)}</td><td style="font-weight:600;">${fN(c.rev)}</td><td><div style="display:flex;align-items:center;justify-content:flex-end;gap:3px;"><div style="width:26px;height:4px;background:rgba(30,58,95,.08);border-radius:2px;overflow:hidden;"><div style="height:100%;width:${sh}%;background:var(--blue);border-radius:2px;transition:width 1.3s ease;"></div></div><span style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:10px;">${sh}%</span></div></td></tr>`;}).join('')}</table>`;
 }
 function renderCityInsight(){
   const totReg=D.regions.reduce((s,r)=>s+r.rev,0),topR=[...D.regions].sort((a,b)=>b.rev-a.rev)[0],topA=[...D.regions].sort((a,b)=>b.aov-a.aov)[0],topC=D.cities.reduce((a,b)=>b.aov>a.aov?b:a);
@@ -967,13 +812,13 @@ function renderCityInsight(){
 function renderProdRows(id,data,bc,useQty){
   const max=useQty?Math.max(...data.map(p=>p.qty),1):Math.max(...data.map(p=>p.rev),1);
   const el=document.getElementById(id);
-  el.innerHTML=data.map((p,i)=>`<div class="rr r${i+1}"><div class="rn">${i+1}</div><div style="flex:1;min-width:0;"><div style="font-size:10px;font-weight:500;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.name.length>15?p.name.slice(0,15)+'…':p.name}</div><div class="rbar-w"><div class="rbar" data-w="${Math.round((useQty?p.qty:p.rev)/max*100)}" style="background:${bc};opacity:.55;"></div></div></div><div style="display:flex;gap:3px;flex-shrink:0;text-align:right;align-items:center;"><div style="min-width:22px;"><div style="font-family:'DM Mono',monospace;font-size:10px;">${p.qty}</div><div style="font-size:7px;color:var(--sub);">件</div></div><div style="min-width:40px;"><div style="font-family:'DM Mono',monospace;font-size:10px;">${fN(p.price)}</div><div style="font-size:7px;color:var(--sub);">均</div></div><div style="min-width:48px;"><div style="font-family:'DM Mono',monospace;font-size:11px;font-weight:600;color:${bc};">${fN(p.rev)}</div><div style="font-size:7px;color:var(--sub);">收入</div></div></div></div>`).join('');
+  el.innerHTML=data.map((p,i)=>`<div class="rr r${i+1}"><div class="rn">${i+1}</div><div style="flex:1;min-width:0;"><div style="font-size:10px;font-weight:500;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.name.length>15?p.name.slice(0,15)+'…':p.name}</div><div class="rbar-w"><div class="rbar" data-w="${Math.round((useQty?p.qty:p.rev)/max*100)}" style="background:${bc};opacity:.55;"></div></div></div><div style="display:flex;gap:3px;flex-shrink:0;text-align:right;align-items:center;"><div style="min-width:22px;"><div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:10px;">${p.qty}</div><div style="font-size:7px;color:var(--sub);">件</div></div><div style="min-width:40px;"><div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:10px;">${fN(p.price)}</div><div style="font-size:7px;color:var(--sub);">均</div></div><div style="min-width:48px;"><div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:11px;font-weight:600;color:${bc};">${fN(p.rev)}</div><div style="font-size:7px;color:var(--sub);">收入</div></div></div></div>`).join('');
   onVis(el,()=>stagger(el));
 }
 function renderZeroList(){
   const el=document.getElementById('zero-list');
   if(!D.dormant_45?.length){el.innerHTML='<div style="color:var(--sub);font-size:12px;padding:8px;">暫無數據</div>';return;}
-  el.innerHTML=D.dormant_45.map((x,i)=>{const n=typeof x==='string'?x:x.name,d=typeof x==='string'?'':`${x.days}天`;return `<div style="display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid var(--line2);"><span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--dn);width:18px;">${i+1}</span><span style="font-size:11px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${n.length>20?n.slice(0,20)+'…':n}</span><span style="font-size:9px;padding:1px 5px;background:rgba(217,75,107,.1);color:var(--dn);border-radius:3px;flex-shrink:0;">${d}</span></div>`;}).join('');
+  el.innerHTML=D.dormant_45.map((x,i)=>{const n=typeof x==='string'?x:x.name,d=typeof x==='string'?'':`${x.days}天`;return `<div style="display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid var(--line2);"><span style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:11px;color:var(--dn);width:18px;">${i+1}</span><span style="font-size:11px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${n.length>20?n.slice(0,20)+'…':n}</span><span style="font-size:9px;padding:1px 5px;background:rgba(217,75,107,.1);color:var(--dn);border-radius:3px;flex-shrink:0;">${d}</span></div>`;}).join('');
 }
 
 function renderRfmGrid(){
@@ -987,7 +832,7 @@ function renderRfmGrid(){
     row.forEach(cell=>{
       const intensity=0.35+(cell.c/maxC)*0.60;
       const textC=cell.c/maxC>0.35?'#fff':'var(--ink)';
-      h+=`<div class="rfm-cell" style="background:${cell.color};opacity:${intensity};border-radius:4px;padding:6px 7px;display:flex;flex-direction:column;justify-content:space-between;min-height:0;cursor:pointer;transition:transform .2s;box-shadow:0 1px 2px rgba(30,58,95,.08);" onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform='scale(1)'"><div><div style="font-size:10px;font-weight:700;color:${textC};line-height:1.2;">${cell.k}</div><div style="font-size:8px;color:${textC};opacity:.85;margin-top:1px;">→ ${cell.action}</div></div><div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:4px;"><div style="font-family:'DM Mono',monospace;font-size:14px;font-weight:700;color:${textC};line-height:1;">${cell.c}</div><div style="font-family:'DM Mono',monospace;font-size:9px;color:${textC};opacity:.9;">${fN(cell.rev)}</div></div></div>`;
+      h+=`<div class="rfm-cell" style="background:${cell.color};opacity:${intensity};border-radius:4px;padding:6px 7px;display:flex;flex-direction:column;justify-content:space-between;min-height:0;cursor:pointer;transition:transform .2s;box-shadow:0 1px 2px rgba(30,58,95,.08);" onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform='scale(1)'"><div><div style="font-size:10px;font-weight:700;color:${textC};line-height:1.2;">${cell.k}</div><div style="font-size:8px;color:${textC};opacity:.85;margin-top:1px;">→ ${cell.action}</div></div><div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:4px;"><div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:14px;font-weight:700;color:${textC};line-height:1;">${cell.c}</div><div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:9px;color:${textC};opacity:.9;">${fN(cell.rev)}</div></div></div>`;
     });
   });
   el.innerHTML=h;
@@ -1016,20 +861,20 @@ function renderMemberChart(){
 }
 function renderCombosList(){
   const el=document.getElementById('combos-list');
-  el.innerHTML=D.shopping_habits.top_combos.map(([pair,cnt],i)=>{const [a,b]=pair;return `<div class="rr r${i+1}"><div class="rn">${i+1}</div><div style="flex:1;min-width:0;font-size:11px;line-height:1.5;">${a.length>14?a.slice(0,14)+'…':a}<span style="color:var(--sub);margin:0 4px;">+</span>${b.length>14?b.slice(0,14)+'…':b}</div><div style="font-family:'DM Mono',monospace;font-size:13px;color:var(--gold);flex-shrink:0;">${cnt}次</div></div>`;}).join('');
+  el.innerHTML=D.shopping_habits.top_combos.map(([pair,cnt],i)=>{const [a,b]=pair;return `<div class="rr r${i+1}"><div class="rn">${i+1}</div><div style="flex:1;min-width:0;font-size:11px;line-height:1.5;">${a.length>14?a.slice(0,14)+'…':a}<span style="color:var(--sub);margin:0 4px;">+</span>${b.length>14?b.slice(0,14)+'…':b}</div><div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:13px;color:var(--gold);flex-shrink:0;">${cnt}次</div></div>`;}).join('');
   onVis(el,()=>stagger(el));
 }
 function renderPaySpeed(){
   const ps=D.shopping_habits.pay_speed;const keys=['10分鐘內','10分–1小時','1–24小時','>24小時'];const cols=['var(--up)','var(--teal)','var(--gold)','var(--coral)'];
   const tot=keys.reduce((s,k)=>s+(ps[k]||0),0);
-  document.getElementById('pay-speed').innerHTML=`<div style="margin-bottom:5px;font-family:'DM Mono',monospace;font-size:13px;">中位付款：<span style="color:var(--teal);">${ps.median_min}分鐘</span></div>${keys.map((k,i)=>{const v=ps[k]||0,w=tot>0?Math.round(v/tot*100):0;return `<div class="hrow"><div class="hlbl" style="width:74px;">${k}</div><div class="hw" style="height:14px;"><div class="hb" data-w="${w}" style="background:${cols[i]};height:100%;font-size:9px;">${w>15?v+'筆':''}</div></div><div class="hend">${w}%</div></div>`;}).join('')}`;
+  document.getElementById('pay-speed').innerHTML=`<div style="margin-bottom:5px;font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:13px;">中位付款：<span style="color:var(--teal);">${ps.median_min}分鐘</span></div>${keys.map((k,i)=>{const v=ps[k]||0,w=tot>0?Math.round(v/tot*100):0;return `<div class="hrow"><div class="hlbl" style="width:74px;">${k}</div><div class="hw" style="height:14px;"><div class="hb" data-w="${w}" style="background:${cols[i]};height:100%;font-size:9px;">${w>15?v+'筆':''}</div></div><div class="hend">${w}%</div></div>`;}).join('')}`;
   onVis(document.getElementById('pay-speed'),()=>stagger(document.getElementById('pay-speed')));
 }
 
 function renderRepurchaseChart(){
   const d=D.repurchase.buckets;
   makeChart('repurchase-chart',{type:'bar',data:{labels:d.map(b=>b.range),datasets:[{label:'客戶數',data:d.map(b=>b.count),backgroundColor:d.map((_,i)=>i<3?'rgba(15,143,133,.75)':'rgba(184,144,42,.75)'),borderRadius:4}]},options:{animation:{duration:900,easing:'easeInOutQuart'},responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{afterLabel:i=>d[i.dataIndex].pct+'%'}}},scales:{x:{grid:{display:false},ticks:{font:{size:10}}},y:{grid:{color:'rgba(30,58,95,.05)'}}}}});
-  document.getElementById('repurchase-stats').innerHTML=`<div style="text-align:center;"><div style="font-family:'DM Mono',monospace;font-size:18px;color:var(--teal);font-weight:700;">${D.repurchase.median_days}天</div><div style="font-size:9px;color:var(--sub);">中位回購</div></div><div style="text-align:center;"><div style="font-family:'DM Mono',monospace;font-size:18px;color:var(--gold);font-weight:700;">${D.repurchase.avg_days}天</div><div style="font-size:9px;color:var(--sub);">平均回購</div></div><div style="text-align:center;"><div style="font-family:'DM Mono',monospace;font-size:18px;color:var(--coral);font-weight:700;">${D.repurchase.repeat_rate}%</div><div style="font-size:9px;color:var(--sub);">回購率</div></div>`;
+  document.getElementById('repurchase-stats').innerHTML=`<div style="text-align:center;"><div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:18px;color:var(--teal);font-weight:700;">${D.repurchase.median_days}天</div><div style="font-size:9px;color:var(--sub);">中位回購</div></div><div style="text-align:center;"><div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:18px;color:var(--gold);font-weight:700;">${D.repurchase.avg_days}天</div><div style="font-size:9px;color:var(--sub);">平均回購</div></div><div style="text-align:center;"><div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:18px;color:var(--coral);font-weight:700;">${D.repurchase.repeat_rate}%</div><div style="font-size:9px;color:var(--sub);">回購率</div></div>`;
 }
 function renderTimeInsight(){
   const sorted=[...D.hour_dist].sort((a,b)=>b.orders-a.orders);
@@ -1067,17 +912,17 @@ function renderS7WeekdayHour(){
     return `<div style="padding:12px 14px;background:${bgCol};border-left:3px solid ${col};border-radius:4px;margin-bottom:10px;">
       <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
         <span style="font-size:12px;font-weight:700;color:${col};letter-spacing:1px;">${group.name}</span>
-        <span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--sub);">${p.count} 筆 · ${p.pct}%</span>
+        <span style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:10px;color:var(--sub);">${p.count} 筆 · ${p.pct}%</span>
       </div>
       <div style="margin-bottom:8px;">
         <div style="font-size:9px;color:var(--sub);letter-spacing:1px;margin-bottom:2px;">🛒 下單高峰</div>
-        <div style="font-family:'DM Mono',monospace;font-size:18px;font-weight:700;color:${col};line-height:1;">
+        <div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:18px;font-weight:700;color:${col};line-height:1;">
           ${fmtHour(p.start)} - ${fmtHour(p.end)}
         </div>
       </div>
       <div style="padding-top:8px;border-top:1px dashed rgba(30,58,95,.1);">
         <div style="font-size:9px;color:var(--sub);letter-spacing:1px;margin-bottom:2px;">🎬 建議上片</div>
-        <div style="font-family:'DM Mono',monospace;font-size:15px;font-weight:700;color:var(--ink);line-height:1;">
+        <div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:15px;font-weight:700;color:var(--ink);line-height:1;">
           ${fmtHour(u.start)} - ${fmtHour(u.end)}
         </div>
         <div style="font-size:9px;color:var(--sub);margin-top:3px;">
@@ -1164,7 +1009,7 @@ function renderS9(){
       return `<div class="hrow" style="margin-bottom:5px;">
         <div style="min-width:50px;font-size:11px;font-weight:500;color:var(--ink);">${m.label}</div>
         <div class="hw" style="height:14px;flex:1;"><div class="hb" data-w="${w}" style="background:var(--blue);height:100%;border-radius:2px;"></div></div>
-        <div class="hend" style="min-width:58px;font-family:'DM Mono',monospace;font-size:10px;text-align:right;">${fN(m.rev)}</div>
+        <div class="hend" style="min-width:58px;font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:10px;text-align:right;">${fN(m.rev)}</div>
       </div>`;
     }).join('');
   }else{
@@ -1173,7 +1018,7 @@ function renderS9(){
   
   // Top 5 業務
   const top5=agents.slice(0,5);
-  const rI=i=>i<3?['🥇','🥈','🥉'][i]:`<span style="font-family:'DM Mono',monospace;font-size:11px;font-weight:700;">${i+1}</span>`;
+  const rI=i=>i<3?['🥇','🥈','🥉'][i]:`<span style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:11px;font-weight:700;">${i+1}</span>`;
   const rC=i=>i===0?'var(--gold)':i===1?'#9CA3AF':i===2?'#CD7F32':'var(--dim)';
   if(top5.length){
     document.getElementById('s9-top-agents').innerHTML=top5.map((a,i)=>
@@ -1182,7 +1027,7 @@ function renderS9(){
         <div style="flex:1;min-width:0;">
           <div style="font-size:10px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${a.name}</div>
         </div>
-        <div style="font-family:'DM Mono',monospace;font-size:11px;font-weight:700;color:${rC(i)};flex-shrink:0;">${fN(a.rev)}</div>
+        <div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:11px;font-weight:700;color:${rC(i)};flex-shrink:0;">${fN(a.rev)}</div>
       </div>`
     ).join('');
   }else{
@@ -1264,7 +1109,7 @@ setInterval(tick,1000);tick();
 const IS_MOBILE=window.matchMedia('(max-width:768px)').matches;
 renderTopBar();renderAchStrip();
 renderS1Kpi();renderS1Quarter();renderS1Action();renderS1Health();
-renderMonthlyTbl();renderSrcChart();renderLast7Days();
+renderMonthlyTbl();renderSrcChart();
 renderAgents();renderCustomers();renderUnpaid();
 renderRegionCards();renderCityTbl();renderCityInsight();
 renderProdRows('prod-rev',D.prod_rev,'var(--teal)',false);
