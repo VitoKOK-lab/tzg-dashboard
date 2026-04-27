@@ -254,11 +254,11 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
       </div>
     </div>
     <div style="display:flex;flex-direction:column;gap:10px;">
-      <!-- 區塊 2：本月業績王 Top 6 -->
+      <!-- 區塊 2：昨天業績王 TOP10 -->
       <div class="panel" style="flex:1;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-          <div class="pl" style="margin:0;">🏆 本月業績王 Top 6</div>
-          <span style="font-size:9px;padding:2px 7px;background:rgba(59,125,216,.1);color:var(--blue);border-radius:10px;letter-spacing:.5px;">本月 MTD</span>
+          <div class="pl" style="margin:0;">🏆 昨天業績王 TOP10</div>
+          <span style="font-size:9px;padding:2px 7px;background:rgba(59,125,216,.1);color:var(--blue);border-radius:10px;letter-spacing:.5px;">昨天</span>
         </div>
         <div id="s1-quarter-agents" style="display:flex;flex-direction:column;gap:5px;"></div>
       </div>
@@ -325,7 +325,7 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
 <div class="slide" id="s3">
   <div class="sh"><div class="sh-t">業務業績 · 客戶排行 · 未付款提醒</div><div class="stag tp" id="s3-month">2026年4月</div></div>
   <div class="body">
-    <div class="panel"><div class="pl">業務排行</div><div class="pt">本週排名（vs 上週）</div><div class="sc" id="agent-list"></div></div>
+    <div class="panel"><div class="pl">業務排行</div><div class="pt">本月排名 VS 上週</div><div class="sc" id="agent-list"></div></div>
     <div class="panel"><div class="pl">客戶消費排行</div><div class="pt">TOP 10 · 已隱藏個資</div><div class="sc" id="cust-list"></div></div>
     <div style="display:flex;flex-direction:column;gap:8px;">
       <div style="padding:10px 14px;background:rgba(217,75,107,.06);border:1px solid rgba(217,75,107,.3);border-radius:7px;display:flex;align-items:center;gap:12px;flex-shrink:0;">
@@ -649,16 +649,16 @@ function renderS1Kpi(){
 }
 
 function renderS1Quarter(){
-  const list=(D.agents||[]).slice(0,6);
+  const list=(D.yesterday?.agents||[]).slice(0,10);
   const rI=i=>i<3?['🥇','🥈','🥉'][i]:`<span style="font-family:'DM Mono',monospace;font-size:13px;font-weight:700;">${i+1}</span>`;
   const rC=i=>i===0?'var(--gold)':i===1?'#9CA3AF':i===2?'#CD7F32':'var(--dim)';
   if(!list.length){
-    document.getElementById('s1-quarter-agents').innerHTML='<div style="padding:20px;text-align:center;color:var(--sub);font-size:11px;">尚無本月業績資料</div>';
+    document.getElementById('s1-quarter-agents').innerHTML='<div style="padding:20px;text-align:center;color:var(--sub);font-size:11px;">尚無昨天業績資料</div>';
     return;
   }
   document.getElementById('s1-quarter-agents').innerHTML=list.map((a,i)=>{
-    // 對照本季排名，標記變化箭頭（可選）
-    const qList=D.quarter_review?.top_agents||[];
+    // 對照本月排名，標記變化箭頭
+    const qList=D.agents||[];
     const qRank=qList.findIndex(q=>q.name===a.name);
     let trendBadge='';
     if(qRank>=0 && qRank!==i){

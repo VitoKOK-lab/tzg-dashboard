@@ -416,7 +416,21 @@ def compute(df):
                         'rank': i+1, 'prev_rank': lw_map.get(r['推薦活動'])} for i, r in agg.head(10).iterrows()]
     else:
         D['agents'] = []
-    
+
+    # Yesterday Agents（昨天業績王 TOP10）
+    if '推薦活動' in vd.columns:
+        yd_base = vd[vd['推薦活動'].notna() & vd['推薦活動'].apply(is_real_agent)]
+        yd_ag   = order_level(in_range(yd_base, ys, ye))
+        if len(yd_ag) and '推薦活動' in yd_ag.columns:
+            yd_agg = yd_ag.groupby('推薦活動').agg(
+                orders=('訂單號碼','count'), rev=('訂單合計','sum')
+            ).sort_values('rev', ascending=False).reset_index()
+            D['yesterday']['agents'] = [
+                {'name': str(r['推薦活動']), 'orders': int(r['orders']),
+                 'rev': int(r['rev']), 'rank': i+1}
+                for i, r in yd_agg.head(10).iterrows()
+            ]
+
     # Sources
     def classify(r):
         act = str(r.get('推薦活動','')).strip()
