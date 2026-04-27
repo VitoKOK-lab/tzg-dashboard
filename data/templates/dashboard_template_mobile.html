@@ -240,7 +240,7 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
 <div id="slides">
 
 <div class="slide on" id="s1">
-  <div class="sh"><div class="sh-t">本月達成 · 業績王 · 決策焦點</div><div class="stag tc" id="s1-month-tag">2026年4月</div><div class="stag tb" id="s1-day-tag">Day 22/30</div></div>
+  <div class="sh"><div class="sh-t">本月達成 · 接單王 · 決策焦點</div><div class="stag tc" id="s1-month-tag">2026年4月</div><div class="stag tb" id="s1-day-tag">Day 22/30</div></div>
   <div class="body">
     <!-- 上排：區塊 1 + 區塊 2，等大 -->
     <div style="display:flex;flex-direction:column;gap:10px;">
@@ -254,10 +254,10 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
       </div>
     </div>
     <div style="display:flex;flex-direction:column;gap:10px;">
-      <!-- 區塊 2：昨天業績王 TOP10 -->
+      <!-- 區塊 2：昨天接單王 TOP10 -->
       <div class="panel" style="flex:1;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-          <div class="pl" style="margin:0;">🏆 昨天業績王 TOP10</div>
+          <div class="pl" style="margin:0;">🏆 昨天接單王 TOP10</div>
           <span style="font-size:9px;padding:2px 7px;background:rgba(59,125,216,.1);color:var(--blue);border-radius:10px;letter-spacing:.5px;">昨天</span>
         </div>
         <div id="s1-quarter-agents" style="display:flex;flex-direction:column;gap:5px;"></div>
@@ -323,9 +323,9 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
 </div>
 
 <div class="slide" id="s3">
-  <div class="sh"><div class="sh-t">業務業績 · 客戶排行 · 未付款提醒</div><div class="stag tp" id="s3-month">2026年4月</div></div>
+  <div class="sh"><div class="sh-t">客服接單 · 客戶排行 · 未付款提醒</div><div class="stag tp" id="s3-month">2026年4月</div></div>
   <div class="body">
-    <div class="panel"><div class="pl">業務排行</div><div class="pt">本月排名 VS 上週</div><div class="sc" id="agent-list"></div></div>
+    <div class="panel"><div class="pl">接單排行</div><div class="pt">本月排名 VS 上週</div><div class="sc" id="agent-list"></div></div>
     <div class="panel"><div class="pl">客戶消費排行</div><div class="pt">TOP 10 · 已隱藏個資</div><div class="sc" id="cust-list"></div></div>
     <div style="display:flex;flex-direction:column;gap:8px;">
       <div style="padding:10px 14px;background:rgba(217,75,107,.06);border:1px solid rgba(217,75,107,.3);border-radius:7px;display:flex;align-items:center;gap:12px;flex-shrink:0;">
@@ -527,7 +527,7 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
           <div id="s9-custs-sub" style="font-size:9px;color:var(--sub);margin-top:3px;"></div>
         </div>
         <div style="text-align:center;border-left:1px solid var(--line);">
-          <div style="font-size:9px;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase;margin-bottom:4px;">業績王</div>
+          <div style="font-size:9px;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase;margin-bottom:4px;">接單王</div>
           <div id="s9-topname" style="font-size:14px;font-weight:700;color:var(--gold);line-height:1.2;"></div>
           <div id="s9-toprev" style="font-size:9px;color:var(--sub);margin-top:3px;"></div>
         </div>
@@ -539,7 +539,7 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
           <div id="s9-monthly"></div>
         </div>
         <div>
-          <div style="font-size:10px;letter-spacing:1px;color:var(--sub);margin-bottom:6px;">🏆 業績王 Top 5</div>
+          <div style="font-size:10px;letter-spacing:1px;color:var(--sub);margin-bottom:6px;">🏆 接單王 Top 5</div>
           <div id="s9-top-agents" style="display:flex;flex-direction:column;gap:4px;"></div>
         </div>
       </div>
@@ -764,7 +764,7 @@ function renderMonthlyTbl(){
     const v26=m.rev,v25=m25[i].rev,w26=v26?Math.round(v26/maxV*100):0,w25=v25?Math.round(v25/maxV*100):0;
     const chg=v26>0&&v25>0?pc(v26,v25):'',cd=v26>0&&v25>0?dr(v26,v25):'';
     h+=`<tr ${m.current?'class="cur"':''}><td style="font-weight:500;font-size:12px;">${m.month}</td><td style="color:${v26>0?'var(--blue)':'var(--dim)'};">${v26>0?fN(v26):'—'}</td>
-    <td style="padding:0 5px;"><div style="display:flex;gap:2px;align-items:center;height:12px;"><div style="flex:1;height:7px;background:rgba(30,58,95,.06);border-radius:2px;overflow:hidden;"><div class="mt-bar" data-w="${w25}" style="height:100%;background:rgba(30,58,95,.3);border-radius:2px;width:0%;transition:width 1.3s ease;float:right;"></div></div><div style="width:2px;height:12px;background:var(--line);flex-shrink:0;"></div><div style="flex:1;height:7px;background:rgba(30,58,95,.06);border-radius:2px;overflow:hidden;"><div class="mt-bar" data-w="${w26}" style="height:100%;background:${m.current?'var(--blue)':'rgba(59,125,216,.5)'};border-radius:2px;width:0%;transition:width 1.3s ease;"></div></div></div></td><td style="color:var(--sub);">${v25>0?fN(v25):'—'}</td><td>${chg?`<span class="cmp c${cd}">${ar(cd)} ${chg}</span>`:''}</td></tr>`;
+    <td style="padding:0 5px;"><div style="display:flex;gap:2px;align-items:center;height:12px;"><div style="flex:1;height:7px;background:rgba(30,58,95,.06);border-radius:2px;overflow:hidden;"><div class="mt-bar" data-w="${w26}" style="height:100%;background:${m.current?'var(--blue)':'rgba(59,125,216,.5)'};border-radius:2px;width:0%;transition:width 1.3s ease;float:right;"></div></div><div style="width:2px;height:12px;background:var(--line);flex-shrink:0;"></div><div style="flex:1;height:7px;background:rgba(30,58,95,.06);border-radius:2px;overflow:hidden;"><div class="mt-bar" data-w="${w25}" style="height:100%;background:rgba(30,58,95,.3);border-radius:2px;width:0%;transition:width 1.3s ease;"></div></div></div></td><td style="color:var(--sub);">${v25>0?fN(v25):'—'}</td><td>${chg?`<span class="cmp c${cd}">${ar(cd)} ${chg}</span>`:''}</td></tr>`;
   });
   const el=document.getElementById('monthly-tbl');el.innerHTML=h+'</table>';
   onVis(el,()=>el.querySelectorAll('.mt-bar').forEach((b,i)=>{setTimeout(()=>{b.style.width=b.dataset.w+'%';},i*26);}));
