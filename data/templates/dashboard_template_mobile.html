@@ -602,7 +602,7 @@ function renderAchStrip(){
   document.getElementById('a-rev').textContent=fF(k.rev_mtd)+' / '+fF(D.target);
   setTimeout(()=>{document.getElementById('a-fill').style.width=Math.min(k.achievement_pct/120*100,100)+'%';},300);
   document.getElementById('a-tgt').style.left=(100/120*100)+'%';
-  document.getElementById('a-pct').innerHTML=`<span style="color:#FFB800;">${k.achievement_pct}%</span>`;
+  document.getElementById('a-pct').innerHTML=`<span style="color:#FFB800;">${k.achievement_pct>=100?'達標':k.achievement_pct+'%'}</span>`;
   const wd=dr(w.this_rev,w.last_rev);
   document.getElementById('a-week').innerHTML=`${fN(w.this_rev)} <span class="cmp c${wd}">${ar(wd)} ${pc(w.this_rev,w.last_rev)}</span>`;
   document.getElementById('a-yday').textContent=fF(y.rev);
