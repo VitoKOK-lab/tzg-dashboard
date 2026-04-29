@@ -93,7 +93,9 @@ def classify_ad_channel(act):
     if 'fb' in s or 'facebook' in s: return 'Facebook 來源'
     if 'ig' in s or 'instagram' in s: return 'Instagram 來源'
     if 'tk' in s or 'tiktok' in s: return 'TikTok 來源'
-    return '廣告推廣'
+    if 'yt' in s or 'youtube' in s: return 'YouTube 來源'
+    if 'threads' in s: return 'Threads 來源'
+    return '內容導流'
 
 # ═══════════════════════════════════════════════
 def load_data():
@@ -434,14 +436,20 @@ def compute(df):
     # Sources
     def classify(r):
         act = str(r.get('推薦活動','')).strip()
-        src = str(r.get('訂單來源','')).lower()
+        src     = str(r.get('訂單來源','')).strip()
+        src_l   = src.lower()
         if act and act != 'nan':
             if is_real_agent(act): return '業務推薦'
             return classify_ad_channel(act)
-        if 'facebook' in src or 'fb' in src: return 'Facebook 來源'
-        if 'instagram' in src or 'ig' in src: return 'Instagram 來源'
-        if 'line' in src: return 'LINE 來源'
-        if src in ('', 'nan', 'direct', 'website', 'website_web', 'website_mobile'): return '直接/官網'
+        if 'facebook' in src_l or 'fb' in src_l: return 'Facebook 來源'
+        if 'instagram' in src_l or 'ig' in src_l or 'tzgems1111' in src_l: return 'Instagram 來源'
+        if 'line' in src_l: return 'LINE 來源'
+        if '蝦皮' in src: return '蝦皮'
+        if '直播' in src: return '直播'
+        if '實體店' in src: return '實體店'
+        if 'whatsapp' in src_l: return 'WhatsApp'
+        if src_l in ('', 'nan', 'direct', 'website', 'website_web', 'website_mobile'): return '直接/官網'
+        if '泰熙爾' in src or '前台購物網站' in src: return '直接/官網'
         return '其他'
     
     mtd_ord2 = order_level(mtd_lines).copy()
