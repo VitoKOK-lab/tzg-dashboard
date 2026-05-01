@@ -441,17 +441,32 @@ function renderP1(m){
   // Daily chart with cumulative line
   const ctx1=document.getElementById('p1-chart-daily');
   const target=m.target;const days=m.days;const dailyTarget=target/days;
+  // 週幾簡稱：一二三四五六日；週末（六/日）條柱稍淡，週一加 (一) 標記讓週節奏看得到
+  const dowZh=['一','二','三','四','五','六','日'];
+  const labels1=m.daily.map(d=>d.dow===0?[d.label,'(一)']:d.label);
+  const barCol1=m.daily.map(d=>(d.dow>=5)?'rgba(217,75,107,.45)':'rgba(59,125,216,.55)');
   CHARTS['p1-daily']=new Chart(ctx1,{
     type:'bar',
     data:{
-      labels:m.daily.map(d=>d.label),
+      labels:labels1,
       datasets:[
-        {label:'日營收',data:m.daily.map(d=>d.rev),backgroundColor:'rgba(59,125,216,.5)',borderRadius:2,order:2},
+        {label:'日營收',data:m.daily.map(d=>d.rev),backgroundColor:barCol1,borderRadius:2,order:2},
         {label:'累計',type:'line',data:m.daily.map(d=>d.cumulative),borderColor:'#FFB800',backgroundColor:'rgba(255,184,0,.1)',borderWidth:2,fill:true,tension:.3,yAxisID:'y2',order:1,pointRadius:0},
         {label:'目標累計',type:'line',data:m.daily.map((d,i)=>(i+1)*dailyTarget),borderColor:'rgba(217,75,107,.6)',borderWidth:1.5,borderDash:[4,4],fill:false,yAxisID:'y2',order:0,pointRadius:0},
       ]
     },
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{boxWidth:12,font:{size:10}}}},scales:{x:{ticks:{font:{size:9},autoSkip:true,maxTicksLimit:16}},y:{ticks:{font:{size:9},callback:v=>v>=1e6?(v/1e6).toFixed(1)+'M':v>=1e3?(v/1e3).toFixed(0)+'K':v}},y2:{position:'right',grid:{drawOnChartArea:false},ticks:{font:{size:9},callback:v=>v>=1e6?(v/1e6).toFixed(1)+'M':v>=1e3?(v/1e3).toFixed(0)+'K':v}}}}
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{position:'top',labels:{boxWidth:12,font:{size:10}}},
+        tooltip:{callbacks:{title:(items)=>{const i=items[0].dataIndex;const d=m.daily[i];return `${d.label} 週${dowZh[d.dow]}`;}}}
+      },
+      scales:{
+        x:{ticks:{font:{size:9},autoSkip:true,maxTicksLimit:18,maxRotation:0,minRotation:0}},
+        y:{ticks:{font:{size:9},callback:v=>v>=1e6?(v/1e6).toFixed(1)+'M':v>=1e3?(v/1e3).toFixed(0)+'K':v}},
+        y2:{position:'right',grid:{drawOnChartArea:false},ticks:{font:{size:9},callback:v=>v>=1e6?(v/1e6).toFixed(1)+'M':v>=1e3?(v/1e3).toFixed(0)+'K':v}}
+      }
+    }
   });
 
   // Compare panel (4 cards stacked)
@@ -479,23 +494,41 @@ function renderP1(m){
 
 // ============ Page 2: 業績 ============
 function renderP2(m, prev){
-  // Daily bar
+  const dowZh=['一','二','三','四','五','六','日'];
+  const labels2=m.daily.map(d=>d.dow===0?[d.label,'(一)']:d.label);
+
+  // Daily bar：週末稍淡，最高日金色
   const max1=Math.max(...m.daily.map(d=>d.rev));
+  const barCol2=m.daily.map(d=>d.rev===max1?'#FFB800':(d.dow>=5?'rgba(217,75,107,.45)':'rgba(59,125,216,.55)'));
   CHARTS['p2-daily']=new Chart(document.getElementById('p2-chart-daily'),{
     type:'bar',
-    data:{labels:m.daily.map(d=>d.label),datasets:[{label:'日營收',data:m.daily.map(d=>d.rev),backgroundColor:m.daily.map(d=>d.rev===max1?'#FFB800':'rgba(59,125,216,.5)'),borderRadius:2}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:9},autoSkip:true,maxTicksLimit:16}},y:{ticks:{font:{size:9},callback:v=>v>=1e3?(v/1e3).toFixed(0)+'K':v}}}}
+    data:{labels:labels2,datasets:[{label:'日營收',data:m.daily.map(d=>d.rev),backgroundColor:barCol2,borderRadius:2}]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{title:(items)=>{const i=items[0].dataIndex;const d=m.daily[i];return `${d.label} 週${dowZh[d.dow]}`;}}}
+      },
+      scales:{x:{ticks:{font:{size:9},autoSkip:true,maxTicksLimit:16,maxRotation:0}},y:{ticks:{font:{size:9},callback:v=>v>=1e3?(v/1e3).toFixed(0)+'K':v}}}
+    }
   });
 
   // Cumulative
   const dailyTgt=m.target/m.days;
   CHARTS['p2-cum']=new Chart(document.getElementById('p2-chart-cum'),{
     type:'line',
-    data:{labels:m.daily.map(d=>d.label),datasets:[
+    data:{labels:labels2,datasets:[
       {label:'實際累計',data:m.daily.map(d=>d.cumulative),borderColor:'#3B7DD8',backgroundColor:'rgba(59,125,216,.12)',borderWidth:2.5,fill:true,tension:.25,pointRadius:0},
       {label:'目標累計',data:m.daily.map((d,i)=>(i+1)*dailyTgt),borderColor:'#FFB800',borderWidth:2,borderDash:[6,4],fill:false,pointRadius:0},
     ]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{boxWidth:12,font:{size:10}}}},scales:{x:{ticks:{font:{size:9},autoSkip:true,maxTicksLimit:16}},y:{ticks:{font:{size:9},callback:v=>v>=1e6?(v/1e6).toFixed(1)+'M':v>=1e3?(v/1e3).toFixed(0)+'K':v}}}}
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{position:'top',labels:{boxWidth:12,font:{size:10}}},
+        tooltip:{callbacks:{title:(items)=>{const i=items[0].dataIndex;const d=m.daily[i];return `${d.label} 週${dowZh[d.dow]}`;}}}
+      },
+      scales:{x:{ticks:{font:{size:9},autoSkip:true,maxTicksLimit:16,maxRotation:0}},y:{ticks:{font:{size:9},callback:v=>v>=1e6?(v/1e6).toFixed(1)+'M':v>=1e3?(v/1e3).toFixed(0)+'K':v}}}
+    }
   });
 
   // DoW

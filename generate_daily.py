@@ -39,6 +39,31 @@ OUTPUT_DIR     = Path('./output')
 OUTPUT_LATEST  = OUTPUT_DIR / 'dashboard_latest.html'  # 永遠上傳這個！
 
 MONTHLY_TARGET = 4_500_000
+ANNUAL_PLAN_FILE = Path('./annual_plan.json')
+
+
+def load_annual_plan():
+    """讀取年度業績目標設定檔"""
+    if not ANNUAL_PLAN_FILE.exists():
+        return None
+    try:
+        return json.loads(ANNUAL_PLAN_FILE.read_text(encoding='utf-8'))
+    except Exception as e:
+        print(f'[!] annual_plan.json 讀取失敗：{e}（將使用預設目標）')
+        return None
+
+
+def get_monthly_target(yr, mo):
+    """取得指定月份的業績目標"""
+    plan = load_annual_plan()
+    if not plan:
+        return MONTHLY_TARGET
+    key = f'{yr}-{mo:02d}'
+    if key in plan:
+        return int(plan[key])
+    if '_default' in plan:
+        return int(plan['_default'])
+    return MONTHLY_TARGET
 MANUAL_TODAY   = None
 
 PAID_STATUSES       = ['已付款', '付款完成', '已收款', 'paid', 'Paid']
@@ -239,7 +264,9 @@ def in_range(df, s, e):
     return df[(df['訂單日期'] >= s) & (df['訂單日期'] < e)]
 
 
-def compute_month_review(vd, ccol, yr, mo, target=MONTHLY_TARGET):
+def compute_month_review(vd, ccol, yr, mo, target=None):
+    if target is None:
+        target = get_monthly_target(yr, mo)
     """
     計算單一月份的完整回顧資料（給 daily dashboard 的 prev_month
     以及月會專用網頁共用）
@@ -295,6 +322,7 @@ def compute_month_review(vd, ccol, yr, mo, target=MONTHLY_TARGET):
             'day': d, 'label': f'{mo}/{d}',
             'rev': rev, 'orders': len(d_ord),
             'cumulative': cumulative,
+            'dow': d_s.weekday(),  # 0=週一 .. 6=週日
         })
 
     # 業務排名（含 orders, rev, new_clients, avg）
@@ -541,7 +569,8 @@ def compute(df):
         print(f'[vd 獨立客戶] {vd[ccol if "顧客 ID" in vd.columns else "顧客"].nunique():,} 位')
     
     yr, mo = today.year, today.month
-    D = {'target': MONTHLY_TARGET}
+    cur_target = get_monthly_target(yr, mo)
+    D = {'target': cur_target}
     ms, me = month_range(yr, mo)
     D['meta'] = {
         'report_month': f'{yr}年{mo}月',
@@ -577,8 +606,8 @@ def compute(df):
     D['kpi'] = {
         'rev_mtd': int(rev_mtd),
         'rev_projected': int(proj),
-        'achievement_pct': round(rev_mtd/MONTHLY_TARGET*100, 1),
-        'proj_achievement_pct': round(proj/MONTHLY_TARGET*100, 1),
+        'achievement_pct': round(rev_mtd/cur_target*100, 1),
+        'proj_achievement_pct': round(proj/cur_target*100, 1),
         'orders_mtd': int(n_ord),
         'avg_order': int(aov),
         'median_order': int(med),
@@ -1279,7 +1308,7 @@ def compute(df):
     
     # 2. 達標缺口計算 + 補救策略
     rev_mtd = D['kpi']['rev_mtd']
-    target = MONTHLY_TARGET
+    target = cur_target
     remaining = max(0, target - rev_mtd)
     days_elapsed = D['meta']['days_elapsed']
     days_total = D['meta']['days_total']
