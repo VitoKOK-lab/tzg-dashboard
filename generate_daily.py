@@ -28,6 +28,7 @@ import json
 import re
 import sys
 import traceback
+import calendar as _cal
 from pathlib import Path
 from datetime import datetime, timedelta
 from collections import Counter
@@ -1137,7 +1138,135 @@ def compute(df):
         'trend_vs_last_month': trend_vs_last,
     }
     print(f'[預估達標] 信心度 {confidence} / 相比上月 {trend_vs_last:+.1f}%')
-    
+
+    # ═══════════════════════════════════════════════════════
+    # 前月完整回顧
+    # ═══════════════════════════════════════════════════════
+    pm_yr = yr - 1 if mo == 1 else yr
+    pm_mo = 12     if mo == 1 else mo - 1
+    pm_s, pm_e   = month_range(pm_yr, pm_mo)
+    pm_lines     = in_range(vd, pm_s, pm_e)
+    pm_ord       = order_level(pm_lines)
+
+    if len(pm_ord) > 0:
+        days_in_pm = _cal.monthrange(pm_yr, pm_mo)[1]
+        pm_rev     = int(pm_ord['訂單合計'].sum())
+        pm_orders  = len(pm_ord)
+        pm_avg     = int(pm_rev / pm_orders) if pm_orders else 0
+
+        # 客戶分類
+        first_ord_all = vd.groupby(ccol)['訂單日期'].min()
+        pm_custs  = set(pm_lines[ccol].dropna().unique())
+        pm_new    = sum(1 for c in pm_custs if c in first_ord_all.index and first_ord_all[c] >= pm_s)
+        pm_ret    = len(pm_custs) - pm_new
+        pm_total_c = len(pm_custs)
+        pm_new_pct = round(pm_new / pm_total_c * 100, 1) if pm_total_c else 0
+
+        # 達成率
+        pm_ach = round(pm_rev / MONTHLY_TARGET * 100, 1)
+
+        # YoY（去年同月）
+        ly_s, ly_e = month_range(pm_yr - 1, pm_mo)
+        ly_ord  = order_level(in_range(vd, ly_s, ly_e))
+        yoy_rev = int(ly_ord['訂單合計'].sum()) if len(ly_ord) else 0
+        yoy_pct = round((pm_rev - yoy_rev) / yoy_rev * 100, 1) if yoy_rev else None
+
+        # MoM（前一個月）
+        pmm_yr = pm_yr - 1 if pm_mo == 1 else pm_yr
+        pmm_mo = 12        if pm_mo == 1 else pm_mo - 1
+        pmm_s, pmm_e = month_range(pmm_yr, pmm_mo)
+        pmm_ord = order_level(in_range(vd, pmm_s, pmm_e))
+        mom_rev = int(pmm_ord['訂單合計'].sum()) if len(pmm_ord) else 0
+        mom_pct = round((pm_rev - mom_rev) / mom_rev * 100, 1) if mom_rev else None
+
+        # 日銷明細
+        pm_daily = []
+        for d in range(1, days_in_pm + 1):
+            d_s = datetime(pm_yr, pm_mo, d)
+            d_e = d_s + timedelta(days=1)
+            d_ord = order_level(in_range(vd, d_s, d_e))
+            pm_daily.append({
+                'day': d, 'label': f'{pm_mo}/{d}',
+                'rev': int(d_ord['訂單合計'].sum()), 'orders': len(d_ord)
+            })
+
+        # 接單王 Top 10
+        pm_agents = []
+        if '推薦活動' in pm_lines.columns:
+            ag_b = pm_lines[pm_lines['推薦活動'].notna() & pm_lines['推薦活動'].apply(is_real_agent)]
+            if len(ag_b):
+                ag_o = order_level(ag_b)
+                ag_g = ag_o.groupby('推薦活動').agg(
+                    orders=('訂單號碼', 'count'), rev=('訂單合計', 'sum')
+                ).sort_values('rev', ascending=False).head(10).reset_index()
+                pm_agents = [
+                    {'name': str(r['推薦活動']), 'orders': int(r['orders']),
+                     'rev': int(r['rev']), 'rank': i + 1}
+                    for i, r in ag_g.iterrows()
+                ]
+
+        # 熱銷商品 Top 10
+        pm_prod_g = pm_lines.groupby('商品名稱').agg(
+            qty=('數量', 'sum'), rev=('商品結帳價', 'sum')
+        ).sort_values('rev', ascending=False).head(10).reset_index()
+        pm_products = [
+            {'name': str(r['商品名稱'])[:28], 'qty': int(r['qty']), 'rev': int(r['rev'])}
+            for _, r in pm_prod_g.iterrows()
+        ]
+
+        # 訂單來源
+        pm_ord2 = pm_ord.copy()
+        pm_ord2['_src'] = pm_ord2.apply(classify, axis=1)
+        src_g   = pm_ord2.groupby('_src').agg(
+            orders=('訂單號碼', 'count'), rev=('訂單合計', 'sum')
+        ).sort_values('rev', ascending=False).reset_index()
+        src_tot = int(src_g['rev'].sum())
+        pm_sources = [
+            {'src': r['_src'], 'orders': int(r['orders']), 'rev': int(r['rev']),
+             'pct': round(r['rev'] / src_tot * 100, 1) if src_tot else 0}
+            for _, r in src_g.iterrows()
+        ]
+
+        # 城市 Top 8
+        pm_cities = []
+        if '城市' in pm_ord.columns:
+            city_g = pm_ord[
+                pm_ord['城市'].notna() & (pm_ord['城市'].astype(str).str.strip() != '')
+            ].groupby('城市').agg(
+                orders=('訂單號碼', 'count'), rev=('訂單合計', 'sum')
+            ).sort_values('rev', ascending=False).head(8).reset_index()
+            pm_cities = [
+                {'city': str(r['城市']), 'orders': int(r['orders']), 'rev': int(r['rev'])}
+                for _, r in city_g.iterrows()
+            ]
+
+        D['prev_month'] = {
+            'month_label':   f'{pm_yr}年{pm_mo}月',
+            'year': pm_yr,   'month': pm_mo,   'days': days_in_pm,
+            'rev':           pm_rev,
+            'orders':        pm_orders,
+            'avg_order':     pm_avg,
+            'new_customers': pm_new,
+            'returning':     pm_ret,
+            'total_customers': pm_total_c,
+            'new_pct':       pm_new_pct,
+            'target':        MONTHLY_TARGET,
+            'achievement_pct': pm_ach,
+            'yoy_rev':       yoy_rev,
+            'yoy_pct':       yoy_pct,
+            'mom_rev':       mom_rev,
+            'mom_pct':       mom_pct,
+            'daily':         pm_daily,
+            'top_agents':    pm_agents,
+            'top_products':  pm_products,
+            'sources':       pm_sources,
+            'top_cities':    pm_cities,
+        }
+        print(f'[前月回顧] {pm_yr}年{pm_mo}月 · NT${pm_rev:,} / {pm_orders}張 · 達成 {pm_ach}%')
+    else:
+        D['prev_month'] = None
+        print(f'[前月回顧] 無{pm_yr}年{pm_mo}月資料')
+
     return D
 
 def patch_html(html, D):
@@ -1224,7 +1353,21 @@ def main():
     
     print('\n[步驟 1/4] 加載數據...')
     df = load_data()
-    
+
+    # 自動封存上個月（若封存檔尚未存在）
+    try:
+        from generate_monthly_archive import generate_archive
+        now_dt = datetime.now()
+        arc_yr  = now_dt.year - 1 if now_dt.month == 1 else now_dt.year
+        arc_mo  = 12             if now_dt.month == 1 else now_dt.month - 1
+        arc_path = DATA_DIR / f'TZG_{arc_yr}-{arc_mo:02d}_orders.xlsx'
+        if not arc_path.exists():
+            print(f'\n[自動封存] {arc_yr}年{arc_mo}月 尚未封存，開始建立...')
+            generate_archive(arc_yr, arc_mo)
+            print()
+    except Exception as _ae:
+        pass  # 封存失敗不影響儀表板生成
+
     print('\n[步驟 2/4] 計算指標...')
     try:
         D = compute(df)
