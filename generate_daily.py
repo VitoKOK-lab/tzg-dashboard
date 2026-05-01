@@ -98,6 +98,26 @@ def classify_ad_channel(act):
     if 'threads' in s: return 'Threads 來源'
     return '內容導流'
 
+
+def classify_source(r):
+    """訂單來源分類（模組層級，供 daily/monthly review 共用）"""
+    act = str(r.get('推薦活動', '')).strip()
+    src   = str(r.get('訂單來源', '')).strip()
+    src_l = src.lower()
+    if act and act != 'nan':
+        if is_real_agent(act): return '業務推薦'
+        return classify_ad_channel(act)
+    if 'facebook' in src_l or 'fb' in src_l: return 'Facebook 來源'
+    if 'instagram' in src_l or 'ig' in src_l or 'tzgems1111' in src_l: return 'Instagram 來源'
+    if 'line' in src_l: return 'LINE 來源'
+    if '蝦皮' in src: return '蝦皮'
+    if '直播' in src: return '直播'
+    if '實體店' in src: return '實體店'
+    if 'whatsapp' in src_l: return 'WhatsApp'
+    if src_l in ('', 'nan', 'direct', 'website', 'website_web', 'website_mobile'): return '直接/官網'
+    if '泰熙爾' in src or '前台購物網站' in src: return '直接/官網'
+    return '其他'
+
 # ═══════════════════════════════════════════════
 def load_data():
     if not DATA_DIR.exists():
@@ -217,6 +237,223 @@ def month_range(y, m):
 
 def in_range(df, s, e):
     return df[(df['訂單日期'] >= s) & (df['訂單日期'] < e)]
+
+
+def compute_month_review(vd, ccol, yr, mo, target=MONTHLY_TARGET):
+    """
+    計算單一月份的完整回顧資料（給 daily dashboard 的 prev_month
+    以及月會專用網頁共用）
+    回傳 dict 或 None（無資料）
+    """
+    pm_s, pm_e = month_range(yr, mo)
+    pm_lines   = in_range(vd, pm_s, pm_e)
+    pm_ord     = order_level(pm_lines)
+
+    if len(pm_ord) == 0:
+        return None
+
+    days_in_pm = _cal.monthrange(yr, mo)[1]
+    pm_rev     = int(pm_ord['訂單合計'].sum())
+    pm_orders  = len(pm_ord)
+    pm_avg     = int(pm_rev / pm_orders) if pm_orders else 0
+
+    # 客戶分類
+    first_ord_all = vd.groupby(ccol)['訂單日期'].min()
+    pm_custs   = set(pm_lines[ccol].dropna().unique())
+    pm_new     = sum(1 for c in pm_custs if c in first_ord_all.index and first_ord_all[c] >= pm_s)
+    pm_ret     = len(pm_custs) - pm_new
+    pm_total_c = len(pm_custs)
+    pm_new_pct = round(pm_new / pm_total_c * 100, 1) if pm_total_c else 0
+
+    # 達成率
+    pm_ach = round(pm_rev / target * 100, 1)
+
+    # YoY（去年同月）
+    ly_s, ly_e = month_range(yr - 1, mo)
+    ly_ord  = order_level(in_range(vd, ly_s, ly_e))
+    yoy_rev = int(ly_ord['訂單合計'].sum()) if len(ly_ord) else 0
+    yoy_pct = round((pm_rev - yoy_rev) / yoy_rev * 100, 1) if yoy_rev else None
+
+    # MoM（前一個月）
+    pmm_yr = yr - 1 if mo == 1 else yr
+    pmm_mo = 12     if mo == 1 else mo - 1
+    pmm_s, pmm_e = month_range(pmm_yr, pmm_mo)
+    pmm_ord = order_level(in_range(vd, pmm_s, pmm_e))
+    mom_rev = int(pmm_ord['訂單合計'].sum()) if len(pmm_ord) else 0
+    mom_pct = round((pm_rev - mom_rev) / mom_rev * 100, 1) if mom_rev else None
+
+    # 日銷明細 + 累計
+    pm_daily = []
+    cumulative = 0
+    for d in range(1, days_in_pm + 1):
+        d_s = datetime(yr, mo, d)
+        d_e = d_s + timedelta(days=1)
+        d_ord = order_level(in_range(vd, d_s, d_e))
+        rev = int(d_ord['訂單合計'].sum())
+        cumulative += rev
+        pm_daily.append({
+            'day': d, 'label': f'{mo}/{d}',
+            'rev': rev, 'orders': len(d_ord),
+            'cumulative': cumulative,
+        })
+
+    # 業務排名（含 orders, rev, new_clients, avg）
+    pm_agents = []
+    if '推薦活動' in pm_lines.columns:
+        ag_b = pm_lines[pm_lines['推薦活動'].notna() & pm_lines['推薦活動'].apply(is_real_agent)]
+        if len(ag_b):
+            ag_o = order_level(ag_b)
+            ag_g = ag_o.groupby('推薦活動').agg(
+                orders=('訂單號碼', 'count'),
+                rev=('訂單合計', 'sum'),
+                customers=(ccol, 'nunique'),
+            ).sort_values('rev', ascending=False).reset_index()
+            for i, r in ag_g.iterrows():
+                # 計算這位業務本月的新客數
+                ag_custs = set(ag_o[ag_o['推薦活動'] == r['推薦活動']][ccol].dropna().unique())
+                new_for_ag = sum(1 for c in ag_custs if c in first_ord_all.index and first_ord_all[c] >= pm_s)
+                pm_agents.append({
+                    'name': str(r['推薦活動']),
+                    'orders': int(r['orders']),
+                    'rev': int(r['rev']),
+                    'customers': int(r['customers']),
+                    'new_customers': new_for_ag,
+                    'avg_order': int(r['rev'] / r['orders']) if r['orders'] else 0,
+                    'rank': i + 1,
+                })
+
+    # 商品（依營收 / 依數量）
+    pm_prod_rev = pm_lines.groupby('商品名稱').agg(
+        qty=('數量', 'sum'), rev=('商品結帳價', 'sum'), orders=('訂單號碼', 'nunique')
+    ).sort_values('rev', ascending=False).head(15).reset_index()
+    pm_top_prod_rev = [
+        {'name': str(r['商品名稱'])[:35], 'qty': int(r['qty']), 'rev': int(r['rev']),
+         'orders': int(r['orders']), 'avg': int(r['rev'] / r['qty']) if r['qty'] else 0}
+        for _, r in pm_prod_rev.iterrows()
+    ]
+    pm_prod_qty = pm_lines.groupby('商品名稱').agg(
+        qty=('數量', 'sum'), rev=('商品結帳價', 'sum')
+    ).sort_values('qty', ascending=False).head(15).reset_index()
+    pm_top_prod_qty = [
+        {'name': str(r['商品名稱'])[:35], 'qty': int(r['qty']), 'rev': int(r['rev'])}
+        for _, r in pm_prod_qty.iterrows()
+    ]
+
+    # 訂單來源（含完整指標：orders, customers, rev, AOV, new%）
+    pm_ord2 = pm_ord.copy()
+    pm_ord2['_src'] = pm_ord2.apply(classify_source, axis=1)
+    src_g = pm_ord2.groupby('_src').agg(
+        orders=('訂單號碼', 'count'),
+        rev=('訂單合計', 'sum'),
+        customers=(ccol, 'nunique'),
+    ).sort_values('rev', ascending=False).reset_index()
+    src_tot = int(src_g['rev'].sum())
+    pm_sources = []
+    for _, r in src_g.iterrows():
+        src_name = r['_src']
+        src_custs = set(pm_ord2[pm_ord2['_src'] == src_name][ccol].dropna().unique())
+        new_in_src = sum(1 for c in src_custs if c in first_ord_all.index and first_ord_all[c] >= pm_s)
+        pm_sources.append({
+            'src': src_name,
+            'orders': int(r['orders']),
+            'customers': int(r['customers']),
+            'rev': int(r['rev']),
+            'pct': round(r['rev'] / src_tot * 100, 1) if src_tot else 0,
+            'aov': int(r['rev'] / r['orders']) if r['orders'] else 0,
+            'new_customers': new_in_src,
+            'new_pct': round(new_in_src / r['customers'] * 100, 1) if r['customers'] else 0,
+        })
+
+    # 城市（全部，不止 Top 8）
+    pm_cities = []
+    if '城市' in pm_ord.columns:
+        city_g = pm_ord[
+            pm_ord['城市'].notna() & (pm_ord['城市'].astype(str).str.strip() != '')
+        ].groupby('城市').agg(
+            orders=('訂單號碼', 'count'),
+            rev=('訂單合計', 'sum'),
+            customers=(ccol, 'nunique'),
+        ).sort_values('rev', ascending=False).reset_index()
+        for _, r in city_g.iterrows():
+            pm_cities.append({
+                'city': str(r['城市']),
+                'orders': int(r['orders']),
+                'customers': int(r['customers']),
+                'rev': int(r['rev']),
+                'aov': int(r['rev'] / r['orders']) if r['orders'] else 0,
+            })
+
+    # 首購 vs 回購 AOV
+    if pm_new + pm_ret > 0:
+        new_set = set(c for c in pm_custs if c in first_ord_all.index and first_ord_all[c] >= pm_s)
+        ret_set = pm_custs - new_set
+        new_orders_df = pm_ord[pm_ord[ccol].isin(new_set)]
+        ret_orders_df = pm_ord[pm_ord[ccol].isin(ret_set)]
+        first_aov = int(new_orders_df['訂單合計'].mean()) if len(new_orders_df) else 0
+        return_aov = int(ret_orders_df['訂單合計'].mean()) if len(ret_orders_df) else 0
+    else:
+        first_aov, return_aov = 0, 0
+
+    # 時段分布
+    pm_hours = []
+    if len(pm_ord):
+        h_dist = pm_ord['訂單日期'].dt.hour.value_counts().sort_index()
+        pm_hours = [{'hour': int(h), 'orders': int(c)} for h, c in h_dist.items()]
+
+    # 星期分布
+    pm_dow = []
+    if len(pm_ord):
+        dow_names = ['週一', '週二', '週三', '週四', '週五', '週六', '週日']
+        dow_g = pm_ord.groupby(pm_ord['訂單日期'].dt.dayofweek).agg(
+            orders=('訂單號碼', 'count'), rev=('訂單合計', 'sum')
+        )
+        for i in range(7):
+            if i in dow_g.index:
+                pm_dow.append({'day': dow_names[i], 'orders': int(dow_g.loc[i, 'orders']),
+                               'rev': int(dow_g.loc[i, 'rev'])})
+            else:
+                pm_dow.append({'day': dow_names[i], 'orders': 0, 'rev': 0})
+
+    # 客單價分布
+    spend_buckets = {'<2千': 0, '2–5千': 0, '5千–1萬': 0, '1–3萬': 0, '>3萬': 0}
+    for v in pm_ord['訂單合計']:
+        if v < 2000: spend_buckets['<2千'] += 1
+        elif v < 5000: spend_buckets['2–5千'] += 1
+        elif v < 10000: spend_buckets['5千–1萬'] += 1
+        elif v < 30000: spend_buckets['1–3萬'] += 1
+        else: spend_buckets['>3萬'] += 1
+
+    return {
+        'year_month':   f'{yr}-{mo:02d}',
+        'month_label':  f'{yr}年{mo}月',
+        'year':         yr,
+        'month':        mo,
+        'days':         days_in_pm,
+        'rev':          pm_rev,
+        'orders':       pm_orders,
+        'avg_order':    pm_avg,
+        'new_customers': pm_new,
+        'returning':    pm_ret,
+        'total_customers': pm_total_c,
+        'new_pct':      pm_new_pct,
+        'target':       target,
+        'achievement_pct': pm_ach,
+        'yoy_rev':      yoy_rev,
+        'yoy_pct':      yoy_pct,
+        'mom_rev':      mom_rev,
+        'mom_pct':      mom_pct,
+        'daily':        pm_daily,
+        'agents':       pm_agents,
+        'top_prod_rev': pm_top_prod_rev,
+        'top_prod_qty': pm_top_prod_qty,
+        'sources':      pm_sources,
+        'cities':       pm_cities,
+        'first_aov':    first_aov,
+        'return_aov':   return_aov,
+        'hours':        pm_hours,
+        'dow':          pm_dow,
+        'spend_dist':   spend_buckets,
+    }
 
 def clean_city(c):
     if pd.isna(c): return '未知'
@@ -434,24 +671,8 @@ def compute(df):
                 for i, r in yd_agg.head(10).iterrows()
             ]
 
-    # Sources
-    def classify(r):
-        act = str(r.get('推薦活動','')).strip()
-        src     = str(r.get('訂單來源','')).strip()
-        src_l   = src.lower()
-        if act and act != 'nan':
-            if is_real_agent(act): return '業務推薦'
-            return classify_ad_channel(act)
-        if 'facebook' in src_l or 'fb' in src_l: return 'Facebook 來源'
-        if 'instagram' in src_l or 'ig' in src_l or 'tzgems1111' in src_l: return 'Instagram 來源'
-        if 'line' in src_l: return 'LINE 來源'
-        if '蝦皮' in src: return '蝦皮'
-        if '直播' in src: return '直播'
-        if '實體店' in src: return '實體店'
-        if 'whatsapp' in src_l: return 'WhatsApp'
-        if src_l in ('', 'nan', 'direct', 'website', 'website_web', 'website_mobile'): return '直接/官網'
-        if '泰熙爾' in src or '前台購物網站' in src: return '直接/官網'
-        return '其他'
+    # Sources（使用模組層級的 classify_source）
+    classify = classify_source
     
     mtd_ord2 = order_level(mtd_lines).copy()
     mtd_ord2['_src'] = mtd_ord2.apply(classify, axis=1)
@@ -1140,129 +1361,41 @@ def compute(df):
     print(f'[預估達標] 信心度 {confidence} / 相比上月 {trend_vs_last:+.1f}%')
 
     # ═══════════════════════════════════════════════════════
-    # 前月完整回顧
+    # 前月完整回顧（呼叫共用函數）
     # ═══════════════════════════════════════════════════════
     pm_yr = yr - 1 if mo == 1 else yr
     pm_mo = 12     if mo == 1 else mo - 1
-    pm_s, pm_e   = month_range(pm_yr, pm_mo)
-    pm_lines     = in_range(vd, pm_s, pm_e)
-    pm_ord       = order_level(pm_lines)
-
-    if len(pm_ord) > 0:
-        days_in_pm = _cal.monthrange(pm_yr, pm_mo)[1]
-        pm_rev     = int(pm_ord['訂單合計'].sum())
-        pm_orders  = len(pm_ord)
-        pm_avg     = int(pm_rev / pm_orders) if pm_orders else 0
-
-        # 客戶分類
-        first_ord_all = vd.groupby(ccol)['訂單日期'].min()
-        pm_custs  = set(pm_lines[ccol].dropna().unique())
-        pm_new    = sum(1 for c in pm_custs if c in first_ord_all.index and first_ord_all[c] >= pm_s)
-        pm_ret    = len(pm_custs) - pm_new
-        pm_total_c = len(pm_custs)
-        pm_new_pct = round(pm_new / pm_total_c * 100, 1) if pm_total_c else 0
-
-        # 達成率
-        pm_ach = round(pm_rev / MONTHLY_TARGET * 100, 1)
-
-        # YoY（去年同月）
-        ly_s, ly_e = month_range(pm_yr - 1, pm_mo)
-        ly_ord  = order_level(in_range(vd, ly_s, ly_e))
-        yoy_rev = int(ly_ord['訂單合計'].sum()) if len(ly_ord) else 0
-        yoy_pct = round((pm_rev - yoy_rev) / yoy_rev * 100, 1) if yoy_rev else None
-
-        # MoM（前一個月）
-        pmm_yr = pm_yr - 1 if pm_mo == 1 else pm_yr
-        pmm_mo = 12        if pm_mo == 1 else pm_mo - 1
-        pmm_s, pmm_e = month_range(pmm_yr, pmm_mo)
-        pmm_ord = order_level(in_range(vd, pmm_s, pmm_e))
-        mom_rev = int(pmm_ord['訂單合計'].sum()) if len(pmm_ord) else 0
-        mom_pct = round((pm_rev - mom_rev) / mom_rev * 100, 1) if mom_rev else None
-
-        # 日銷明細
-        pm_daily = []
-        for d in range(1, days_in_pm + 1):
-            d_s = datetime(pm_yr, pm_mo, d)
-            d_e = d_s + timedelta(days=1)
-            d_ord = order_level(in_range(vd, d_s, d_e))
-            pm_daily.append({
-                'day': d, 'label': f'{pm_mo}/{d}',
-                'rev': int(d_ord['訂單合計'].sum()), 'orders': len(d_ord)
-            })
-
-        # 接單王 Top 10
-        pm_agents = []
-        if '推薦活動' in pm_lines.columns:
-            ag_b = pm_lines[pm_lines['推薦活動'].notna() & pm_lines['推薦活動'].apply(is_real_agent)]
-            if len(ag_b):
-                ag_o = order_level(ag_b)
-                ag_g = ag_o.groupby('推薦活動').agg(
-                    orders=('訂單號碼', 'count'), rev=('訂單合計', 'sum')
-                ).sort_values('rev', ascending=False).head(10).reset_index()
-                pm_agents = [
-                    {'name': str(r['推薦活動']), 'orders': int(r['orders']),
-                     'rev': int(r['rev']), 'rank': i + 1}
-                    for i, r in ag_g.iterrows()
-                ]
-
-        # 熱銷商品 Top 10
-        pm_prod_g = pm_lines.groupby('商品名稱').agg(
-            qty=('數量', 'sum'), rev=('商品結帳價', 'sum')
-        ).sort_values('rev', ascending=False).head(10).reset_index()
-        pm_products = [
-            {'name': str(r['商品名稱'])[:28], 'qty': int(r['qty']), 'rev': int(r['rev'])}
-            for _, r in pm_prod_g.iterrows()
-        ]
-
-        # 訂單來源
-        pm_ord2 = pm_ord.copy()
-        pm_ord2['_src'] = pm_ord2.apply(classify, axis=1)
-        src_g   = pm_ord2.groupby('_src').agg(
-            orders=('訂單號碼', 'count'), rev=('訂單合計', 'sum')
-        ).sort_values('rev', ascending=False).reset_index()
-        src_tot = int(src_g['rev'].sum())
-        pm_sources = [
-            {'src': r['_src'], 'orders': int(r['orders']), 'rev': int(r['rev']),
-             'pct': round(r['rev'] / src_tot * 100, 1) if src_tot else 0}
-            for _, r in src_g.iterrows()
-        ]
-
-        # 城市 Top 8
-        pm_cities = []
-        if '城市' in pm_ord.columns:
-            city_g = pm_ord[
-                pm_ord['城市'].notna() & (pm_ord['城市'].astype(str).str.strip() != '')
-            ].groupby('城市').agg(
-                orders=('訂單號碼', 'count'), rev=('訂單合計', 'sum')
-            ).sort_values('rev', ascending=False).head(8).reset_index()
-            pm_cities = [
-                {'city': str(r['城市']), 'orders': int(r['orders']), 'rev': int(r['rev'])}
-                for _, r in city_g.iterrows()
-            ]
-
+    pm_review = compute_month_review(vd, ccol, pm_yr, pm_mo)
+    if pm_review:
+        # daily dashboard 的 s9 只用部分欄位（精簡版）
         D['prev_month'] = {
-            'month_label':   f'{pm_yr}年{pm_mo}月',
-            'year': pm_yr,   'month': pm_mo,   'days': days_in_pm,
-            'rev':           pm_rev,
-            'orders':        pm_orders,
-            'avg_order':     pm_avg,
-            'new_customers': pm_new,
-            'returning':     pm_ret,
-            'total_customers': pm_total_c,
-            'new_pct':       pm_new_pct,
-            'target':        MONTHLY_TARGET,
-            'achievement_pct': pm_ach,
-            'yoy_rev':       yoy_rev,
-            'yoy_pct':       yoy_pct,
-            'mom_rev':       mom_rev,
-            'mom_pct':       mom_pct,
-            'daily':         pm_daily,
-            'top_agents':    pm_agents,
-            'top_products':  pm_products,
-            'sources':       pm_sources,
-            'top_cities':    pm_cities,
+            'month_label':     pm_review['month_label'],
+            'year':            pm_review['year'],
+            'month':           pm_review['month'],
+            'days':            pm_review['days'],
+            'rev':             pm_review['rev'],
+            'orders':          pm_review['orders'],
+            'avg_order':       pm_review['avg_order'],
+            'new_customers':   pm_review['new_customers'],
+            'returning':       pm_review['returning'],
+            'total_customers': pm_review['total_customers'],
+            'new_pct':         pm_review['new_pct'],
+            'target':          pm_review['target'],
+            'achievement_pct': pm_review['achievement_pct'],
+            'yoy_rev':         pm_review['yoy_rev'],
+            'yoy_pct':         pm_review['yoy_pct'],
+            'mom_rev':         pm_review['mom_rev'],
+            'mom_pct':         pm_review['mom_pct'],
+            'daily':           pm_review['daily'],
+            'top_agents':      pm_review['agents'][:10],
+            'top_products':    [{'name': p['name'][:28], 'qty': p['qty'], 'rev': p['rev']}
+                                for p in pm_review['top_prod_rev'][:10]],
+            'sources':         [{'src': s['src'], 'orders': s['orders'], 'rev': s['rev'], 'pct': s['pct']}
+                                for s in pm_review['sources']],
+            'top_cities':      [{'city': c['city'], 'orders': c['orders'], 'rev': c['rev']}
+                                for c in pm_review['cities'][:8]],
         }
-        print(f'[前月回顧] {pm_yr}年{pm_mo}月 · NT${pm_rev:,} / {pm_orders}張 · 達成 {pm_ach}%')
+        print(f'[前月回顧] {pm_review["month_label"]} · NT${pm_review["rev"]:,} / {pm_review["orders"]}張 · 達成 {pm_review["achievement_pct"]}%')
     else:
         D['prev_month'] = None
         print(f'[前月回顧] 無{pm_yr}年{pm_mo}月資料')

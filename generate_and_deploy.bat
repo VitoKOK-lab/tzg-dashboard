@@ -87,6 +87,21 @@ echo.
 echo [5/6] Dashboard generated OK
 echo.
 
+REM ============ Step 5b: Generate Monthly Review ============
+echo ===================================================
+echo  Generating Monthly Review...
+echo ===================================================
+echo.
+
+python generate_monthly_review.py
+if errorlevel 1 (
+    echo WARNING: Monthly review generation failed, continuing...
+    echo.
+) else (
+    echo [5b/6] Monthly review generated OK
+    echo.
+)
+
 
 REM ============ Step 6: Git commit + push ============
 echo ===================================================
@@ -108,9 +123,10 @@ set TIMESTAMP=%datetime:~0,4%-%datetime:~4,2%-%datetime:~6,2% %datetime:~8,2%:%d
 
 REM Stage dashboard files
 git add output/dashboard_latest.html
+if exist "output/monthly_review.html" git add output/monthly_review.html
 
 REM Check if there are changes
-git diff-index --quiet HEAD output/dashboard_latest.html
+git diff-index --quiet HEAD output/dashboard_latest.html output/monthly_review.html 2>nul
 if !errorlevel! == 0 (
     echo No changes to deploy. Dashboard content is identical.
     echo.

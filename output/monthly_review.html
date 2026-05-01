@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TZG 月會總結</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&family=Cormorant+Garamond:wght@600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#FAFAF7;--bg2:#F4F2EC;--card:#FFFFFF;
+  --line:rgba(30,58,95,.12);--line2:rgba(30,58,95,.06);
+  --coral:#D94B6B;--gold:#B8902A;--teal:#0F8F85;--blue:#3B7DD8;--pur:#7B5FC7;
+  --ink:#1E3A5F;--sub:rgba(30,58,95,.62);--dim:rgba(30,58,95,.35);
+  --up:#E53935;--dn:#10A37F;--flat:#9E9E9E;
+  --yellow:#FFB800;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{font-family:'Noto Sans TC','微軟正黑體',sans-serif;color:var(--ink);background:var(--bg);font-size:13px;line-height:1.5;}
+
+/* Header */
+.hdr{position:sticky;top:0;background:#000;color:#fff;padding:14px 28px;display:flex;align-items:center;gap:24px;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.1);}
+.hdr-logo{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:700;}
+.hdr-logo em{color:var(--coral);font-style:normal;}
+.hdr-sub{font-size:11px;letter-spacing:2px;color:rgba(255,255,255,.6);text-transform:uppercase;}
+.hdr-spacer{flex:1;}
+.hdr-month{display:flex;align-items:center;gap:8px;}
+.hdr-month label{font-size:11px;color:rgba(255,255,255,.6);letter-spacing:1px;}
+#month-select{font-family:'DM Mono',monospace;font-size:14px;font-weight:600;padding:6px 14px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:4px;cursor:pointer;outline:none;}
+#month-select option{background:#222;color:#fff;}
+
+/* Tabs */
+.tabs{background:#fff;border-bottom:1px solid var(--line);padding:0 28px;display:flex;overflow-x:auto;}
+.tab{padding:12px 18px;font-size:13px;font-weight:500;cursor:pointer;color:var(--sub);border-bottom:3px solid transparent;white-space:nowrap;transition:all .15s;}
+.tab:hover{color:var(--ink);}
+.tab.on{color:var(--ink);border-bottom-color:var(--gold);font-weight:700;}
+
+/* Pages */
+.page{padding:24px 28px;display:none;max-width:1400px;margin:0 auto;}
+.page.on{display:block;}
+
+/* Reusable */
+.panel{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:16px 18px;}
+.pl{font-size:11px;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase;font-weight:700;margin-bottom:8px;}
+.kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px;}
+.kpi-card{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:14px 18px;}
+.kpi-l{font-size:10px;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase;margin-bottom:6px;}
+.kpi-v{font-family:'DM Mono',monospace;font-size:24px;font-weight:700;color:var(--ink);line-height:1.1;}
+.kpi-sub{font-size:11px;color:var(--sub);margin-top:4px;}
+.u{color:var(--up);}.d{color:var(--dn);}.f{color:var(--flat);}.y{color:var(--yellow);}
+
+table{width:100%;border-collapse:collapse;}
+th{font-size:10px;letter-spacing:1px;color:var(--sub);text-transform:uppercase;padding:8px 8px;text-align:right;border-bottom:1.5px solid var(--line);font-weight:600;}
+th:first-child{text-align:left;}
+td{padding:8px 8px;border-bottom:1px solid var(--line2);font-size:12px;text-align:right;}
+td:first-child{text-align:left;}
+td.num{font-family:'DM Mono',monospace;}
+.bar{height:4px;background:var(--line);border-radius:2px;overflow:hidden;margin-top:3px;}
+.bf{height:100%;border-radius:2px;}
+
+.row{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-bottom:20px;}
+.row4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;margin-bottom:20px;}
+
+.chart-wrap{position:relative;height:280px;}
+.chart-wrap.tall{height:340px;}
+
+.summary-bar{padding:14px 20px;background:linear-gradient(90deg,rgba(184,144,42,.08),rgba(255,184,0,.04));border-left:4px solid var(--gold);border-radius:4px;margin-bottom:20px;font-size:13px;line-height:1.6;}
+.summary-bar strong{color:var(--gold);}
+
+.tag{display:inline-block;font-size:10px;padding:2px 8px;border-radius:10px;letter-spacing:.5px;font-weight:600;}
+.tag-up{background:rgba(229,57,53,.12);color:var(--up);}
+.tag-dn{background:rgba(16,163,127,.12);color:var(--dn);}
+.tag-flat{background:rgba(158,158,158,.12);color:var(--flat);}
+.tag-y{background:rgba(255,184,0,.15);color:var(--yellow);}
+.tag-blue{background:rgba(59,125,216,.12);color:var(--blue);}
+
+.sec-title{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:700;margin-bottom:6px;}
+.sec-desc{font-size:13px;color:var(--sub);margin-bottom:18px;}
+
+@media print{
+  .hdr,.tabs{position:static;}
+  .page{display:block!important;page-break-after:always;padding:14mm;}
+  body{background:#fff;}
+}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div>
+    <div class="hdr-logo">TZG <em>·</em> 月會總結</div>
+    <div class="hdr-sub">Monthly Review Dashboard</div>
+  </div>
+  <div class="hdr-spacer"></div>
+  <div class="hdr-month">
+    <label>選擇月份：</label>
+    <select id="month-select"></select>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab on" data-page="p1">📊 總覽</div>
+  <div class="tab" data-page="p2">📈 業績</div>
+  <div class="tab" data-page="p3">🏆 業務</div>
+  <div class="tab" data-page="p4">🛍 商品</div>
+  <div class="tab" data-page="p5">👥 客戶</div>
+  <div class="tab" data-page="p6">📡 通路</div>
+  <div class="tab" data-page="p7">📍 地區</div>
+</div>
+
+<!-- ============ Page 1: 總覽 ============ -->
+<div class="page on" id="p1">
+  <div class="sec-title" id="p1-title">月份總覽</div>
+  <div class="sec-desc" id="p1-desc">本月關鍵指標與整體表現</div>
+
+  <div class="summary-bar" id="p1-summary"></div>
+
+  <div class="kpi-grid" id="p1-kpis"></div>
+
+  <div class="row">
+    <div class="panel">
+      <div class="pl">📅 日銷走勢 + 累計</div>
+      <div class="chart-wrap tall"><canvas id="p1-chart-daily"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="pl">🔄 對比基準</div>
+      <div id="p1-compare"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Page 2: 業績 ============ -->
+<div class="page" id="p2">
+  <div class="sec-title">業績結算</div>
+  <div class="sec-desc">每日業績、累計達標、目標進度</div>
+
+  <div class="row">
+    <div class="panel">
+      <div class="pl">每日營收</div>
+      <div class="chart-wrap"><canvas id="p2-chart-daily"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="pl">累計達標</div>
+      <div class="chart-wrap"><canvas id="p2-chart-cum"></canvas></div>
+    </div>
+  </div>
+
+  <div class="row3">
+    <div class="panel">
+      <div class="pl">星期分布</div>
+      <div class="chart-wrap"><canvas id="p2-chart-dow"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="pl">時段分布</div>
+      <div class="chart-wrap"><canvas id="p2-chart-hour"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="pl">客單分布</div>
+      <div class="chart-wrap"><canvas id="p2-chart-spend"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Page 3: 業務 ============ -->
+<div class="page" id="p3">
+  <div class="sec-title">業務分析</div>
+  <div class="sec-desc">每位業務的本月表現、新客比、平均單價</div>
+
+  <div class="panel">
+    <div class="pl">業務排行</div>
+    <table id="p3-tbl">
+      <thead><tr>
+        <th>排名</th><th>業務</th><th>訂單</th><th>客戶</th><th>新客</th><th>新客%</th><th>均價</th><th>業績</th><th></th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ============ Page 4: 商品 ============ -->
+<div class="page" id="p4">
+  <div class="sec-title">商品分析</div>
+  <div class="sec-desc">熱銷 Top、依營收 vs 依數量</div>
+
+  <div class="row">
+    <div class="panel">
+      <div class="pl">營收 Top 15</div>
+      <table id="p4-tbl-rev"><thead><tr><th>#</th><th>商品</th><th>件</th><th>均價</th><th>業績</th></tr></thead><tbody></tbody></table>
+    </div>
+    <div class="panel">
+      <div class="pl">數量 Top 15</div>
+      <table id="p4-tbl-qty"><thead><tr><th>#</th><th>商品</th><th>件</th><th>業績</th></tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Page 5: 客戶 ============ -->
+<div class="page" id="p5">
+  <div class="sec-title">客戶分析</div>
+  <div class="sec-desc">新客／回購比例、首購 vs 回購均價</div>
+
+  <div class="row">
+    <div class="panel">
+      <div class="pl">新客 vs 回購</div>
+      <div class="chart-wrap"><canvas id="p5-chart-nr"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="pl">首購 vs 回購均價</div>
+      <div id="p5-aov"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Page 6: 通路 ============ -->
+<div class="page" id="p6">
+  <div class="sec-title">通路分析</div>
+  <div class="sec-desc">各訂單來源的營收、客單價、新客率</div>
+
+  <div class="row">
+    <div class="panel">
+      <div class="pl">營收分布</div>
+      <div class="chart-wrap"><canvas id="p6-chart"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="pl">通路效益</div>
+      <table id="p6-tbl"><thead><tr><th>來源</th><th>訂單</th><th>客戶</th><th>新客%</th><th>均價</th><th>佔比</th><th>業績</th></tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Page 7: 地區 ============ -->
+<div class="page" id="p7">
+  <div class="sec-title">地區分析</div>
+  <div class="sec-desc">城市分布、客單價、訂單數</div>
+
+  <div class="panel">
+    <div class="pl">城市排行</div>
+    <table id="p7-tbl"><thead><tr><th>排名</th><th>城市</th><th>訂單</th><th>客戶</th><th>均價</th><th>業績</th><th></th></tr></thead><tbody></tbody></table>
+  </div>
+</div>
+
+<script>
+const ALL_DATA={"2026-01": {"year_month": "2026-01", "month_label": "2026年1月", "year": 2026, "month": 1, "days": 31, "rev": 3605872, "orders": 608, "avg_order": 5930, "new_customers": 338, "returning": 143, "total_customers": 481, "new_pct": 70.3, "target": 4500000, "achievement_pct": 80.1, "yoy_rev": 991786, "yoy_pct": 263.6, "mom_rev": 2975102, "mom_pct": 21.2, "daily": [{"day": 1, "label": "1/1", "rev": 9540, "orders": 3, "cumulative": 9540}, {"day": 2, "label": "1/2", "rev": 97170, "orders": 26, "cumulative": 106710}, {"day": 3, "label": "1/3", "rev": 64899, "orders": 16, "cumulative": 171609}, {"day": 4, "label": "1/4", "rev": 131930, "orders": 22, "cumulative": 303539}, {"day": 5, "label": "1/5", "rev": 163730, "orders": 35, "cumulative": 467269}, {"day": 6, "label": "1/6", "rev": 120550, "orders": 19, "cumulative": 587819}, {"day": 7, "label": "1/7", "rev": 45609, "orders": 10, "cumulative": 633428}, {"day": 8, "label": "1/8", "rev": 101190, "orders": 12, "cumulative": 734618}, {"day": 9, "label": "1/9", "rev": 122330, "orders": 16, "cumulative": 856948}, {"day": 10, "label": "1/10", "rev": 53480, "orders": 10, "cumulative": 910428}, {"day": 11, "label": "1/11", "rev": 176560, "orders": 16, "cumulative": 1086988}, {"day": 12, "label": "1/12", "rev": 54800, "orders": 8, "cumulative": 1141788}, {"day": 13, "label": "1/13", "rev": 105600, "orders": 15, "cumulative": 1247388}, {"day": 14, "label": "1/14", "rev": 97895, "orders": 15, "cumulative": 1345283}, {"day": 15, "label": "1/15", "rev": 191619, "orders": 27, "cumulative": 1536902}, {"day": 16, "label": "1/16", "rev": 205729, "orders": 32, "cumulative": 1742631}, {"day": 17, "label": "1/17", "rev": 118147, "orders": 24, "cumulative": 1860778}, {"day": 18, "label": "1/18", "rev": 132529, "orders": 10, "cumulative": 1993307}, {"day": 19, "label": "1/19", "rev": 59069, "orders": 15, "cumulative": 2052376}, {"day": 20, "label": "1/20", "rev": 201379, "orders": 22, "cumulative": 2253755}, {"day": 21, "label": "1/21", "rev": 43000, "orders": 11, "cumulative": 2296755}, {"day": 22, "label": "1/22", "rev": 203449, "orders": 14, "cumulative": 2500204}, {"day": 23, "label": "1/23", "rev": 267377, "orders": 30, "cumulative": 2767581}, {"day": 24, "label": "1/24", "rev": 182764, "orders": 36, "cumulative": 2950345}, {"day": 25, "label": "1/25", "rev": 160978, "orders": 32, "cumulative": 3111323}, {"day": 26, "label": "1/26", "rev": 77170, "orders": 24, "cumulative": 3188493}, {"day": 27, "label": "1/27", "rev": 68207, "orders": 20, "cumulative": 3256700}, {"day": 28, "label": "1/28", "rev": 79673, "orders": 24, "cumulative": 3336373}, {"day": 29, "label": "1/29", "rev": 75930, "orders": 18, "cumulative": 3412303}, {"day": 30, "label": "1/30", "rev": 114979, "orders": 25, "cumulative": 3527282}, {"day": 31, "label": "1/31", "rev": 78590, "orders": 21, "cumulative": 3605872}], "agents": [{"name": "業務/ling Ling /深圳", "orders": 60, "rev": 426355, "customers": 54, "new_customers": 39, "avg_order": 7105, "rank": 1}, {"name": "業務/以恩/彰化", "orders": 26, "rev": 397535, "customers": 17, "new_customers": 9, "avg_order": 15289, "rank": 2}, {"name": "店務/沛珊2/台中文心", "orders": 36, "rev": 281840, "customers": 30, "new_customers": 14, "avg_order": 7828, "rank": 3}, {"name": "業務/均睿/彰化", "orders": 11, "rev": 123100, "customers": 8, "new_customers": 4, "avg_order": 11190, "rank": 4}, {"name": "業務/嘉玲/彰化", "orders": 4, "rev": 117790, "customers": 4, "new_customers": 3, "avg_order": 29447, "rank": 5}, {"name": "主播/lingling/深圳", "orders": 11, "rev": 109650, "customers": 10, "new_customers": 5, "avg_order": 9968, "rank": 6}, {"name": "代理/楊依靈/台南", "orders": 4, "rev": 59500, "customers": 4, "new_customers": 1, "avg_order": 14875, "rank": 7}, {"name": "代理/木木emily/台中", "orders": 3, "rev": 59060, "customers": 2, "new_customers": 0, "avg_order": 19686, "rank": 8}, {"name": "代理/小葳/彰化", "orders": 1, "rev": 52170, "customers": 1, "new_customers": 0, "avg_order": 52170, "rank": 9}, {"name": "銷售客服/雯熏/桃園", "orders": 7, "rev": 45529, "customers": 7, "new_customers": 6, "avg_order": 6504, "rank": 10}, {"name": "主播/雲云/代理/台灣台中", "orders": 6, "rev": 41500, "customers": 5, "new_customers": 2, "avg_order": 6916, "rank": 11}, {"name": "業務/嘉琳/彰化", "orders": 2, "rev": 17050, "customers": 2, "new_customers": 0, "avg_order": 8525, "rank": 12}, {"name": "店務/沛珊/台中文心", "orders": 1, "rev": 1140, "customers": 1, "new_customers": 0, "avg_order": 1140, "rank": 13}], "top_prod_rev": [{"name": "💎天然鑽石 項鍊、耳釘｜限量寵粉優惠款", "qty": 3, "rev": 138000, "orders": 3, "avg": 46000}, {"name": "711國際物流", "qty": 4, "rev": 99500, "orders": 4, "avg": 24875}, {"name": "祖母綠平替首選｜天然透輝石吊墜", "qty": 27, "rev": 96000, "orders": 23, "avg": 3555}, {"name": "925銀|透輝石&坦桑石 耳釘", "qty": 70, "rev": 85700, "orders": 50, "avg": 1224}, {"name": "倫敦藍拓帕｜方枕型裸石", "qty": 23, "rev": 75980, "orders": 20, "avg": 3303}, {"name": "改做18K(白K色)補差額", "qty": 2, "rev": 75000, "orders": 2, "avg": 37500}, {"name": "超美的  仙女粉 天然阿富汗粉碧璽 耳釘料 7.65克拉  全淨玻璃體", "qty": 1, "rev": 63000, "orders": 1, "avg": 63000}, {"name": "18k真鑽石榴石戒指", "qty": 1, "rev": 63000, "orders": 1, "avg": 63000}, {"name": "風信子石|裸石", "qty": 5, "rev": 61500, "orders": 2, "avg": 12300}, {"name": "平步青雲加強版｜金運石＆綠幽靈", "qty": 5, "rev": 61000, "orders": 5, "avg": 12200}, {"name": "煙花切割鴿子蛋｜紫水晶戒指", "qty": 10, "rev": 59500, "orders": 9, "avg": 5950}, {"name": "招財｜黃藍寶耳釘", "qty": 17, "rev": 54500, "orders": 15, "avg": 3205}, {"name": "夢幻龍紋｜紫龍晶", "qty": 73, "rev": 52860, "orders": 47, "avg": 724}, {"name": "平步青雲｜手串｜寵粉", "qty": 48, "rev": 51969, "orders": 42, "avg": 1082}, {"name": "訂製18k藍寶石對戒男士13號", "qty": 1, "rev": 51000, "orders": 1, "avg": 51000}], "top_prod_qty": [{"name": "天然琥珀｜能量守護選品", "qty": 78, "rev": 35860}, {"name": "夢幻龍紋｜紫龍晶", "qty": 73, "rev": 52860}, {"name": "925銀|透輝石&坦桑石 耳釘", "qty": 70, "rev": 85700}, {"name": "黃鐵礦 |Pyrite", "qty": 68, "rev": 20650}, {"name": "寵粉彩虹黑曜岩手串", "qty": 62, "rev": 22000}, {"name": "平步青雲｜手串｜寵粉", "qty": 48, "rev": 51969}, {"name": "自帶光芒・天然歐泊手鏈", "qty": 34, "rev": 31680}, {"name": "✨ 天選三石，一生守護 ✨", "qty": 28, "rev": 15500}, {"name": "祖母綠平替首選｜天然透輝石吊墜", "qty": 27, "rev": 96000}, {"name": "招財之石｜金運石吊墜", "qty": 24, "rev": 19550}, {"name": "倫敦藍拓帕｜方枕型裸石", "qty": 23, "rev": 75980}, {"name": "天然海紋石｜手串 / 吊墜", "qty": 22, "rev": 31300}, {"name": "天然鉍晶體", "qty": 19, "rev": 10930}, {"name": "能量寶石｜彩寶", "qty": 18, "rev": 8790}, {"name": "招財｜黃藍寶耳釘", "qty": 17, "rev": 54500}], "sources": [{"src": "業務推薦", "orders": 172, "customers": 131, "rev": 1732219, "pct": 48.0, "aov": 10071, "new_customers": 77, "new_pct": 58.8}, {"src": "直接/官網", "orders": 169, "customers": 154, "rev": 694936, "pct": 19.3, "aov": 4112, "new_customers": 121, "new_pct": 78.6}, {"src": "Facebook 來源", "orders": 147, "customers": 142, "rev": 509600, "pct": 14.1, "aov": 3466, "new_customers": 103, "new_pct": 72.5}, {"src": "Instagram 來源", "orders": 84, "customers": 79, "rev": 331587, "pct": 9.2, "aov": 3947, "new_customers": 60, "new_pct": 75.9}, {"src": "內容導流", "orders": 12, "customers": 9, "rev": 184610, "pct": 5.1, "aov": 15384, "new_customers": 4, "new_pct": 44.4}, {"src": "LINE 來源", "orders": 14, "customers": 13, "rev": 152920, "pct": 4.2, "aov": 10922, "new_customers": 4, "new_pct": 30.8}, {"src": "其他", "orders": 10, "customers": 10, "rev": 0, "pct": 0.0, "aov": 0, "new_customers": 2, "new_pct": 20.0}], "cities": [{"city": "高雄市", "orders": 77, "customers": 69, "rev": 555348, "aov": 7212}, {"city": "新北市", "orders": 83, "customers": 68, "rev": 413926, "aov": 4987}, {"city": "桃園市", "orders": 60, "customers": 53, "rev": 350497, "aov": 5841}, {"city": "台中市", "orders": 64, "customers": 56, "rev": 335074, "aov": 5235}, {"city": "台北市", "orders": 60, "customers": 48, "rev": 313557, "aov": 5225}, {"city": "屏東縣", "orders": 30, "customers": 14, "rev": 267095, "aov": 8903}, {"city": "南投縣", "orders": 11, "customers": 8, "rev": 184759, "aov": 16796}, {"city": "台南市", "orders": 45, "customers": 37, "rev": 157517, "aov": 3500}, {"city": "新竹市", "orders": 15, "customers": 12, "rev": 148679, "aov": 9911}, {"city": "台東縣", "orders": 3, "customers": 3, "rev": 79960, "aov": 26653}, {"city": "新竹縣", "orders": 15, "customers": 13, "rev": 76328, "aov": 5088}, {"city": "宜蘭縣", "orders": 10, "customers": 8, "rev": 69669, "aov": 6966}, {"city": "雲林縣", "orders": 15, "customers": 13, "rev": 41068, "aov": 2737}, {"city": "嘉義縣", "orders": 7, "customers": 7, "rev": 38090, "aov": 5441}, {"city": "彰化縣", "orders": 8, "customers": 8, "rev": 23450, "aov": 2931}, {"city": "花蓮縣", "orders": 5, "customers": 5, "rev": 18369, "aov": 3673}, {"city": "苗栗縣", "orders": 6, "customers": 6, "rev": 15389, "aov": 2564}, {"city": "Irvine", "orders": 3, "customers": 2, "rev": 13900, "aov": 4633}, {"city": "New Taipei City", "orders": 1, "customers": 1, "rev": 12500, "aov": 12500}, {"city": "Kuala Lumpur", "orders": 1, "customers": 1, "rev": 10000, "aov": 10000}, {"city": "Taipei City", "orders": 1, "customers": 1, "rev": 10000, "aov": 10000}, {"city": "Richmond Hill", "orders": 1, "customers": 1, "rev": 8500, "aov": 8500}, {"city": "基隆市", "orders": 3, "customers": 3, "rev": 7720, "aov": 2573}, {"city": "Richmond", "orders": 1, "customers": 1, "rev": 6580, "aov": 6580}, {"city": "嘉義市", "orders": 2, "customers": 2, "rev": 5110, "aov": 2555}, {"city": "Saline", "orders": 1, "customers": 1, "rev": 3580, "aov": 3580}, {"city": "Huai Khwang", "orders": 1, "customers": 1, "rev": 1000, "aov": 1000}, {"city": "Chippenham", "orders": 1, "customers": 1, "rev": 0, "aov": 0}, {"city": "Sydney", "orders": 1, "customers": 1, "rev": 0, "aov": 0}, {"city": "九龍", "orders": 1, "customers": 1, "rev": 0, "aov": 0}, {"city": "新界", "orders": 2, "customers": 2, "rev": 0, "aov": 0}, {"city": "香港島", "orders": 1, "customers": 1, "rev": 0, "aov": 0}], "first_aov": 5409, "return_aov": 6985, "hours": [{"hour": 0, "orders": 21}, {"hour": 1, "orders": 13}, {"hour": 2, "orders": 9}, {"hour": 3, "orders": 3}, {"hour": 4, "orders": 1}, {"hour": 5, "orders": 1}, {"hour": 6, "orders": 3}, {"hour": 7, "orders": 9}, {"hour": 8, "orders": 13}, {"hour": 9, "orders": 16}, {"hour": 10, "orders": 26}, {"hour": 11, "orders": 29}, {"hour": 12, "orders": 34}, {"hour": 13, "orders": 39}, {"hour": 14, "orders": 30}, {"hour": 15, "orders": 48}, {"hour": 16, "orders": 27}, {"hour": 17, "orders": 33}, {"hour": 18, "orders": 41}, {"hour": 19, "orders": 50}, {"hour": 20, "orders": 37}, {"hour": 21, "orders": 40}, {"hour": 22, "orders": 47}, {"hour": 23, "orders": 38}], "dow": [{"day": "週一", "orders": 82, "rev": 354769}, {"day": "週二", "orders": 76, "rev": 495736}, {"day": "週三", "orders": 60, "rev": 266177}, {"day": "週四", "orders": 74, "rev": 581728}, {"day": "週五", "orders": 129, "rev": 807585}, {"day": "週六", "orders": 107, "rev": 497880}, {"day": "週日", "orders": 80, "rev": 601997}], "spend_dist": {"<2千": 269, "2–5千": 158, "5千–1萬": 66, "1–3萬": 95, ">3萬": 20}}, "2026-02": {"year_month": "2026-02", "month_label": "2026年2月", "year": 2026, "month": 2, "days": 28, "rev": 4360250, "orders": 919, "avg_order": 4744, "new_customers": 593, "returning": 195, "total_customers": 788, "new_pct": 75.3, "target": 4500000, "achievement_pct": 96.9, "yoy_rev": 1905087, "yoy_pct": 128.9, "mom_rev": 3605872, "mom_pct": 20.9, "daily": [{"day": 1, "label": "2/1", "rev": 13780, "orders": 8, "cumulative": 13780}, {"day": 2, "label": "2/2", "rev": 45239, "orders": 10, "cumulative": 59019}, {"day": 3, "label": "2/3", "rev": 119539, "orders": 19, "cumulative": 178558}, {"day": 4, "label": "2/4", "rev": 220198, "orders": 26, "cumulative": 398756}, {"day": 5, "label": "2/5", "rev": 85440, "orders": 9, "cumulative": 484196}, {"day": 6, "label": "2/6", "rev": 98790, "orders": 21, "cumulative": 582986}, {"day": 7, "label": "2/7", "rev": 191887, "orders": 40, "cumulative": 774873}, {"day": 8, "label": "2/8", "rev": 81186, "orders": 25, "cumulative": 856059}, {"day": 9, "label": "2/9", "rev": 236486, "orders": 43, "cumulative": 1092545}, {"day": 10, "label": "2/10", "rev": 245790, "orders": 22, "cumulative": 1338335}, {"day": 11, "label": "2/11", "rev": 128424, "orders": 25, "cumulative": 1466759}, {"day": 12, "label": "2/12", "rev": 121766, "orders": 22, "cumulative": 1588525}, {"day": 13, "label": "2/13", "rev": 107123, "orders": 56, "cumulative": 1695648}, {"day": 14, "label": "2/14", "rev": 134957, "orders": 52, "cumulative": 1830605}, {"day": 15, "label": "2/15", "rev": 98772, "orders": 40, "cumulative": 1929377}, {"day": 16, "label": "2/16", "rev": 93047, "orders": 19, "cumulative": 2022424}, {"day": 17, "label": "2/17", "rev": 50619, "orders": 17, "cumulative": 2073043}, {"day": 18, "label": "2/18", "rev": 129545, "orders": 25, "cumulative": 2202588}, {"day": 19, "label": "2/19", "rev": 91225, "orders": 23, "cumulative": 2293813}, {"day": 20, "label": "2/20", "rev": 86721, "orders": 34, "cumulative": 2380534}, {"day": 21, "label": "2/21", "rev": 219200, "orders": 52, "cumulative": 2599734}, {"day": 22, "label": "2/22", "rev": 483755, "orders": 61, "cumulative": 3083489}, {"day": 23, "label": "2/23", "rev": 538885, "orders": 59, "cumulative": 3622374}, {"day": 24, "label": "2/24", "rev": 210368, "orders": 32, "cumulative": 3832742}, {"day": 25, "label": "2/25", "rev": 119040, "orders": 27, "cumulative": 3951782}, {"day": 26, "label": "2/26", "rev": 49383, "orders": 22, "cumulative": 4001165}, {"day": 27, "label": "2/27", "rev": 222680, "orders": 85, "cumulative": 4223845}, {"day": 28, "label": "2/28", "rev": 136405, "orders": 45, "cumulative": 4360250}], "agents": [{"name": "銷售客服/雯熏/桃園", "orders": 17, "rev": 610786, "customers": 14, "new_customers": 8, "avg_order": 35928, "rank": 1}, {"name": "業務/以恩/彰化", "orders": 12, "rev": 497534, "customers": 10, "new_customers": 5, "avg_order": 41461, "rank": 2}, {"name": "業務/均睿/彰化", "orders": 22, "rev": 376889, "customers": 19, "new_customers": 5, "avg_order": 17131, "rank": 3}, {"name": "業務/ling Ling /深圳", "orders": 28, "rev": 127771, "customers": 26, "new_customers": 14, "avg_order": 4563, "rank": 4}, {"name": "代理/楊依靈/台南", "orders": 7, "rev": 122220, "customers": 6, "new_customers": 4, "avg_order": 17460, "rank": 5}, {"name": "代理/林志娟/台中", "orders": 1, "rev": 38300, "customers": 1, "new_customers": 1, "avg_order": 38300, "rank": 6}, {"name": "店務/沛珊2/台中文心", "orders": 3, "rev": 14430, "customers": 3, "new_customers": 2, "avg_order": 4810, "rank": 7}, {"name": "業務/嘉琳/彰化", "orders": 1, "rev": 3660, "customers": 1, "new_customers": 0, "avg_order": 3660, "rank": 8}, {"name": "angeline大马公司/馬來西亞加盟代理", "orders": 1, "rev": 2559, "customers": 1, "new_customers": 1, "avg_order": 2559, "rank": 9}], "top_prod_rev": [{"name": "水滴形 超級聖瑪利亞海藍寶（GUILD）1.19ct : $91,63", "qty": 1, "rev": 286570, "orders": 1, "avg": 286570}, {"name": "新貨，精品美貨 天然聖瑪利亞海藍寶 4.64克拉 精切雷迪恩切工 漂亮", "qty": 1, "rev": 168000, "orders": 1, "avg": 168000}, {"name": "招財旺事業｜平步青雲｜手串", "qty": 156, "rev": 146853, "orders": 135, "avg": 941}, {"name": "紅運整年套組｜鴿血石平替｜首選石榴石", "qty": 14, "rev": 122800, "orders": 12, "avg": 8771}, {"name": "倫敦藍拓帕｜方枕型裸石", "qty": 59, "rev": 106160, "orders": 38, "avg": 1799}, {"name": "雷迪恩海藍寶3.96ct (附上CGRL證書 ) : 3.3萬、 18", "qty": 1, "rev": 106000, "orders": 1, "avg": 106000}, {"name": "天然琥珀｜能量守護選品", "qty": 157, "rev": 88020, "orders": 119, "avg": 560}, {"name": "✨ 天選三石｜一生守護 ✨", "qty": 130, "rev": 75500, "orders": 85, "avg": 580}, {"name": "高級金屬色系 阿斯切尖晶石 2.19ct，冰晶藍灰，顏色獨特  火彩特", "qty": 1, "rev": 75000, "orders": 1, "avg": 75000}, {"name": "18K金+莫桑鑽：7萬元 建議搭配醫療鏈：$1,000 （50-60公", "qty": 1, "rev": 71000, "orders": 1, "avg": 71000}, {"name": "貓眼彩曜｜隱形寶石中的守護神", "qty": 54, "rev": 69000, "orders": 50, "avg": 1277}, {"name": "招財之石｜金運石吊墜", "qty": 89, "rev": 68000, "orders": 80, "avg": 764}, {"name": "訂製18k莫桑吊墜3.8萬 +鏈 2.8萬", "qty": 1, "rev": 66000, "orders": 1, "avg": 66000}, {"name": "711國際物流", "qty": 1, "rev": 65700, "orders": 1, "avg": 65700}, {"name": "穩定溫和磁場｜天然鉍晶體", "qty": 129, "rev": 65120, "orders": 71, "avg": 504}], "top_prod_qty": [{"name": "天然琥珀｜能量守護選品", "qty": 157, "rev": 88020}, {"name": "招財旺事業｜平步青雲｜手串", "qty": 156, "rev": 146853}, {"name": "太陽之石｜橄欖石｜手鍊", "qty": 145, "rev": 60000}, {"name": "✨ 天選三石｜一生守護 ✨", "qty": 130, "rev": 75500}, {"name": "穩定溫和磁場｜天然鉍晶體", "qty": 129, "rev": 65120}, {"name": "愛情的味道｜手鍊｜招桃花首選 加強版 粉色寶石", "qty": 123, "rev": 55000}, {"name": "招財之石｜金運石吊墜", "qty": 89, "rev": 68000}, {"name": "黑金超七｜項鏈（星輝骨幹）", "qty": 80, "rev": 43800}, {"name": "財富能量| 黃鐵礦", "qty": 60, "rev": 22400}, {"name": "倫敦藍拓帕｜方枕型裸石", "qty": 59, "rev": 106160}, {"name": "貓眼彩曜｜隱形寶石中的守護神", "qty": 54, "rev": 69000}, {"name": "925銀|透輝石&坦桑石 耳釘", "qty": 43, "rev": 53800}, {"name": "平步青雲｜手串｜寵粉", "qty": 41, "rev": 37974}, {"name": "極光彩蘊｜藍月光", "qty": 27, "rev": 13000}, {"name": "能量盾牌｜彩虹黑曜岩手串", "qty": 27, "rev": 11000}], "sources": [{"src": "業務推薦", "orders": 92, "customers": 77, "rev": 1794149, "pct": 41.1, "aov": 19501, "new_customers": 40, "new_pct": 51.9}, {"src": "直接/官網", "orders": 298, "customers": 279, "rev": 963886, "pct": 22.1, "aov": 3234, "new_customers": 200, "new_pct": 71.7}, {"src": "Facebook 來源", "orders": 287, "customers": 264, "rev": 794035, "pct": 18.2, "aov": 2766, "new_customers": 203, "new_pct": 76.9}, {"src": "Instagram 來源", "orders": 175, "customers": 162, "rev": 453522, "pct": 10.4, "aov": 2591, "new_customers": 139, "new_pct": 85.8}, {"src": "LINE 來源", "orders": 52, "customers": 50, "rev": 276453, "pct": 6.3, "aov": 5316, "new_customers": 27, "new_pct": 54.0}, {"src": "TikTok 來源", "orders": 10, "customers": 10, "rev": 36096, "pct": 0.8, "aov": 3609, "new_customers": 10, "new_pct": 100.0}, {"src": "其他", "orders": 4, "customers": 4, "rev": 23639, "pct": 0.5, "aov": 5909, "new_customers": 2, "new_pct": 50.0}, {"src": "YouTube 來源", "orders": 1, "customers": 1, "rev": 18470, "pct": 0.4, "aov": 18470, "new_customers": 1, "new_pct": 100.0}], "cities": [{"city": "新竹市", "orders": 27, "customers": 18, "rev": 758267, "aov": 28083}, {"city": "台北市", "orders": 100, "customers": 86, "rev": 645472, "aov": 6454}, {"city": "新北市", "orders": 155, "customers": 131, "rev": 545120, "aov": 3516}, {"city": "高雄市", "orders": 121, "customers": 104, "rev": 482489, "aov": 3987}, {"city": "台南市", "orders": 78, "customers": 67, "rev": 347865, "aov": 4459}, {"city": "台中市", "orders": 101, "customers": 95, "rev": 317520, "aov": 3143}, {"city": "桃園市", "orders": 88, "customers": 76, "rev": 274112, "aov": 3114}, {"city": "屏東縣", "orders": 37, "customers": 30, "rev": 170104, "aov": 4597}, {"city": "彰化縣", "orders": 19, "customers": 17, "rev": 89921, "aov": 4732}, {"city": "新竹縣", "orders": 28, "customers": 25, "rev": 85038, "aov": 3037}, {"city": "嘉義市", "orders": 11, "customers": 10, "rev": 73749, "aov": 6704}, {"city": "雲林縣", "orders": 12, "customers": 8, "rev": 71399, "aov": 5949}, {"city": "花蓮縣", "orders": 13, "customers": 12, "rev": 67385, "aov": 5183}, {"city": "宜蘭縣", "orders": 17, "customers": 16, "rev": 54691, "aov": 3217}, {"city": "新界", "orders": 4, "customers": 4, "rev": 40350, "aov": 10087}, {"city": "基隆市", "orders": 7, "customers": 5, "rev": 38149, "aov": 5449}, {"city": "苗栗縣", "orders": 16, "customers": 14, "rev": 35405, "aov": 2212}, {"city": "南投縣", "orders": 11, "customers": 9, "rev": 28598, "aov": 2599}, {"city": "Taipei City", "orders": 5, "customers": 4, "rev": 19290, "aov": 3858}, {"city": "嘉義縣", "orders": 10, "customers": 9, "rev": 17837, "aov": 1783}, {"city": "台東縣", "orders": 7, "customers": 6, "rev": 15750, "aov": 2250}, {"city": "Kuala Lumpur", "orders": 2, "customers": 2, "rev": 11799, "aov": 5899}, {"city": "氹仔", "orders": 2, "customers": 1, "rev": 11500, "aov": 5750}, {"city": "九龍", "orders": 2, "customers": 2, "rev": 9900, "aov": 4950}, {"city": "Tainan City", "orders": 2, "customers": 1, "rev": 6545, "aov": 3272}, {"city": "Kowloon", "orders": 1, "customers": 1, "rev": 4500, "aov": 4500}, {"city": "Taoyuan City", "orders": 1, "customers": 1, "rev": 4310, "aov": 4310}, {"city": "Saline", "orders": 1, "customers": 1, "rev": 3500, "aov": 3500}, {"city": "New Taipei City", "orders": 2, "customers": 2, "rev": 1310, "aov": 655}, {"city": "Keelung City", "orders": 1, "customers": 1, "rev": 1159, "aov": 1159}], "first_aov": 3203, "return_aov": 8846, "hours": [{"hour": 0, "orders": 36}, {"hour": 1, "orders": 18}, {"hour": 2, "orders": 20}, {"hour": 3, "orders": 11}, {"hour": 4, "orders": 3}, {"hour": 5, "orders": 5}, {"hour": 6, "orders": 13}, {"hour": 7, "orders": 10}, {"hour": 8, "orders": 26}, {"hour": 9, "orders": 25}, {"hour": 10, "orders": 26}, {"hour": 11, "orders": 44}, {"hour": 12, "orders": 42}, {"hour": 13, "orders": 56}, {"hour": 14, "orders": 43}, {"hour": 15, "orders": 45}, {"hour": 16, "orders": 41}, {"hour": 17, "orders": 56}, {"hour": 18, "orders": 54}, {"hour": 19, "orders": 43}, {"hour": 20, "orders": 70}, {"hour": 21, "orders": 84}, {"hour": 22, "orders": 69}, {"hour": 23, "orders": 79}], "dow": [{"day": "週一", "orders": 131, "rev": 913657}, {"day": "週二", "orders": 90, "rev": 626316}, {"day": "週三", "orders": 103, "rev": 597207}, {"day": "週四", "orders": 76, "rev": 347814}, {"day": "週五", "orders": 196, "rev": 515314}, {"day": "週六", "orders": 189, "rev": 682449}, {"day": "週日", "orders": 134, "rev": 677493}], "spend_dist": {"<2千": 468, "2–5千": 284, "5千–1萬": 64, "1–3萬": 85, ">3萬": 18}}, "2026-03": {"year_month": "2026-03", "month_label": "2026年3月", "year": 2026, "month": 3, "days": 31, "rev": 4571268, "orders": 844, "avg_order": 5416, "new_customers": 567, "returning": 186, "total_customers": 753, "new_pct": 75.3, "target": 4500000, "achievement_pct": 101.6, "yoy_rev": 2685469, "yoy_pct": 70.2, "mom_rev": 4360250, "mom_pct": 4.8, "daily": [{"day": 1, "label": "3/1", "rev": 47587, "orders": 20, "cumulative": 47587}, {"day": 2, "label": "3/2", "rev": 139702, "orders": 23, "cumulative": 187289}, {"day": 3, "label": "3/3", "rev": 212293, "orders": 39, "cumulative": 399582}, {"day": 4, "label": "3/4", "rev": 57550, "orders": 25, "cumulative": 457132}, {"day": 5, "label": "3/5", "rev": 91193, "orders": 20, "cumulative": 548325}, {"day": 6, "label": "3/6", "rev": 91232, "orders": 25, "cumulative": 639557}, {"day": 7, "label": "3/7", "rev": 65169, "orders": 10, "cumulative": 704726}, {"day": 8, "label": "3/8", "rev": 107324, "orders": 16, "cumulative": 812050}, {"day": 9, "label": "3/9", "rev": 142259, "orders": 16, "cumulative": 954309}, {"day": 10, "label": "3/10", "rev": 51293, "orders": 13, "cumulative": 1005602}, {"day": 11, "label": "3/11", "rev": 338158, "orders": 40, "cumulative": 1343760}, {"day": 12, "label": "3/12", "rev": 75619, "orders": 21, "cumulative": 1419379}, {"day": 13, "label": "3/13", "rev": 288304, "orders": 37, "cumulative": 1707683}, {"day": 14, "label": "3/14", "rev": 206420, "orders": 23, "cumulative": 1914103}, {"day": 15, "label": "3/15", "rev": 113101, "orders": 20, "cumulative": 2027204}, {"day": 16, "label": "3/16", "rev": 185613, "orders": 13, "cumulative": 2212817}, {"day": 17, "label": "3/17", "rev": 81566, "orders": 14, "cumulative": 2294383}, {"day": 18, "label": "3/18", "rev": 253951, "orders": 17, "cumulative": 2548334}, {"day": 19, "label": "3/19", "rev": 184278, "orders": 28, "cumulative": 2732612}, {"day": 20, "label": "3/20", "rev": 155791, "orders": 40, "cumulative": 2888403}, {"day": 21, "label": "3/21", "rev": 93247, "orders": 28, "cumulative": 2981650}, {"day": 22, "label": "3/22", "rev": 26500, "orders": 11, "cumulative": 3008150}, {"day": 23, "label": "3/23", "rev": 78054, "orders": 23, "cumulative": 3086204}, {"day": 24, "label": "3/24", "rev": 188687, "orders": 23, "cumulative": 3274891}, {"day": 25, "label": "3/25", "rev": 90582, "orders": 22, "cumulative": 3365473}, {"day": 26, "label": "3/26", "rev": 107428, "orders": 15, "cumulative": 3472901}, {"day": 27, "label": "3/27", "rev": 149074, "orders": 15, "cumulative": 3621975}, {"day": 28, "label": "3/28", "rev": 247874, "orders": 92, "cumulative": 3869849}, {"day": 29, "label": "3/29", "rev": 135652, "orders": 73, "cumulative": 4005501}, {"day": 30, "label": "3/30", "rev": 179663, "orders": 39, "cumulative": 4185164}, {"day": 31, "label": "3/31", "rev": 386104, "orders": 43, "cumulative": 4571268}], "agents": [{"name": "業務/均睿/彰化", "orders": 48, "rev": 1026776, "customers": 42, "new_customers": 20, "avg_order": 21391, "rank": 1}, {"name": "業務跟單 /江瑩/ 深圳", "orders": 28, "rev": 449080, "customers": 26, "new_customers": 11, "avg_order": 16038, "rank": 2}, {"name": "銷售客服/雯熏/桃園", "orders": 20, "rev": 271938, "customers": 19, "new_customers": 13, "avg_order": 13596, "rank": 3}, {"name": "代理/楊依靈/台南", "orders": 5, "rev": 127700, "customers": 3, "new_customers": 0, "avg_order": 25540, "rank": 4}, {"name": "電商/陳怡萍/深圳", "orders": 2, "rev": 42000, "customers": 2, "new_customers": 1, "avg_order": 21000, "rank": 5}, {"name": "代理/林志娟/台中", "orders": 1, "rev": 13000, "customers": 1, "new_customers": 0, "avg_order": 13000, "rank": 6}, {"name": "業務/羽鋒/彰化", "orders": 1, "rev": 11500, "customers": 1, "new_customers": 1, "avg_order": 11500, "rank": 7}, {"name": "行銷/庭葳/彰化", "orders": 1, "rev": 5959, "customers": 1, "new_customers": 0, "avg_order": 5959, "rank": 8}, {"name": "店務/沛珊2/台中文心", "orders": 1, "rev": 3460, "customers": 1, "new_customers": 1, "avg_order": 3460, "rank": 9}, {"name": "業務/ling Ling /深圳", "orders": 1, "rev": 1500, "customers": 1, "new_customers": 0, "avg_order": 1500, "rank": 10}, {"name": "業務/嘉琳/彰化", "orders": 1, "rev": 999, "customers": 1, "new_customers": 1, "avg_order": 999, "rank": 11}], "top_prod_rev": [{"name": "買石送鏈  華麗麗豪華款 百萬視覺感  精緻晚裝鏈 天然祖母綠   祖", "qty": 2, "rev": 138000, "orders": 2, "avg": 69000}, {"name": "倫敦藍拓帕｜方枕型裸石", "qty": 38, "rev": 92300, "orders": 30, "avg": 2428}, {"name": "幸運小貓｜戒指", "qty": 25, "rev": 85500, "orders": 21, "avg": 3420}, {"name": "招財旺事業｜平步青雲｜手串", "qty": 102, "rev": 84915, "orders": 75, "avg": 832}, {"name": "平步青雲加強版｜金運石＆綠幽靈", "qty": 6, "rev": 74000, "orders": 6, "avg": 12333}, {"name": "買石送鏈  精緻輕奢 豪華款  天然祖母綠手鍊 925純銀重工豪鑲  ", "qty": 1, "rev": 66000, "orders": 1, "avg": 66000}, {"name": "黑金超七｜項鏈（星輝骨幹）", "qty": 135, "rev": 61800, "orders": 103, "avg": 457}, {"name": "18K黃鑲1ct黃水晶，配莫桑鑽，國際圍14", "qty": 1, "rev": 60000, "orders": 1, "avg": 60000}, {"name": "舒俱萊｜吊墜", "qty": 10, "rev": 49500, "orders": 9, "avg": 4950}, {"name": "訂製戒指 18K 莫桑鑽 鍍白K 國際圍14號(特別明亮的波西尼亞綠沙", "qty": 1, "rev": 49000, "orders": 1, "avg": 49000}, {"name": "特別明亮的波西尼亞綠沙弗萊2.58克拉，GRC證書，尺寸：8.39*6", "qty": 1, "rev": 48000, "orders": 1, "avg": 48000}, {"name": "18K四爪手鏈 玫瑰金 手圍16公分", "qty": 1, "rev": 48000, "orders": 1, "avg": 48000}, {"name": "✨ 天選三石｜一生守護 ✨", "qty": 68, "rev": 46500, "orders": 40, "avg": 683}, {"name": "自帶光芒｜手鏈｜天然歐泊", "qty": 49, "rev": 45540, "orders": 38, "avg": 929}, {"name": "訂製項鍊 18K 白K色 配石：白剛玉", "qty": 1, "rev": 45000, "orders": 1, "avg": 45000}], "top_prod_qty": [{"name": "黑金超七｜項鏈（星輝骨幹）", "qty": 135, "rev": 61800}, {"name": "消磁聚寶盆| 瑪瑙晶洞", "qty": 111, "rev": 28400}, {"name": "招財旺事業｜平步青雲｜手串", "qty": 102, "rev": 84915}, {"name": "愛情的味道｜手鍊｜招桃花首選 加強版 粉色寶石", "qty": 75, "rev": 34500}, {"name": "✨ 天選三石｜一生守護 ✨", "qty": 68, "rev": 46500}, {"name": "藍月光耳釘", "qty": 60, "rev": 0}, {"name": "自帶光芒｜手鏈｜天然歐泊", "qty": 49, "rev": 45540}, {"name": "財富能量| 黃鐵礦", "qty": 43, "rev": 16650}, {"name": "能量手串｜葡萄晶 · 黃水晶 · 紫水晶", "qty": 43, "rev": 31200}, {"name": "天然琥珀｜能量守護選品", "qty": 40, "rev": 22390}, {"name": "能量手串｜鈦赫茲 · 鈦晶 · 月光石", "qty": 38, "rev": 28000}, {"name": "倫敦藍拓帕｜方枕型裸石", "qty": 38, "rev": 92300}, {"name": "能量手串｜珍珠 · 彩耀石 · 紅石榴", "qty": 34, "rev": 26400}, {"name": "招財旺事業｜平步青雲&綠幽靈｜手串", "qty": 34, "rev": 40470}, {"name": "能量手串｜紫水晶 · 草莓晶", "qty": 33, "rev": 24800}], "sources": [{"src": "業務推薦", "orders": 109, "customers": 90, "rev": 1953912, "pct": 42.7, "aov": 17925, "new_customers": 47, "new_pct": 52.2}, {"src": "直接/官網", "orders": 285, "customers": 273, "rev": 1097074, "pct": 24.0, "aov": 3849, "new_customers": 210, "new_pct": 76.9}, {"src": "Facebook 來源", "orders": 243, "customers": 227, "rev": 775432, "pct": 17.0, "aov": 3191, "new_customers": 186, "new_pct": 81.9}, {"src": "LINE 來源", "orders": 63, "customers": 60, "rev": 453561, "pct": 9.9, "aov": 7199, "new_customers": 28, "new_pct": 46.7}, {"src": "Instagram 來源", "orders": 135, "customers": 131, "rev": 284169, "pct": 6.2, "aov": 2104, "new_customers": 108, "new_pct": 82.4}, {"src": "TikTok 來源", "orders": 8, "customers": 8, "rev": 7120, "pct": 0.2, "aov": 890, "new_customers": 5, "new_pct": 62.5}, {"src": "其他", "orders": 1, "customers": 1, "rev": 0, "pct": 0.0, "aov": 0, "new_customers": 1, "new_pct": 100.0}], "cities": [{"city": "新北市", "orders": 137, "customers": 118, "rev": 701946, "aov": 5123}, {"city": "高雄市", "orders": 92, "customers": 88, "rev": 523011, "aov": 5684}, {"city": "台北市", "orders": 86, "customers": 78, "rev": 462865, "aov": 5382}, {"city": "台南市", "orders": 79, "customers": 70, "rev": 448370, "aov": 5675}, {"city": "台中市", "orders": 102, "customers": 96, "rev": 437296, "aov": 4287}, {"city": "桃園市", "orders": 86, "customers": 78, "rev": 417324, "aov": 4852}, {"city": "新竹市", "orders": 18, "customers": 15, "rev": 186712, "aov": 10372}, {"city": "屏東縣", "orders": 33, "customers": 28, "rev": 170721, "aov": 5173}, {"city": "宜蘭縣", "orders": 20, "customers": 18, "rev": 160464, "aov": 8023}, {"city": "雲林縣", "orders": 15, "customers": 11, "rev": 148608, "aov": 9907}, {"city": "彰化縣", "orders": 26, "customers": 24, "rev": 143465, "aov": 5517}, {"city": "新竹縣", "orders": 24, "customers": 22, "rev": 113515, "aov": 4729}, {"city": "嘉義縣", "orders": 15, "customers": 11, "rev": 87468, "aov": 5831}, {"city": "嘉義市", "orders": 10, "customers": 10, "rev": 51638, "aov": 5163}, {"city": "基隆市", "orders": 7, "customers": 7, "rev": 39140, "aov": 5591}, {"city": "苗栗縣", "orders": 14, "customers": 14, "rev": 37158, "aov": 2654}, {"city": "台東縣", "orders": 3, "customers": 3, "rev": 19788, "aov": 6596}, {"city": "南投縣", "orders": 8, "customers": 7, "rev": 15740, "aov": 1967}, {"city": "New Taipei City", "orders": 1, "customers": 1, "rev": 14700, "aov": 14700}, {"city": "澎湖縣", "orders": 2, "customers": 2, "rev": 8310, "aov": 4155}, {"city": "Petaling", "orders": 1, "customers": 1, "rev": 8200, "aov": 8200}, {"city": "花蓮縣", "orders": 4, "customers": 4, "rev": 7939, "aov": 1984}, {"city": "新界", "orders": 2, "customers": 1, "rev": 7690, "aov": 3845}, {"city": "九龍", "orders": 2, "customers": 2, "rev": 7200, "aov": 3600}, {"city": "Richmond Hill", "orders": 1, "customers": 1, "rev": 6580, "aov": 6580}, {"city": "金門縣", "orders": 2, "customers": 2, "rev": 3619, "aov": 1809}, {"city": "Kaohsiung City", "orders": 1, "customers": 1, "rev": 2150, "aov": 2150}, {"city": "Tainan City", "orders": 1, "customers": 1, "rev": 1260, "aov": 1260}], "first_aov": 4626, "return_aov": 7427, "hours": [{"hour": 0, "orders": 30}, {"hour": 1, "orders": 20}, {"hour": 2, "orders": 6}, {"hour": 3, "orders": 5}, {"hour": 4, "orders": 5}, {"hour": 5, "orders": 3}, {"hour": 6, "orders": 11}, {"hour": 7, "orders": 9}, {"hour": 8, "orders": 23}, {"hour": 9, "orders": 29}, {"hour": 10, "orders": 35}, {"hour": 11, "orders": 35}, {"hour": 12, "orders": 42}, {"hour": 13, "orders": 48}, {"hour": 14, "orders": 43}, {"hour": 15, "orders": 46}, {"hour": 16, "orders": 52}, {"hour": 17, "orders": 55}, {"hour": 18, "orders": 43}, {"hour": 19, "orders": 52}, {"hour": 20, "orders": 56}, {"hour": 21, "orders": 68}, {"hour": 22, "orders": 66}, {"hour": 23, "orders": 62}], "dow": [{"day": "週一", "orders": 114, "rev": 725291}, {"day": "週二", "orders": 132, "rev": 919943}, {"day": "週三", "orders": 104, "rev": 740241}, {"day": "週四", "orders": 84, "rev": 458518}, {"day": "週五", "orders": 117, "rev": 684401}, {"day": "週六", "orders": 153, "rev": 612710}, {"day": "週日", "orders": 140, "rev": 430164}], "spend_dist": {"<2千": 426, "2–5千": 213, "5千–1萬": 81, "1–3萬": 102, ">3萬": 22}}, "2026-04": {"year_month": "2026-04", "month_label": "2026年4月", "year": 2026, "month": 4, "days": 30, "rev": 4948807, "orders": 687, "avg_order": 7203, "new_customers": 373, "returning": 197, "total_customers": 570, "new_pct": 65.4, "target": 4500000, "achievement_pct": 110.0, "yoy_rev": 2981757, "yoy_pct": 66.0, "mom_rev": 4571268, "mom_pct": 8.3, "daily": [{"day": 1, "label": "4/1", "rev": 183793, "orders": 44, "cumulative": 183793}, {"day": 2, "label": "4/2", "rev": 178307, "orders": 45, "cumulative": 362100}, {"day": 3, "label": "4/3", "rev": 204717, "orders": 50, "cumulative": 566817}, {"day": 4, "label": "4/4", "rev": 81793, "orders": 17, "cumulative": 648610}, {"day": 5, "label": "4/5", "rev": 124143, "orders": 29, "cumulative": 772753}, {"day": 6, "label": "4/6", "rev": 51588, "orders": 15, "cumulative": 824341}, {"day": 7, "label": "4/7", "rev": 107146, "orders": 21, "cumulative": 931487}, {"day": 8, "label": "4/8", "rev": 231238, "orders": 20, "cumulative": 1162725}, {"day": 9, "label": "4/9", "rev": 76200, "orders": 23, "cumulative": 1238925}, {"day": 10, "label": "4/10", "rev": 226992, "orders": 28, "cumulative": 1465917}, {"day": 11, "label": "4/11", "rev": 234661, "orders": 31, "cumulative": 1700578}, {"day": 12, "label": "4/12", "rev": 175961, "orders": 16, "cumulative": 1876539}, {"day": 13, "label": "4/13", "rev": 355879, "orders": 29, "cumulative": 2232418}, {"day": 14, "label": "4/14", "rev": 234191, "orders": 25, "cumulative": 2466609}, {"day": 15, "label": "4/15", "rev": 261874, "orders": 16, "cumulative": 2728483}, {"day": 16, "label": "4/16", "rev": 138946, "orders": 19, "cumulative": 2867429}, {"day": 17, "label": "4/17", "rev": 135353, "orders": 22, "cumulative": 3002782}, {"day": 18, "label": "4/18", "rev": 216992, "orders": 22, "cumulative": 3219774}, {"day": 19, "label": "4/19", "rev": 50725, "orders": 10, "cumulative": 3270499}, {"day": 20, "label": "4/20", "rev": 114629, "orders": 12, "cumulative": 3385128}, {"day": 21, "label": "4/21", "rev": 71718, "orders": 9, "cumulative": 3456846}, {"day": 22, "label": "4/22", "rev": 129184, "orders": 23, "cumulative": 3586030}, {"day": 23, "label": "4/23", "rev": 171004, "orders": 16, "cumulative": 3757034}, {"day": 24, "label": "4/24", "rev": 147939, "orders": 23, "cumulative": 3904973}, {"day": 25, "label": "4/25", "rev": 177583, "orders": 29, "cumulative": 4082556}, {"day": 26, "label": "4/26", "rev": 295400, "orders": 23, "cumulative": 4377956}, {"day": 27, "label": "4/27", "rev": 157681, "orders": 11, "cumulative": 4535637}, {"day": 28, "label": "4/28", "rev": 103600, "orders": 27, "cumulative": 4639237}, {"day": 29, "label": "4/29", "rev": 260878, "orders": 25, "cumulative": 4900115}, {"day": 30, "label": "4/30", "rev": 48692, "orders": 7, "cumulative": 4948807}], "agents": [{"name": "客服跟單/陳怡萍/深圳", "orders": 36, "rev": 768458, "customers": 33, "new_customers": 18, "avg_order": 21346, "rank": 1}, {"name": "業務 /江瑩/ 深圳", "orders": 35, "rev": 507057, "customers": 33, "new_customers": 17, "avg_order": 14487, "rank": 2}, {"name": "業務/均睿/彰化", "orders": 16, "rev": 235340, "customers": 15, "new_customers": 6, "avg_order": 14708, "rank": 3}, {"name": "跟單客服/ping/深圳", "orders": 8, "rev": 198260, "customers": 8, "new_customers": 4, "avg_order": 24782, "rank": 4}, {"name": "代理/楊依靈/台南", "orders": 5, "rev": 77704, "customers": 3, "new_customers": 1, "avg_order": 15540, "rank": 5}, {"name": "代理/林志娟/台中", "orders": 3, "rev": 35360, "customers": 3, "new_customers": 2, "avg_order": 11786, "rank": 6}, {"name": "業務跟單 /江瑩/ 深圳", "orders": 2, "rev": 28960, "customers": 2, "new_customers": 0, "avg_order": 14480, "rank": 7}, {"name": "代理/小葳/彰化", "orders": 1, "rev": 17127, "customers": 1, "new_customers": 0, "avg_order": 17127, "rank": 8}, {"name": "業務/以恩/彰化", "orders": 2, "rev": 16120, "customers": 2, "new_customers": 2, "avg_order": 8060, "rank": 9}, {"name": "跟單/王玉玲/深圳", "orders": 1, "rev": 15500, "customers": 1, "new_customers": 1, "avg_order": 15500, "rank": 10}, {"name": "銷售客服/雯熏/桃園", "orders": 2, "rev": 4860, "customers": 2, "new_customers": 1, "avg_order": 2430, "rank": 11}], "top_prod_rev": [{"name": "帝王拓帕石系列｜裸石 ｜寵粉", "qty": 16, "rev": 168400, "orders": 14, "avg": 10525}, {"name": "首選大克拉鴿子蛋｜奢華綠玉髓套組｜綠翡平替", "qty": 6, "rev": 85500, "orders": 6, "avg": 14250}, {"name": "5.145克拉拉貢綠碧璽，8.9*9.5", "qty": 1, "rev": 85000, "orders": 1, "avg": 85000}, {"name": "哥倫比亞祖母綠 套組", "qty": 1, "rev": 83000, "orders": 1, "avg": 83000}, {"name": "蕭邦同款｜彩寶可開關寶盒｜吊墜", "qty": 7, "rev": 80000, "orders": 7, "avg": 11428}, {"name": "星芒緋紅｜紅寶石套組", "qty": 2, "rev": 72000, "orders": 2, "avg": 36000}, {"name": "首選大克拉鴿子蛋｜奢華紫玉髓套組", "qty": 2, "rev": 72000, "orders": 2, "avg": 36000}, {"name": "(11.13A)哥倫比亞祖母綠 套組", "qty": 1, "rev": 72000, "orders": 1, "avg": 72000}, {"name": "木佐祖母綠平替｜首選透輝", "qty": 2, "rev": 72000, "orders": 2, "avg": 36000}, {"name": "簡約緋紅｜紅寶石套組", "qty": 1, "rev": 72000, "orders": 1, "avg": 72000}, {"name": "極光紫韻｜珍珠項鍊", "qty": 9, "rev": 69300, "orders": 7, "avg": 7700}, {"name": "招財旺事業｜平步青雲&綠幽靈｜手串", "qty": 45, "rev": 65964, "orders": 39, "avg": 1465}, {"name": "限量特價 天然藍寶石套組", "qty": 1, "rev": 65000, "orders": 1, "avg": 65000}, {"name": "定制18k莫桑水滴透輝石戒指  港圍17  開證書", "qty": 1, "rev": 60000, "orders": 1, "avg": 60000}, {"name": "18k彩藍寶戒指國際圍14跟15號", "qty": 1, "rev": 58000, "orders": 1, "avg": 58000}], "top_prod_qty": [{"name": "光之淨化石｜原礦透石膏山", "qty": 76, "rev": 14800}, {"name": "財富能量| 黃鐵礦", "qty": 67, "rev": 26400}, {"name": "精品級精美包裝禮盒", "qty": 60, "rev": 5000}, {"name": "倫敦藍拓帕｜方枕型裸石", "qty": 58, "rev": 53200}, {"name": "消磁聚寶盆| 瑪瑙晶洞", "qty": 53, "rev": 13200}, {"name": "爆款彩色｜尖晶石", "qty": 50, "rev": 8500}, {"name": "招財旺事業｜平步青雲&綠幽靈｜手串", "qty": 45, "rev": 65964}, {"name": "✨ 天選三石｜一生守護 ✨", "qty": 42, "rev": 23500}, {"name": "紫水晶小樹", "qty": 42, "rev": 0}, {"name": "招財之石｜金運石吊墜", "qty": 39, "rev": 28050}, {"name": "能量手串｜水草瑪瑙 · 綠髮晶 · 草莓晶", "qty": 38, "rev": 27200}, {"name": "黑金超七｜項鏈（星輝骨幹）", "qty": 37, "rev": 18600}, {"name": "能量手串｜葡萄晶 · 黃水晶 · 紫水晶", "qty": 36, "rev": 26400}, {"name": "能量手串｜金髮晶 · 鈦晶 · 粉晶", "qty": 35, "rev": 28000}, {"name": "圓足球切｜檸檬水晶", "qty": 32, "rev": 17000}], "sources": [{"src": "業務推薦", "orders": 111, "customers": 97, "rev": 1904746, "pct": 38.5, "aov": 17159, "new_customers": 51, "new_pct": 52.6}, {"src": "直接/官網", "orders": 229, "customers": 210, "rev": 1128006, "pct": 22.8, "aov": 4925, "new_customers": 155, "new_pct": 73.8}, {"src": "Facebook 來源", "orders": 165, "customers": 147, "rev": 894153, "pct": 18.1, "aov": 5419, "new_customers": 110, "new_pct": 74.8}, {"src": "LINE 來源", "orders": 125, "customers": 106, "rev": 765659, "pct": 15.5, "aov": 6125, "new_customers": 38, "new_pct": 35.8}, {"src": "Instagram 來源", "orders": 51, "customers": 46, "rev": 240175, "pct": 4.9, "aov": 4709, "new_customers": 36, "new_pct": 78.3}, {"src": "Threads 來源", "orders": 2, "customers": 2, "rev": 8320, "pct": 0.2, "aov": 4160, "new_customers": 1, "new_pct": 50.0}, {"src": "內容導流", "orders": 1, "customers": 1, "rev": 5239, "pct": 0.1, "aov": 5239, "new_customers": 0, "new_pct": 0.0}, {"src": "TikTok 來源", "orders": 1, "customers": 1, "rev": 2159, "pct": 0.0, "aov": 2159, "new_customers": 1, "new_pct": 100.0}, {"src": "實體店", "orders": 1, "customers": 1, "rev": 350, "pct": 0.0, "aov": 350, "new_customers": 1, "new_pct": 100.0}, {"src": "其他", "orders": 1, "customers": 1, "rev": 0, "pct": 0.0, "aov": 0, "new_customers": 0, "new_pct": 0.0}], "cities": [{"city": "新北市", "orders": 126, "customers": 99, "rev": 993290, "aov": 7883}, {"city": "台中市", "orders": 87, "customers": 68, "rev": 836134, "aov": 9610}, {"city": "高雄市", "orders": 90, "customers": 72, "rev": 598671, "aov": 6651}, {"city": "台北市", "orders": 79, "customers": 72, "rev": 565950, "aov": 7163}, {"city": "台南市", "orders": 48, "customers": 41, "rev": 385262, "aov": 8026}, {"city": "新竹縣", "orders": 28, "customers": 22, "rev": 274187, "aov": 9792}, {"city": "桃園市", "orders": 49, "customers": 45, "rev": 271152, "aov": 5533}, {"city": "新竹市", "orders": 18, "customers": 17, "rev": 102353, "aov": 5686}, {"city": "苗栗縣", "orders": 15, "customers": 14, "rev": 102075, "aov": 6805}, {"city": "雲林縣", "orders": 10, "customers": 7, "rev": 91773, "aov": 9177}, {"city": "屏東縣", "orders": 20, "customers": 18, "rev": 84900, "aov": 4245}, {"city": "嘉義市", "orders": 10, "customers": 8, "rev": 76477, "aov": 7647}, {"city": "彰化縣", "orders": 11, "customers": 11, "rev": 75235, "aov": 6839}, {"city": "宜蘭縣", "orders": 10, "customers": 10, "rev": 63007, "aov": 6300}, {"city": "基隆市", "orders": 10, "customers": 8, "rev": 61617, "aov": 6161}, {"city": "花蓮縣", "orders": 7, "customers": 7, "rev": 32260, "aov": 4608}, {"city": "嘉義縣", "orders": 7, "customers": 5, "rev": 25039, "aov": 3577}, {"city": "台東縣", "orders": 2, "customers": 2, "rev": 24299, "aov": 12149}, {"city": "新界", "orders": 3, "customers": 2, "rev": 23871, "aov": 7957}, {"city": "南投縣", "orders": 6, "customers": 6, "rev": 20280, "aov": 3380}, {"city": "九龍", "orders": 1, "customers": 1, "rev": 13962, "aov": 13962}, {"city": "RICHMOND HILL", "orders": 1, "customers": 1, "rev": 13200, "aov": 13200}, {"city": "Glen Mills", "orders": 1, "customers": 1, "rev": 11149, "aov": 11149}, {"city": "New Taipei City", "orders": 2, "customers": 2, "rev": 9601, "aov": 4800}, {"city": "New Territories", "orders": 1, "customers": 1, "rev": 9480, "aov": 9480}, {"city": "Kew", "orders": 1, "customers": 1, "rev": 6600, "aov": 6600}, {"city": "Macau", "orders": 1, "customers": 1, "rev": 5700, "aov": 5700}, {"city": "Kowloon", "orders": 1, "customers": 1, "rev": 5239, "aov": 5239}, {"city": "Taoyuan City", "orders": 1, "customers": 1, "rev": 3449, "aov": 3449}, {"city": "澎湖縣", "orders": 1, "customers": 1, "rev": 2760, "aov": 2760}, {"city": "Kaohsiung City", "orders": 1, "customers": 1, "rev": 2210, "aov": 2210}, {"city": "Taipei City", "orders": 1, "customers": 1, "rev": 2140, "aov": 2140}, {"city": "Kluang", "orders": 1, "customers": 1, "rev": 1350, "aov": 1350}], "first_aov": 6238, "return_aov": 8778, "hours": [{"hour": 0, "orders": 26}, {"hour": 1, "orders": 20}, {"hour": 2, "orders": 6}, {"hour": 3, "orders": 5}, {"hour": 4, "orders": 3}, {"hour": 5, "orders": 3}, {"hour": 6, "orders": 6}, {"hour": 7, "orders": 8}, {"hour": 8, "orders": 10}, {"hour": 9, "orders": 25}, {"hour": 10, "orders": 21}, {"hour": 11, "orders": 32}, {"hour": 12, "orders": 33}, {"hour": 13, "orders": 42}, {"hour": 14, "orders": 36}, {"hour": 15, "orders": 44}, {"hour": 16, "orders": 39}, {"hour": 17, "orders": 44}, {"hour": 18, "orders": 39}, {"hour": 19, "orders": 33}, {"hour": 20, "orders": 45}, {"hour": 21, "orders": 49}, {"hour": 22, "orders": 57}, {"hour": 23, "orders": 61}], "dow": [{"day": "週一", "orders": 67, "rev": 679777}, {"day": "週二", "orders": 82, "rev": 516655}, {"day": "週三", "orders": 128, "rev": 1066967}, {"day": "週四", "orders": 110, "rev": 613149}, {"day": "週五", "orders": 123, "rev": 715001}, {"day": "週六", "orders": 99, "rev": 711029}, {"day": "週日", "orders": 78, "rev": 646229}], "spend_dist": {"<2千": 220, "2–5千": 192, "5千–1萬": 112, "1–3萬": 135, ">3萬": 28}}, "2026-05": {"year_month": "2026-05", "month_label": "2026年5月", "year": 2026, "month": 5, "days": 31, "rev": 77162, "orders": 17, "avg_order": 4538, "new_customers": 10, "returning": 7, "total_customers": 17, "new_pct": 58.8, "target": 4500000, "achievement_pct": 1.7, "yoy_rev": 2553800, "yoy_pct": -97.0, "mom_rev": 4948807, "mom_pct": -98.4, "daily": [{"day": 1, "label": "5/1", "rev": 77162, "orders": 17, "cumulative": 77162}, {"day": 2, "label": "5/2", "rev": 0, "orders": 0, "cumulative": 77162}, {"day": 3, "label": "5/3", "rev": 0, "orders": 0, "cumulative": 77162}, {"day": 4, "label": "5/4", "rev": 0, "orders": 0, "cumulative": 77162}, {"day": 5, "label": "5/5", "rev": 0, "orders": 0, "cumulative": 77162}, {"day": 6, "label": "5/6", "rev": 0, "orders": 0, "cumulative": 77162}, {"day": 7, "label": "5/7", "rev": 0, "orders": 0, "cumulative": 77162}, {"day": 8, "label": "5/8", "rev": 0, "orders": 0, "cumulative": 77162}, {"day": 9, "label": "5/9", "rev": 0, "orders": 0, "cumulative": 77162}, {"day": 10, "label": "5/10", "rev": 0, "orders": 0, "cumulative": 77162}, {"day": 11, "label": "5/11", "rev": 0, "orders": 0, "cumulative": 77162}, {"day": 12, "label": "5/12", "rev": 0, "orders": 0, "cumulative": 77162}, {"day": 13, "label": "5/13", "rev": 0, "orders": 0, "cumulative": 77162}, {"day": 14, "label": "5/14", "rev": 0, "orders": 0, "cumulative": 77162}, {"day": 15, "label": "5/15", "rev": 0, "orders": 0, "cumulative": 77162}, {"day": 16, "label": "5/16", "rev": 0, "orders": 0, "cumulative": 77162}, {"day": 17, "label": "5/17", "rev": 0, "orders": 0, "cumulative": 77162}, {"day": 18, "label": "5/18", "rev": 0, "orders": 0, "cumulative": 77162}, {"day": 19, "label": "5/19", "rev": 0, "orders": 0, "cumulative": 77162}, {"day": 20, "label": "5/20", "rev": 0, "orders": 0, "cumulative": 77162}, {"day": 21, "label": "5/21", "rev": 0, "orders": 0, "cumulative": 77162}, {"day": 22, "label": "5/22", "rev": 0, "orders": 0, "cumulative": 77162}, {"day": 23, "label": "5/23", "rev": 0, "orders": 0, "cumulative": 77162}, {"day": 24, "label": "5/24", "rev": 0, "orders": 0, "cumulative": 77162}, {"day": 25, "label": "5/25", "rev": 0, "orders": 0, "cumulative": 77162}, {"day": 26, "label": "5/26", "rev": 0, "orders": 0, "cumulative": 77162}, {"day": 27, "label": "5/27", "rev": 0, "orders": 0, "cumulative": 77162}, {"day": 28, "label": "5/28", "rev": 0, "orders": 0, "cumulative": 77162}, {"day": 29, "label": "5/29", "rev": 0, "orders": 0, "cumulative": 77162}, {"day": 30, "label": "5/30", "rev": 0, "orders": 0, "cumulative": 77162}, {"day": 31, "label": "5/31", "rev": 0, "orders": 0, "cumulative": 77162}], "agents": [{"name": "業務 /江瑩/ 深圳", "orders": 1, "rev": 21000, "customers": 1, "new_customers": 0, "avg_order": 21000, "rank": 1}], "top_prod_rev": [{"name": "翠映流光｜祖母綠典雅手鏈", "qty": 1, "rev": 15000, "orders": 1, "avg": 15000}, {"name": "合台耳釘", "qty": 1, "rev": 7000, "orders": 1, "avg": 7000}, {"name": "合台手鏈", "qty": 1, "rev": 7000, "orders": 1, "avg": 7000}, {"name": "綠影流光｜祖母綠輕奢手鏈", "qty": 1, "rev": 6000, "orders": 1, "avg": 6000}, {"name": "合台戒指", "qty": 1, "rev": 3500, "orders": 1, "avg": 3500}, {"name": "合台吊墜", "qty": 1, "rev": 3500, "orders": 1, "avg": 3500}, {"name": "招財｜黃藍寶｜耳釘", "qty": 1, "rev": 3500, "orders": 1, "avg": 3500}, {"name": "訂製-吊墜", "qty": 1, "rev": 3500, "orders": 1, "avg": 3500}, {"name": "綠意財富｜天然胖三角綠水晶裸石", "qty": 9, "rev": 3200, "orders": 8, "avg": 355}, {"name": "藍調星河｜藍坦桑石裸石", "qty": 2, "rev": 3000, "orders": 2, "avg": 1500}, {"name": "橢圓平切｜檸檬水晶", "qty": 2, "rev": 1600, "orders": 2, "avg": 800}, {"name": "星光藍映｜天空藍托帕石星形裸石", "qty": 5, "rev": 1600, "orders": 4, "avg": 320}, {"name": "倫敦藍拓帕｜方枕型裸石", "qty": 2, "rev": 1600, "orders": 2, "avg": 800}, {"name": "天然海紋石｜手串 ｜吊墜", "qty": 2, "rev": 1500, "orders": 2, "avg": 750}, {"name": "森蘿綠境｜天然透輝石橢圓裸石", "qty": 1, "rev": 1500, "orders": 1, "avg": 1500}], "top_prod_qty": [{"name": "綠意財富｜天然胖三角綠水晶裸石", "qty": 9, "rev": 3200}, {"name": "星光藍映｜天空藍托帕石星形裸石", "qty": 5, "rev": 1600}, {"name": "靜謐幻彩｜彩虹灰月光裸石", "qty": 4, "rev": 1200}, {"name": "橢圓平切｜檸檬水晶", "qty": 2, "rev": 1600}, {"name": "暮夏青提｜天然橄榄石圆形裸石", "qty": 2, "rev": 1000}, {"name": "倫敦藍拓帕｜方枕型裸石", "qty": 2, "rev": 1600}, {"name": "緋紅絮語｜天然玫紅石榴石橢圓裸石", "qty": 2, "rev": 1000}, {"name": "藍調星河｜藍坦桑石裸石", "qty": 2, "rev": 3000}, {"name": "天然海紋石｜手串 ｜吊墜", "qty": 2, "rev": 1500}, {"name": "黑金超七｜項鏈（星輝骨幹）", "qty": 2, "rev": 1200}, {"name": "合台耳釘", "qty": 1, "rev": 7000}, {"name": "合台手鏈", "qty": 1, "rev": 7000}, {"name": "合台戒指", "qty": 1, "rev": 3500}, {"name": "合台吊墜", "qty": 1, "rev": 3500}, {"name": "爆款彩色｜尖晶石", "qty": 1, "rev": 500}], "sources": [{"src": "Facebook 來源", "orders": 7, "customers": 7, "rev": 32277, "pct": 41.8, "aov": 4611, "new_customers": 5, "new_pct": 71.4}, {"src": "業務推薦", "orders": 1, "customers": 1, "rev": 21000, "pct": 27.2, "aov": 21000, "new_customers": 0, "new_pct": 0.0}, {"src": "直接/官網", "orders": 3, "customers": 3, "rev": 10480, "pct": 13.6, "aov": 3493, "new_customers": 2, "new_pct": 66.7}, {"src": "LINE 來源", "orders": 1, "customers": 1, "rev": 7400, "pct": 9.6, "aov": 7400, "new_customers": 0, "new_pct": 0.0}, {"src": "Instagram 來源", "orders": 5, "customers": 5, "rev": 6005, "pct": 7.8, "aov": 1201, "new_customers": 3, "new_pct": 60.0}], "cities": [{"city": "彰化縣", "orders": 2, "customers": 2, "rev": 29660, "aov": 14830}, {"city": "新北市", "orders": 5, "customers": 5, "rev": 26540, "aov": 5308}, {"city": "台中市", "orders": 1, "customers": 1, "rev": 4460, "aov": 4460}, {"city": "桃園市", "orders": 2, "customers": 2, "rev": 2620, "aov": 1310}, {"city": "高雄市", "orders": 1, "customers": 1, "rev": 1747, "aov": 1747}, {"city": "台北市", "orders": 1, "customers": 1, "rev": 1360, "aov": 1360}, {"city": "宜蘭縣", "orders": 1, "customers": 1, "rev": 1150, "aov": 1150}, {"city": "氹仔", "orders": 1, "customers": 1, "rev": 1065, "aov": 1065}, {"city": "花蓮縣", "orders": 1, "customers": 1, "rev": 860, "aov": 860}], "first_aov": 3417, "return_aov": 6141, "hours": [{"hour": 0, "orders": 7}, {"hour": 1, "orders": 2}, {"hour": 2, "orders": 1}, {"hour": 8, "orders": 1}, {"hour": 9, "orders": 2}, {"hour": 10, "orders": 4}], "dow": [{"day": "週一", "orders": 0, "rev": 0}, {"day": "週二", "orders": 0, "rev": 0}, {"day": "週三", "orders": 0, "rev": 0}, {"day": "週四", "orders": 0, "rev": 0}, {"day": "週五", "orders": 17, "rev": 77162}, {"day": "週六", "orders": 0, "rev": 0}, {"day": "週日", "orders": 0, "rev": 0}], "spend_dist": {"<2千": 11, "2–5千": 2, "5千–1萬": 2, "1–3萬": 2, ">3萬": 0}}};
+
+const fN=v=>'NT$ '+(v||0).toLocaleString();
+const fF=v=>{
+  if(v>=1e8)return 'NT$ '+(v/1e8).toFixed(2)+'億';
+  if(v>=1e4)return 'NT$ '+(v/1e4).toFixed(0)+'萬';
+  return 'NT$ '+(v||0).toLocaleString();
+};
+const fmtPct=v=>v===null||v===undefined?'—':(v>=0?'+':'')+v+'%';
+const colTrend=v=>v===null?'var(--sub)':v>0?'var(--up)':v<0?'var(--dn)':'var(--flat)';
+
+const SRC_COL={'直接/官網':'#3B7DD8','LINE 來源':'#10A37F','Facebook 來源':'#1877F2','Instagram 來源':'#E4405F','業務推薦':'#B8902A','TikTok 來源':'#69C9D0','Threads 來源':'#1E3A5F','YouTube 來源':'#FF0000','內容導流':'#7B5FC7','蝦皮':'#EE4D2D','直播':'#D94B6B','WhatsApp':'#25D366','其他':'#9E9E9E'};
+
+let CHARTS={};
+function destroyCharts(){Object.values(CHARTS).forEach(c=>c.destroy());CHARTS={};}
+
+function initSelector(){
+  const sel=document.getElementById('month-select');
+  const keys=Object.keys(ALL_DATA).sort().reverse();
+  if(!keys.length){sel.innerHTML='<option>(無資料)</option>';return null;}
+  sel.innerHTML=keys.map(k=>`<option value="${k}">${ALL_DATA[k].month_label}</option>`).join('');
+  sel.addEventListener('change',()=>renderAll(sel.value));
+  return keys[0];
+}
+
+function initTabs(){
+  document.querySelectorAll('.tab').forEach(t=>{
+    t.addEventListener('click',()=>{
+      document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
+      document.querySelectorAll('.page').forEach(x=>x.classList.remove('on'));
+      t.classList.add('on');
+      document.getElementById(t.dataset.page).classList.add('on');
+    });
+  });
+}
+
+function renderAll(ym){
+  const m=ALL_DATA[ym];
+  if(!m)return;
+  destroyCharts();
+  renderP1(m);renderP2(m);renderP3(m);renderP4(m);renderP5(m);renderP6(m);renderP7(m);
+}
+
+// ============ Page 1: 總覽 ============
+function renderP1(m){
+  document.getElementById('p1-title').textContent=m.month_label+' · 總覽';
+
+  // Summary bar
+  const yoyTxt=m.yoy_pct!==null?(m.yoy_pct>=0?`<span class="u">↑ ${m.yoy_pct}%</span>`:`<span class="d">↓ ${Math.abs(m.yoy_pct)}%</span>`):'—';
+  const momTxt=m.mom_pct!==null?(m.mom_pct>=0?`<span class="u">↑ ${m.mom_pct}%</span>`:`<span class="d">↓ ${Math.abs(m.mom_pct)}%</span>`):'—';
+  const achTxt=m.achievement_pct>=100?`<span class="y"><strong>✅ 達標 ${m.achievement_pct}%</strong></span>`:`<span class="tag tag-blue">${m.achievement_pct}% 達成</span>`;
+  document.getElementById('p1-summary').innerHTML=
+    `<strong>${m.month_label}</strong> 共完成 <strong>${m.orders}</strong> 筆訂單，業績 <strong>${fF(m.rev)}</strong>，${achTxt}。`+
+    `較去年同期 ${yoyTxt}，較上月 ${momTxt}。`+
+    `共服務 <strong>${m.total_customers}</strong> 位客戶，新客 ${m.new_customers} 位（佔 ${m.new_pct}%）、回購 ${m.returning} 位。`;
+
+  // KPIs
+  const ach=m.achievement_pct;
+  const achCol=ach>=100?'var(--yellow)':'var(--blue)';
+  document.getElementById('p1-kpis').innerHTML=[
+    {l:'總營收',v:fF(m.rev),sub:`目標 ${fF(m.target)}`,c:'var(--blue)'},
+    {l:'達成率',v:(ach>=100?'達標':ach+'%'),sub:`差額 ${fF(Math.max(0,m.target-m.rev))}`,c:achCol},
+    {l:'總訂單',v:m.orders+' 筆',sub:`均價 ${fN(m.avg_order)}`},
+    {l:'客戶數',v:m.total_customers+' 位',sub:`新${m.new_customers}/回購${m.returning}`},
+    {l:'YoY',v:fmtPct(m.yoy_pct),sub:fF(m.yoy_rev),c:colTrend(m.yoy_pct)},
+  ].map(k=>`<div class="kpi-card"><div class="kpi-l">${k.l}</div><div class="kpi-v" style="color:${k.c||'var(--ink)'};">${k.v}</div><div class="kpi-sub">${k.sub||''}</div></div>`).join('');
+
+  // Daily chart with cumulative line
+  const ctx1=document.getElementById('p1-chart-daily');
+  const target=m.target;const days=m.days;const dailyTarget=target/days;
+  CHARTS['p1-daily']=new Chart(ctx1,{
+    type:'bar',
+    data:{
+      labels:m.daily.map(d=>d.label),
+      datasets:[
+        {label:'日營收',data:m.daily.map(d=>d.rev),backgroundColor:'rgba(59,125,216,.5)',borderRadius:2,order:2},
+        {label:'累計',type:'line',data:m.daily.map(d=>d.cumulative),borderColor:'#FFB800',backgroundColor:'rgba(255,184,0,.1)',borderWidth:2,fill:true,tension:.3,yAxisID:'y2',order:1,pointRadius:0},
+        {label:'目標累計',type:'line',data:m.daily.map((d,i)=>(i+1)*dailyTarget),borderColor:'rgba(217,75,107,.6)',borderWidth:1.5,borderDash:[4,4],fill:false,yAxisID:'y2',order:0,pointRadius:0},
+      ]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}},scales:{x:{ticks:{font:{size:10},autoSkip:true,maxTicksLimit:16}},y:{ticks:{callback:v=>v>=1e6?(v/1e6).toFixed(1)+'M':v>=1e3?(v/1e3).toFixed(0)+'K':v}},y2:{position:'right',grid:{drawOnChartArea:false},ticks:{callback:v=>v>=1e6?(v/1e6).toFixed(1)+'M':v>=1e3?(v/1e3).toFixed(0)+'K':v}}}}
+  });
+
+  // Compare panel
+  document.getElementById('p1-compare').innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+      <div style="padding:14px;background:var(--bg2);border-radius:6px;">
+        <div style="font-size:11px;color:var(--sub);letter-spacing:1px;margin-bottom:6px;">本月</div>
+        <div style="font-family:'DM Mono',monospace;font-size:22px;font-weight:700;color:var(--blue);">${fF(m.rev)}</div>
+      </div>
+      <div style="padding:14px;background:var(--bg2);border-radius:6px;">
+        <div style="font-size:11px;color:var(--sub);letter-spacing:1px;margin-bottom:6px;">上月</div>
+        <div style="font-family:'DM Mono',monospace;font-size:22px;font-weight:700;color:var(--ink);">${fF(m.mom_rev)}</div>
+        <div style="font-size:12px;font-weight:600;color:${colTrend(m.mom_pct)};margin-top:4px;">${fmtPct(m.mom_pct)}</div>
+      </div>
+      <div style="padding:14px;background:var(--bg2);border-radius:6px;">
+        <div style="font-size:11px;color:var(--sub);letter-spacing:1px;margin-bottom:6px;">去年同月</div>
+        <div style="font-family:'DM Mono',monospace;font-size:22px;font-weight:700;color:var(--ink);">${fF(m.yoy_rev)}</div>
+        <div style="font-size:12px;font-weight:600;color:${colTrend(m.yoy_pct)};margin-top:4px;">${fmtPct(m.yoy_pct)}</div>
+      </div>
+      <div style="padding:14px;background:var(--bg2);border-radius:6px;">
+        <div style="font-size:11px;color:var(--sub);letter-spacing:1px;margin-bottom:6px;">月目標</div>
+        <div style="font-family:'DM Mono',monospace;font-size:22px;font-weight:700;color:var(--gold);">${fF(m.target)}</div>
+        <div style="font-size:12px;font-weight:600;color:${ach>=100?'var(--yellow)':'var(--blue)'};margin-top:4px;">${ach>=100?'✅ 達標 '+ach+'%':ach+'% 達成'}</div>
+      </div>
+    </div>`;
+}
+
+// ============ Page 2: 業績 ============
+function renderP2(m){
+  // Daily bar
+  const max1=Math.max(...m.daily.map(d=>d.rev));
+  CHARTS['p2-daily']=new Chart(document.getElementById('p2-chart-daily'),{
+    type:'bar',
+    data:{labels:m.daily.map(d=>d.label),datasets:[{label:'日營收',data:m.daily.map(d=>d.rev),backgroundColor:m.daily.map(d=>d.rev===max1?'#FFB800':'rgba(59,125,216,.5)'),borderRadius:2}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:9},autoSkip:true,maxTicksLimit:16}},y:{ticks:{callback:v=>v>=1e3?(v/1e3).toFixed(0)+'K':v}}}}
+  });
+
+  // Cumulative
+  const dailyTgt=m.target/m.days;
+  CHARTS['p2-cum']=new Chart(document.getElementById('p2-chart-cum'),{
+    type:'line',
+    data:{labels:m.daily.map(d=>d.label),datasets:[
+      {label:'實際累計',data:m.daily.map(d=>d.cumulative),borderColor:'#3B7DD8',backgroundColor:'rgba(59,125,216,.12)',borderWidth:2.5,fill:true,tension:.25,pointRadius:0},
+      {label:'目標累計',data:m.daily.map((d,i)=>(i+1)*dailyTgt),borderColor:'#FFB800',borderWidth:2,borderDash:[6,4],fill:false,pointRadius:0},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}},scales:{x:{ticks:{font:{size:9},autoSkip:true,maxTicksLimit:16}},y:{ticks:{callback:v=>v>=1e6?(v/1e6).toFixed(1)+'M':v>=1e3?(v/1e3).toFixed(0)+'K':v}}}}
+  });
+
+  // DoW
+  CHARTS['p2-dow']=new Chart(document.getElementById('p2-chart-dow'),{
+    type:'bar',
+    data:{labels:m.dow.map(d=>d.day),datasets:[{label:'訂單',data:m.dow.map(d=>d.orders),backgroundColor:'rgba(15,143,133,.6)',borderRadius:2}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}
+  });
+
+  // Hour
+  const hourLabels=Array.from({length:24},(_,i)=>i+':00');
+  const hourData=Array.from({length:24},(_,i)=>{const h=m.hours.find(x=>x.hour===i);return h?h.orders:0;});
+  CHARTS['p2-hour']=new Chart(document.getElementById('p2-chart-hour'),{
+    type:'bar',
+    data:{labels:hourLabels,datasets:[{label:'訂單',data:hourData,backgroundColor:'rgba(184,144,42,.6)',borderRadius:2}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:9}}}}}
+  });
+
+  // Spend dist
+  const sd=m.spend_dist;
+  const spendKeys=['<2千','2–5千','5千–1萬','1–3萬','>3萬'];
+  CHARTS['p2-spend']=new Chart(document.getElementById('p2-chart-spend'),{
+    type:'doughnut',
+    data:{labels:spendKeys,datasets:[{data:spendKeys.map(k=>sd[k]||0),backgroundColor:['#10A37F','#0F8F85','#3B7DD8','#B8902A','#D94B6B']}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{size:11}}}}}
+  });
+}
+
+// ============ Page 3: 業務 ============
+function renderP3(m){
+  const tb=document.querySelector('#p3-tbl tbody');
+  if(!m.agents||!m.agents.length){tb.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--sub);">本月無業務訂單</td></tr>';return;}
+  const maxR=m.agents[0].rev;
+  tb.innerHTML=m.agents.map((a,i)=>{
+    const w=Math.round(a.rev/maxR*100);
+    const medal=i<3?['🥇','🥈','🥉'][i]:i+1;
+    const newPct=a.customers?Math.round(a.new_customers/a.customers*100):0;
+    return `<tr>
+      <td>${medal}</td>
+      <td><strong>${a.name}</strong></td>
+      <td class="num">${a.orders}</td>
+      <td class="num">${a.customers}</td>
+      <td class="num">${a.new_customers}</td>
+      <td class="num">${newPct}%</td>
+      <td class="num">${fN(a.avg_order)}</td>
+      <td class="num"><strong>${fN(a.rev)}</strong></td>
+      <td style="width:160px;"><div class="bar"><div class="bf" style="width:${w}%;background:var(--gold);"></div></div></td>
+    </tr>`;
+  }).join('');
+}
+
+// ============ Page 4: 商品 ============
+function renderP4(m){
+  const tbR=document.querySelector('#p4-tbl-rev tbody');
+  const maxR=m.top_prod_rev[0]?m.top_prod_rev[0].rev:1;
+  tbR.innerHTML=m.top_prod_rev.map((p,i)=>{
+    const w=Math.round(p.rev/maxR*100);
+    return `<tr>
+      <td>${i+1}</td>
+      <td>${p.name}<div class="bar"><div class="bf" style="width:${w}%;background:var(--teal);"></div></div></td>
+      <td class="num">${p.qty}</td>
+      <td class="num">${fN(p.avg)}</td>
+      <td class="num"><strong>${fN(p.rev)}</strong></td>
+    </tr>`;
+  }).join('');
+
+  const tbQ=document.querySelector('#p4-tbl-qty tbody');
+  const maxQ=m.top_prod_qty[0]?m.top_prod_qty[0].qty:1;
+  tbQ.innerHTML=m.top_prod_qty.map((p,i)=>{
+    const w=Math.round(p.qty/maxQ*100);
+    return `<tr>
+      <td>${i+1}</td>
+      <td>${p.name}<div class="bar"><div class="bf" style="width:${w}%;background:var(--gold);"></div></div></td>
+      <td class="num"><strong>${p.qty}</strong></td>
+      <td class="num">${fN(p.rev)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ============ Page 5: 客戶 ============
+function renderP5(m){
+  // New vs Return
+  CHARTS['p5-nr']=new Chart(document.getElementById('p5-chart-nr'),{
+    type:'doughnut',
+    data:{labels:['新客','回購'],datasets:[{data:[m.new_customers,m.returning],backgroundColor:['#3B7DD8','#10A37F']}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right'}}}
+  });
+
+  // AOV compare
+  const max=Math.max(m.first_aov,m.return_aov,1);
+  document.getElementById('p5-aov').innerHTML=`
+    <div style="padding:18px 0;">
+      <div style="margin-bottom:18px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+          <span style="font-size:13px;font-weight:600;">首購均價</span>
+          <span class="num" style="font-family:'DM Mono',monospace;font-size:20px;font-weight:700;color:var(--blue);">${fN(m.first_aov)}</span>
+        </div>
+        <div class="bar" style="height:10px;"><div class="bf" style="width:${Math.round(m.first_aov/max*100)}%;background:var(--blue);"></div></div>
+      </div>
+      <div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+          <span style="font-size:13px;font-weight:600;">回購均價</span>
+          <span class="num" style="font-family:'DM Mono',monospace;font-size:20px;font-weight:700;color:var(--gold);">${fN(m.return_aov)}</span>
+        </div>
+        <div class="bar" style="height:10px;"><div class="bf" style="width:${Math.round(m.return_aov/max*100)}%;background:var(--gold);"></div></div>
+      </div>
+      <div style="margin-top:18px;padding:14px;background:var(--bg2);border-radius:6px;font-size:12px;line-height:1.6;color:var(--ink);">
+        ${m.return_aov>m.first_aov?`<strong>回購客戶平均消費比首購客戶高 ${Math.round((m.return_aov-m.first_aov)/m.first_aov*100)}%</strong>，回購是高價值來源。`:`<strong>首購均價略高於回購</strong>，可能是首購客戶傾向買大件入門商品。`}
+      </div>
+    </div>`;
+}
+
+// ============ Page 6: 通路 ============
+function renderP6(m){
+  // Pie chart
+  CHARTS['p6']=new Chart(document.getElementById('p6-chart'),{
+    type:'doughnut',
+    data:{labels:m.sources.map(s=>s.src),datasets:[{data:m.sources.map(s=>s.rev),backgroundColor:m.sources.map(s=>SRC_COL[s.src]||'#9E9E9E')}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{size:11}}}}}
+  });
+
+  // Table
+  const tb=document.querySelector('#p6-tbl tbody');
+  tb.innerHTML=m.sources.map(s=>`<tr>
+    <td><span style="display:inline-block;width:8px;height:8px;background:${SRC_COL[s.src]||'#9E9E9E'};border-radius:50%;margin-right:6px;"></span><strong>${s.src}</strong></td>
+    <td class="num">${s.orders}</td>
+    <td class="num">${s.customers}</td>
+    <td class="num">${s.new_pct}%</td>
+    <td class="num">${fN(s.aov)}</td>
+    <td class="num">${s.pct}%</td>
+    <td class="num"><strong>${fN(s.rev)}</strong></td>
+  </tr>`).join('');
+}
+
+// ============ Page 7: 地區 ============
+function renderP7(m){
+  const tb=document.querySelector('#p7-tbl tbody');
+  if(!m.cities||!m.cities.length){tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--sub);">無地區資料</td></tr>';return;}
+  const maxR=m.cities[0].rev;
+  tb.innerHTML=m.cities.map((c,i)=>{
+    const w=Math.round(c.rev/maxR*100);
+    return `<tr>
+      <td>${i+1}</td>
+      <td><strong>${c.city}</strong></td>
+      <td class="num">${c.orders}</td>
+      <td class="num">${c.customers}</td>
+      <td class="num">${fN(c.aov)}</td>
+      <td class="num"><strong>${fN(c.rev)}</strong></td>
+      <td style="width:200px;"><div class="bar"><div class="bf" style="width:${w}%;background:var(--blue);"></div></div></td>
+    </tr>`;
+  }).join('');
+}
+
+// ============ Init ============
+initTabs();
+const defaultMonth=initSelector();
+if(defaultMonth)renderAll(defaultMonth);
+</script>
+
+</body>
+</html>
