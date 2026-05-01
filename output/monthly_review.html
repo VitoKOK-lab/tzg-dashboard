@@ -91,6 +91,77 @@ td.num{font-family:'DM Mono',monospace;}
 
 .empty{padding:40px;text-align:center;color:var(--sub);font-size:12px;}
 
+/* ═══════════ Mobile / RWD ═══════════ */
+@media (max-width:768px){
+  /* 解除桌面的 viewport 鎖，讓手機可以正常往下捲動 */
+  html,body{height:auto;min-height:100vh;overflow:visible;font-size:13px;}
+  body{display:block;}
+
+  /* Header 縮小 + 月份切換移到下一行 */
+  .hdr{padding:10px 14px;gap:8px;flex-wrap:wrap;position:sticky;top:0;}
+  .hdr-logo{font-size:17px;}
+  .hdr-sub{display:none;}
+  .hdr-spacer{display:none;}
+  .hdr-month{width:100%;justify-content:space-between;padding-top:6px;border-top:1px solid rgba(255,255,255,.12);margin-top:2px;}
+  #month-select{padding:4px 10px;font-size:12px;flex:1;max-width:200px;}
+
+  /* Tabs 橫向滑動 */
+  .tabs{padding:0 6px;position:sticky;top:auto;background:#fff;}
+  .tab{padding:10px 12px;font-size:12px;}
+
+  /* Pages：單欄堆疊，恢復自然流 */
+  .page{display:none;flex-direction:column;flex:none;padding:14px;height:auto;overflow:visible;max-width:100%;}
+  .page.on{display:block;}
+
+  .page-head{display:block;margin-bottom:8px;}
+  .sec-title{font-size:18px;}
+  .sec-desc{font-size:11px;margin-top:2px;}
+  .summary-bar{font-size:12px;padding:10px 12px;line-height:1.55;margin-bottom:12px;}
+
+  /* KPI：2 欄 */
+  .kpi-grid{grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}
+  .kpi-card{padding:9px 11px;}
+  .kpi-l{font-size:8px;letter-spacing:1px;}
+  .kpi-v{font-size:17px;}
+  .kpi-sub{font-size:9.5px;}
+
+  /* 多欄 row 全部改單欄 */
+  .row,.row3,.row4,.row.r2to1,.row.r3to1{
+    display:block;
+    flex:none;
+  }
+  .row>*,.row3>*,.row4>*{margin-bottom:12px;}
+  .row>*:last-child,.row3>*:last-child,.row4>*:last-child{margin-bottom:0;}
+  .col{display:block;}
+  .col>*{margin-bottom:12px;}
+
+  /* 圖表：給固定高度（單欄堆疊時 flex:1 不適用） */
+  .chart-wrap{flex:none;height:240px;}
+
+  /* Panel padding 縮小 */
+  .panel{padding:11px 12px;margin-bottom:12px;display:block;}
+  .panel:last-child{margin-bottom:0;}
+
+  /* 表格：水平捲動避免欄位被擠壞 */
+  .tbl-scroll{overflow-x:auto;overflow-y:visible;max-height:none;-webkit-overflow-scrolling:touch;}
+  table{font-size:11px;min-width:520px;}
+  th,td{padding:6px 4px;white-space:nowrap;}
+  /* 末欄的進度條在手機縮小 */
+  #p3-tbl td:last-child,#p7-tbl td:last-child{width:80px;min-width:80px;}
+
+  /* P5 客戶頁：first_aov panel 內距縮小 */
+  #p5-aov{padding:6px 0;}
+
+  .empty{padding:30px 12px;font-size:12px;}
+}
+
+/* 小螢幕（< 380px，舊機 / 直立） */
+@media (max-width:380px){
+  .kpi-grid{grid-template-columns:1fr;}
+  .tab{padding:9px 10px;font-size:11px;}
+  .chart-wrap{height:220px;}
+}
+
 @media print{
   html,body{height:auto;overflow:visible;}
   .hdr,.tabs{position:static;}
