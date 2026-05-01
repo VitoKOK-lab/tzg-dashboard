@@ -62,6 +62,24 @@ if exist ".env" (
         echo [5a] Shopline download OK
         echo.
     )
+
+    REM ── 每月 1 號：重新封存「上 2 個月」以捕捉跨月取消／退款 ──
+    for /f "tokens=2 delims==" %%I in ('wmic os get localdatetime /value ^| find "="') do set _dt=%%I
+    set _DAY=%_dt:~6,2%
+    if "!_DAY!"=="01" (
+        echo ===================================================
+        echo  Re-archiving past 2 months ^(monthly cleanup^)...
+        echo ===================================================
+        echo.
+        python re_archive_month.py
+        if errorlevel 1 (
+            echo WARNING: Re-archive failed, continuing...
+            echo.
+        ) else (
+            echo [5a+] Re-archive OK
+            echo.
+        )
+    )
 ) else (
     echo [5a] .env not found, skipping auto-download
     echo      To enable: copy .env.example .env and fill in credentials

@@ -1,16 +1,22 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Shopline 自動下載訂單報表 v3.0
+Shopline 自動下載訂單報表 v3.1
 - Session 儲存：登入一次，之後自動重用
 - 支援 Google Authenticator 2FA（手動登入後不再需要）
 - 正確選擇器：a.export-item
+- 🆕 支援指定日期範圍：
+    python auto_shopline.py                       # 預設：當月 1 號 ~ 今天
+    python auto_shopline.py --month 2026-03       # 整個 3 月
+    python auto_shopline.py --start 2026-01-01 --end 2026-01-31
 """
 import os
 import sys
 import json
+import argparse
+import calendar as _cal
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeout
 
@@ -115,13 +121,48 @@ def manual_login(page):
         log(f'[X] 等待逾時，目前 URL：{page.url}')
         return False
 
-def run():
+def parse_date_range():
+    """從命令列參數決定要下載的日期範圍（回傳 YYYY/MM/DD 格式）"""
+    p = argparse.ArgumentParser(description='Shopline 訂單報表下載')
+    p.add_argument('--month', type=str, metavar='YYYY-MM',
+                   help='整個月份（例：2026-03）')
+    p.add_argument('--start', type=str, metavar='YYYY-MM-DD', help='起始日期')
+    p.add_argument('--end',   type=str, metavar='YYYY-MM-DD', help='結束日期')
+    args = p.parse_args()
+
+    if args.month:
+        try:
+            dt = datetime.strptime(args.month, '%Y-%m')
+        except ValueError:
+            print(f'[X] 月份格式錯誤：{args.month}（應為 YYYY-MM）')
+            sys.exit(1)
+        last_day = _cal.monthrange(dt.year, dt.month)[1]
+        return (datetime(dt.year, dt.month, 1).strftime('%Y/%m/%d'),
+                datetime(dt.year, dt.month, last_day).strftime('%Y/%m/%d'))
+    if args.start and args.end:
+        try:
+            s = datetime.strptime(args.start, '%Y-%m-%d')
+            e = datetime.strptime(args.end,   '%Y-%m-%d')
+        except ValueError:
+            print(f'[X] 日期格式錯誤（應為 YYYY-MM-DD）')
+            sys.exit(1)
+        return s.strftime('%Y/%m/%d'), e.strftime('%Y/%m/%d')
+
+    # 預設：當月 1 號 ~ 今天
+    today = datetime.now()
+    return (today.replace(day=1).strftime('%Y/%m/%d'),
+            today.strftime('%Y/%m/%d'))
+
+
+def run(month_start=None, month_end=None):
     DATA_DIR.mkdir(exist_ok=True)
 
-    # 日期範圍：本月第一天 ~ 今天（Shopline 要求 YYYY/MM/DD 格式）
-    today       = datetime.now()
-    month_start = today.replace(day=1).strftime('%Y/%m/%d')
-    month_end   = today.strftime('%Y/%m/%d')
+    # 若沒傳入日期，預設用本月 1 號 ~ 今天
+    today = datetime.now()
+    if month_start is None:
+        month_start = today.replace(day=1).strftime('%Y/%m/%d')
+    if month_end is None:
+        month_end = today.strftime('%Y/%m/%d')
     log(f'匯出範圍：{month_start} ~ {month_end}')
 
     with sync_playwright() as p:
@@ -423,10 +464,11 @@ def run():
 # ─────────────────────────────────────────
 if __name__ == '__main__':
     print('=' * 60)
-    print(' Shopline 自動下載 v2.0')
+    print(' Shopline 自動下載 v3.1')
     print('=' * 60)
+    start, end = parse_date_range()
     try:
-        path = run()
+        path = run(start, end)
         print(f'\n[✅ 成功] 檔案已存至：{path}')
         sys.exit(0)
     except SystemExit:
