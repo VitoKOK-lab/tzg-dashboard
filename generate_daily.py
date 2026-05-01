@@ -1360,46 +1360,7 @@ def compute(df):
     }
     print(f'[預估達標] 信心度 {confidence} / 相比上月 {trend_vs_last:+.1f}%')
 
-    # ═══════════════════════════════════════════════════════
-    # 前月完整回顧（呼叫共用函數）
-    # ═══════════════════════════════════════════════════════
-    pm_yr = yr - 1 if mo == 1 else yr
-    pm_mo = 12     if mo == 1 else mo - 1
-    pm_review = compute_month_review(vd, ccol, pm_yr, pm_mo)
-    if pm_review:
-        # daily dashboard 的 s9 只用部分欄位（精簡版）
-        D['prev_month'] = {
-            'month_label':     pm_review['month_label'],
-            'year':            pm_review['year'],
-            'month':           pm_review['month'],
-            'days':            pm_review['days'],
-            'rev':             pm_review['rev'],
-            'orders':          pm_review['orders'],
-            'avg_order':       pm_review['avg_order'],
-            'new_customers':   pm_review['new_customers'],
-            'returning':       pm_review['returning'],
-            'total_customers': pm_review['total_customers'],
-            'new_pct':         pm_review['new_pct'],
-            'target':          pm_review['target'],
-            'achievement_pct': pm_review['achievement_pct'],
-            'yoy_rev':         pm_review['yoy_rev'],
-            'yoy_pct':         pm_review['yoy_pct'],
-            'mom_rev':         pm_review['mom_rev'],
-            'mom_pct':         pm_review['mom_pct'],
-            'daily':           pm_review['daily'],
-            'top_agents':      pm_review['agents'][:10],
-            'top_products':    [{'name': p['name'][:28], 'qty': p['qty'], 'rev': p['rev']}
-                                for p in pm_review['top_prod_rev'][:10]],
-            'sources':         [{'src': s['src'], 'orders': s['orders'], 'rev': s['rev'], 'pct': s['pct']}
-                                for s in pm_review['sources']],
-            'top_cities':      [{'city': c['city'], 'orders': c['orders'], 'rev': c['rev']}
-                                for c in pm_review['cities'][:8]],
-        }
-        print(f'[前月回顧] {pm_review["month_label"]} · NT${pm_review["rev"]:,} / {pm_review["orders"]}張 · 達成 {pm_review["achievement_pct"]}%')
-    else:
-        D['prev_month'] = None
-        print(f'[前月回顧] 無{pm_yr}年{pm_mo}月資料')
-
+    # 前月完整回顧已搬到 output/monthly_review.html（generate_monthly_review.py）
     return D
 
 def patch_html(html, D):

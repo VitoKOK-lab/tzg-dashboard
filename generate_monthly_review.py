@@ -86,16 +86,21 @@ def main():
     print('\n[2/3] 計算各月回顧...')
     months = find_months_with_data(vd)
 
-    # 過濾：只保留 2026 年（去年資料拿來算 YoY 用，不獨立列出）
-    target_year = datetime.now().year
-    months_to_compute = [(y, m) for y, m in months if y >= target_year - 1]
-
-    # 但只把目標年（含上月跨年）加到輸出
-    months_to_show = [(y, m) for y, m in months if y == target_year]
-    # 若 1 月，補上前一年 12 月（跨年）
-    now = datetime.now()
-    if now.month == 1 and (target_year - 1, 12) in months:
+    # 只列出「已完整結束」的月份：
+    #   - 月份 (y, m) 必須整月過完 → 即 (y, m) < (今天年, 今天月)
+    #   - 範圍限縮在當年（1 月時補入去年 12 月）
+    today        = datetime.now()
+    target_year  = today.year
+    months_to_show = [
+        (y, m) for y, m in months
+        if y == target_year and (y, m) < (target_year, today.month)
+    ]
+    if today.month == 1 and (target_year - 1, 12) in months:
         months_to_show.insert(0, (target_year - 1, 12))
+
+    if not months_to_show:
+        print('[!] 目前沒有任何「已結束」的月份可以列出')
+        print('    （月會頁面要等月份完整結束才會產生）')
 
     all_data = {}
     for yr, mo in months_to_show:

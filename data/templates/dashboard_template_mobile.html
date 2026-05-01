@@ -559,53 +559,6 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
   </div>
 </div>
 
-<div class="slide" id="s9">
-  <div class="sh">
-    <div class="sh-t">前月總結</div>
-    <div class="stag" id="pm-month-tag" style="border-color:var(--gold);color:var(--gold);">--</div>
-    <div class="stag" id="pm-ach-tag" style="border-color:var(--blue);color:var(--blue);">--</div>
-  </div>
-  <div class="body">
-    <!-- KPI 橫列 -->
-    <div id="pm-kpi-row" style="display:flex;gap:8px;flex-shrink:0;"></div>
-    <!-- 主內容 3 欄 -->
-    <div style="display:flex;gap:10px;flex:1;min-height:0;">
-      <!-- 左：日銷走勢 -->
-      <div class="panel" style="flex:1.5;display:flex;flex-direction:column;">
-        <div class="pl" style="margin-bottom:8px;">📅 日銷走勢</div>
-        <div style="flex:1;position:relative;min-height:120px;">
-          <canvas id="pm-daily-chart"></canvas>
-        </div>
-      </div>
-      <!-- 中：接單王 + 熱銷商品 -->
-      <div style="flex:1.1;display:flex;flex-direction:column;gap:10px;">
-        <div class="panel" style="flex:1;overflow:hidden;">
-          <div class="pl" style="margin-bottom:6px;">🏆 接單王</div>
-          <div id="pm-agents"></div>
-        </div>
-        <div class="panel" style="flex:1;overflow:hidden;">
-          <div class="pl" style="margin-bottom:6px;">🔥 熱銷商品</div>
-          <div id="pm-products"></div>
-        </div>
-      </div>
-      <!-- 右：來源 + 對比 + 城市 -->
-      <div style="flex:0.85;display:flex;flex-direction:column;gap:10px;">
-        <div class="panel" style="flex:1.2;overflow:hidden;">
-          <div class="pl" style="margin-bottom:6px;">📡 訂單來源</div>
-          <div id="pm-sources"></div>
-        </div>
-        <div class="panel">
-          <div id="pm-compare"></div>
-        </div>
-        <div class="panel" style="flex:1;overflow:hidden;">
-          <div class="pl" style="margin-bottom:6px;">📍 城市</div>
-          <div id="pm-cities"></div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
 </div>
 
 <script>
@@ -1245,171 +1198,14 @@ function renderS9(){
   document.getElementById('s9-summary').textContent=prev.summary||'上季資料彙整中';
 }
 
-// ═══════════════════════════════════════════════════════
-// 🆕 s9: 前月總業績回顧
-// ═══════════════════════════════════════════════════════
-function renderPrevMonth(){
-  const pm=D.prev_month;
-  if(!pm){return;}
-
-  // 月份標籤
-  const tag=document.getElementById('pm-month-tag');
-  if(tag) tag.textContent=pm.month_label;
-  const achTag=document.getElementById('pm-ach-tag');
-  if(achTag){
-    if(pm.achievement_pct>=100){achTag.textContent='✅ 達標';achTag.style.borderColor='#FFB800';achTag.style.color='#FFB800';}
-    else{achTag.textContent=pm.achievement_pct+'% 達成';achTag.style.borderColor='var(--blue)';achTag.style.color='var(--blue)';}
-  }
-
-  // KPI 橫列
-  const kpiEl=document.getElementById('pm-kpi-row');
-  if(kpiEl){
-    const achCol=pm.achievement_pct>=100?'#FFB800':'var(--blue)';
-    const yoyCol=pm.yoy_pct!==null?(pm.yoy_pct>0?'var(--up)':pm.yoy_pct<0?'var(--dn)':'var(--flat)'):'var(--sub)';
-    const momCol=pm.mom_pct!==null?(pm.mom_pct>0?'var(--up)':pm.mom_pct<0?'var(--dn)':'var(--flat)'):'var(--sub)';
-    const fmtPct=v=>v===null?'—':(v>=0?'+':'')+v+'%';
-    kpiEl.innerHTML=[
-      {l:'總營收',  v:fF(pm.rev),                         sub:`目標 ${pm.achievement_pct>=100?'✅達標':pm.achievement_pct+'%'}`,c:achCol},
-      {l:'總訂單',  v:pm.orders+' 筆',                    sub:`均價 ${fN(pm.avg_order)}`},
-      {l:'新客／回購',v:pm.new_customers+' / '+pm.returning,sub:`新客佔 ${pm.new_pct}%`},
-      {l:'vs 去年同期',v:fmtPct(pm.yoy_pct),             sub:fN(pm.yoy_rev),c:yoyCol},
-      {l:'vs 上月',  v:fmtPct(pm.mom_pct),               sub:fN(pm.mom_rev),c:momCol},
-    ].map(k=>`<div class="panel" style="flex:1;padding:8px 12px;">
-      <div style="font-size:9px;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase;margin-bottom:3px;">${k.l}</div>
-      <div style="font-family:'DM Mono',monospace;font-size:18px;font-weight:700;color:${k.c||'var(--ink)'};line-height:1.1;">${k.v}</div>
-      <div style="font-size:11px;color:var(--sub);margin-top:2px;">${k.sub||''}</div>
-    </div>`).join('');
-  }
-
-  // 日銷走勢 Chart
-  if(CHARTS['pm-daily']){CHARTS['pm-daily'].destroy();delete CHARTS['pm-daily'];}
-  const ctx=document.getElementById('pm-daily-chart');
-  if(ctx&&pm.daily&&pm.daily.length){
-    const maxR=Math.max(...pm.daily.map(d=>d.rev));
-    CHARTS['pm-daily']=new Chart(ctx,{
-      type:'bar',
-      data:{
-        labels:pm.daily.map(d=>d.label),
-        datasets:[{
-          label:'日營收',
-          data:pm.daily.map(d=>d.rev),
-          backgroundColor:pm.daily.map(d=>d.rev===maxR?'#FFB800':'rgba(59,125,216,.45)'),
-          borderRadius:2,
-        }]
-      },
-      options:{
-        responsive:true,maintainAspectRatio:false,
-        plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`NT$ ${c.raw.toLocaleString()}`}}},
-        scales:{
-          x:{ticks:{maxRotation:0,autoSkip:true,maxTicksLimit:16,font:{size:10}}},
-          y:{ticks:{callback:v=>v>=1000000?(v/1000000).toFixed(1)+'M':v>=1000?(v/1000).toFixed(0)+'K':v,font:{size:10}}}
-        }
-      }
-    });
-  }
-
-  // 接單王
-  const agEl=document.getElementById('pm-agents');
-  if(agEl){
-    if(!pm.top_agents||!pm.top_agents.length){agEl.innerHTML='<div style="color:var(--sub);font-size:12px;">無業務資料</div>';}
-    else{
-      const maxR=pm.top_agents[0].rev||1;
-      agEl.innerHTML=pm.top_agents.slice(0,7).map((a,i)=>{
-        const w=Math.round(a.rev/maxR*100);
-        const medal=i<3?['🥇','🥈','🥉'][i]:`<span style="font-size:10px;color:var(--sub);">${i+1}</span>`;
-        return `<div style="display:grid;grid-template-columns:18px 1fr 54px;align-items:center;gap:4px;padding:2px 0;">
-          <div style="text-align:center;">${medal}</div>
-          <div>
-            <div style="font-size:12px;font-weight:500;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${a.name}</div>
-            <div style="height:3px;background:var(--line);border-radius:2px;margin-top:2px;"><div style="width:${w}%;height:100%;background:var(--gold);border-radius:2px;"></div></div>
-          </div>
-          <div style="text-align:right;font-family:'DM Mono',monospace;font-size:10px;color:var(--sub);">${fN(a.rev)}</div>
-        </div>`;
-      }).join('');
-    }
-  }
-
-  // 熱銷商品
-  const prodEl=document.getElementById('pm-products');
-  if(prodEl){
-    if(!pm.top_products||!pm.top_products.length){prodEl.innerHTML='<div style="color:var(--sub);font-size:12px;">無商品資料</div>';}
-    else{
-      const maxR=pm.top_products[0].rev||1;
-      prodEl.innerHTML=pm.top_products.slice(0,7).map((p,i)=>{
-        const w=Math.round(p.rev/maxR*100);
-        return `<div style="display:grid;grid-template-columns:18px 1fr 36px;align-items:center;gap:4px;padding:2px 0;">
-          <span style="font-size:10px;color:var(--sub);text-align:right;">${i+1}</span>
-          <div>
-            <div style="font-size:11px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.name}</div>
-            <div style="height:3px;background:var(--line);border-radius:2px;margin-top:2px;"><div style="width:${w}%;height:100%;background:var(--teal);border-radius:2px;"></div></div>
-          </div>
-          <div style="text-align:right;font-family:'DM Mono',monospace;font-size:10px;color:var(--sub);">${p.qty}件</div>
-        </div>`;
-      }).join('');
-    }
-  }
-
-  // 訂單來源
-  const srcEl=document.getElementById('pm-sources');
-  if(srcEl&&pm.sources&&pm.sources.length){
-    const srcC={'直接/官網':'var(--blue)','LINE 來源':'var(--grn)','Facebook 來源':'#1877F2','Instagram 來源':'#E4405F','業務推薦':'var(--gold)','TikTok 來源':'#69C9D0','Threads 來源':'var(--ink)','YouTube 來源':'#FF0000','內容導流':'var(--pur)','蝦皮':'#EE4D2D','直播':'var(--coral)','WhatsApp':'var(--grn)'};
-    const maxO=pm.sources[0]?.orders||1;
-    srcEl.innerHTML=pm.sources.slice(0,7).map(s=>{
-      const col=srcC[s.src]||'var(--sub)';
-      const w=Math.round(s.orders/maxO*100);
-      return `<div style="display:grid;grid-template-columns:1fr 34px;align-items:center;gap:4px;padding:2px 0;">
-        <div>
-          <div style="font-size:11px;color:${col};font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${s.src}</div>
-          <div style="height:3px;background:var(--line);border-radius:2px;margin-top:2px;"><div style="width:${w}%;height:100%;background:${col};border-radius:2px;opacity:.6;"></div></div>
-        </div>
-        <div style="text-align:right;font-family:'DM Mono',monospace;font-size:10px;color:var(--sub);">${s.pct}%</div>
-      </div>`;
-    }).join('');
-  }
-
-  // YoY / MoM 對比
-  const cmpEl=document.getElementById('pm-compare');
-  if(cmpEl){
-    const yoyCol=pm.yoy_pct!==null?(pm.yoy_pct>0?'var(--up)':pm.yoy_pct<0?'var(--dn)':'var(--flat)'):'var(--sub)';
-    const momCol=pm.mom_pct!==null?(pm.mom_pct>0?'var(--up)':pm.mom_pct<0?'var(--dn)':'var(--flat)'):'var(--sub)';
-    const fmtPct=v=>v===null?'—':(v>=0?'+':'')+v+'%';
-    cmpEl.innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:0;">
-      <div style="text-align:center;padding:8px 4px;">
-        <div style="font-size:9px;letter-spacing:1px;color:var(--sub);margin-bottom:4px;">vs 去年同期</div>
-        <div style="font-family:'DM Mono',monospace;font-size:17px;font-weight:700;color:${yoyCol};">${fmtPct(pm.yoy_pct)}</div>
-        <div style="font-size:10px;color:var(--sub);margin-top:2px;">${fN(pm.yoy_rev)}</div>
-      </div>
-      <div style="text-align:center;padding:8px 4px;border-left:1px solid var(--line);">
-        <div style="font-size:9px;letter-spacing:1px;color:var(--sub);margin-bottom:4px;">vs 上月</div>
-        <div style="font-family:'DM Mono',monospace;font-size:17px;font-weight:700;color:${momCol};">${fmtPct(pm.mom_pct)}</div>
-        <div style="font-size:10px;color:var(--sub);margin-top:2px;">${fN(pm.mom_rev)}</div>
-      </div>
-    </div>`;
-  }
-
-  // 城市
-  const cityEl=document.getElementById('pm-cities');
-  if(cityEl&&pm.top_cities&&pm.top_cities.length){
-    const maxR=pm.top_cities[0].rev||1;
-    cityEl.innerHTML=pm.top_cities.map((c,i)=>{
-      const w=Math.round(c.rev/maxR*100);
-      return `<div style="display:grid;grid-template-columns:1fr 36px;align-items:center;gap:4px;padding:2px 0;">
-        <div>
-          <div style="font-size:11px;color:var(--ink);">${c.city}</div>
-          <div style="height:3px;background:var(--line);border-radius:2px;margin-top:2px;"><div style="width:${w}%;height:100%;background:var(--blue);border-radius:2px;"></div></div>
-        </div>
-        <div style="text-align:right;font-family:'DM Mono',monospace;font-size:10px;color:var(--sub);">${c.orders}筆</div>
-      </div>`;
-    }).join('');
-  }
-}
+// 前月總結已移至獨立的月會專用網頁 output/monthly_review.html
 
 const DUR=20000;  // 每頁停留時間（毫秒）
 const IDLE_MS=5*60*1000;  // 5 分鐘閒置後啟動自動播放
 const slides=document.querySelectorAll('.slide');
 let cur=0, timer, idleTimer, autoPlaying=false;
 
-const inits={3:[],5:[renderNew6mChart,renderFvrChart,renderMemberChart,renderRfmGrid,renderActiveTiers],6:[renderRepurchaseChart],7:[],8:[renderPrevMonth]};
+const inits={3:[],5:[renderNew6mChart,renderFvrChart,renderMemberChart,renderRfmGrid,renderActiveTiers],6:[renderRepurchaseChart],7:[]};
 function buildNav(){const el=document.getElementById('snav');el.innerHTML=Array.from({length:slides.length},(_,i)=>`<div class="sdot${i===0?' on':''}" data-i="${i}"></div>`).join('');el.querySelectorAll('.sdot').forEach(d=>d.addEventListener('click',()=>{goTo(+d.dataset.i);userAction();}));}
 function goTo(n){slides[cur].classList.remove('on');document.querySelectorAll('.sdot')[cur].classList.remove('on');cur=((n%slides.length)+slides.length)%slides.length;slides[cur].classList.add('on');document.querySelectorAll('.sdot')[cur].classList.add('on');document.getElementById('snum').textContent=`${cur+1}/${slides.length}`;if(autoPlaying)startProg();else stopProg();trigAnim(slides[cur]);if(inits[cur])inits[cur].forEach(fn=>setTimeout(fn,200));}
 
@@ -1485,7 +1281,7 @@ renderNew6mChart();renderFvrChart();renderMemberChart();
 renderRfmGrid();renderActiveTiers();
 renderCombosList();renderPaySpeed();
 renderRepurchaseChart();renderTimeInsight();
-renderS7WeekdayHour();renderS9();renderPrevMonth();
+renderS7WeekdayHour();renderS9();
 
 if(IS_MOBILE){
   document.querySelectorAll('.slide').forEach(s=>s.classList.add('on'));
