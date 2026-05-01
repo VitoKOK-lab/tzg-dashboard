@@ -509,6 +509,53 @@ def compute_month_review(vd, ccol, yr, mo, target=None):
         elif v < 30000: spend_buckets['1–3萬'] += 1
         else: spend_buckets['>3萬'] += 1
 
+    # 客單分布商品明細（drill-down）：每個區間裡的訂單包含哪些商品
+    bracket_ranges = [
+        ('<2千',     0,         2000),
+        ('2–5千',    2000,      5000),
+        ('5千–1萬',  5000,      10000),
+        ('1–3萬',    10000,     30000),
+        ('>3萬',     30000,     float('inf')),
+    ]
+    spend_products = {}
+    spend_summary  = {}
+    for bk, lo, hi in bracket_ranges:
+        # 抓出這區間的訂單號碼
+        bk_ord = pm_ord[(pm_ord['訂單合計'] >= lo) & (pm_ord['訂單合計'] < hi)]
+        bk_oids = set(bk_ord['訂單號碼'])
+        bk_total_rev = int(bk_ord['訂單合計'].sum()) if len(bk_ord) else 0
+        bk_count = len(bk_ord)
+        bk_avg = int(bk_total_rev / bk_count) if bk_count else 0
+        bk_customers = bk_ord[ccol].nunique() if ccol in bk_ord.columns and bk_count else 0
+
+        spend_summary[bk] = {
+            'orders': bk_count,
+            'rev':    bk_total_rev,
+            'avg':    bk_avg,
+            'customers': int(bk_customers),
+        }
+
+        # 從 pm_lines 找這些訂單的所有商品明細並聚合
+        if bk_count == 0:
+            spend_products[bk] = []
+            continue
+        bk_lines = pm_lines[pm_lines['訂單號碼'].isin(bk_oids)]
+        if len(bk_lines) == 0:
+            spend_products[bk] = []
+            continue
+        prod_g = bk_lines.groupby('商品名稱').agg(
+            qty    = ('數量', 'sum'),
+            rev    = ('商品結帳價', 'sum'),
+            orders = ('訂單號碼', 'nunique'),
+        ).sort_values('rev', ascending=False).head(25).reset_index()
+        spend_products[bk] = [
+            {'name': str(r['商品名稱'])[:45],
+             'qty': int(r['qty']),
+             'rev': int(r['rev']),
+             'orders': int(r['orders'])}
+            for _, r in prod_g.iterrows()
+        ]
+
     # Top 客戶（依本月營收，前 15 位）
     pm_top_customers = []
     cust_rev_series  = pm_ord.groupby(ccol)['訂單合計'].sum().sort_values(ascending=False)
@@ -569,8 +616,10 @@ def compute_month_review(vd, ccol, yr, mo, target=None):
         'return_aov':   return_aov,
         'hours':        pm_hours,
         'dow':          pm_dow,
-        'spend_dist':   spend_buckets,
-        'top_customers':       pm_top_customers,
+        'spend_dist':     spend_buckets,
+        'spend_summary':  spend_summary,
+        'spend_products': spend_products,
+        'top_customers':  pm_top_customers,
         'concentration_top10': concentration_top10,
         'concentration_top20': concentration_top20,
         'avg_orders_per_customer': avg_orders_per_cust,
