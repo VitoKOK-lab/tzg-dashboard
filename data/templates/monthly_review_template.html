@@ -192,6 +192,7 @@ td.num{font-family:'DM Mono',monospace;}
   <div class="tab" data-page="p5">👥 客戶</div>
   <div class="tab" data-page="p6">📡 通路</div>
   <div class="tab" data-page="p7">📍 地區</div>
+  <div class="tab" data-page="p8">⚙️ 目標設定</div>
 </div>
 
 <!-- ============ Page 1: 總覽 ============ -->
@@ -354,8 +355,73 @@ td.num{font-family:'DM Mono',monospace;}
   </div>
 </div>
 
+<!-- ============ Page 8: 目標設定 ============ -->
+<div class="page" id="p8">
+  <div class="page-head">
+    <div class="sec-title">目標設定</div>
+    <div class="sec-desc">編輯各月業績目標 → 立刻看到達成率變化 → 下載 annual_plan.json 取代專案檔</div>
+  </div>
+
+  <div class="row r2to1" style="overflow:auto;">
+    <div class="panel">
+      <div class="pl">📅 月度業績目標</div>
+      <div style="margin-bottom:10px;">
+        <select id="settings-year" style="font-family:'DM Mono',monospace;font-size:13px;padding:5px 10px;border:1px solid var(--line);border-radius:4px;"></select>
+        <span style="font-size:11px;color:var(--sub);margin-left:10px;">(可切換不同年度)</span>
+      </div>
+      <div class="tbl-scroll" style="overflow:auto;">
+        <table id="settings-table">
+          <thead><tr>
+            <th>月份</th>
+            <th>目標 (NT$)</th>
+            <th>實際業績</th>
+            <th>達成率</th>
+            <th>差額</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;">
+        <button id="btn-save-targets" style="padding:8px 18px;background:#FFB800;color:#000;border:none;border-radius:4px;font-weight:700;cursor:pointer;font-size:13px;">💾 儲存到瀏覽器</button>
+        <button id="btn-download-plan" style="padding:8px 18px;background:var(--blue);color:#fff;border:none;border-radius:4px;font-weight:700;cursor:pointer;font-size:13px;">📥 下載 annual_plan.json</button>
+        <button id="btn-reset-targets" style="padding:8px 14px;background:transparent;color:var(--sub);border:1px solid var(--line);border-radius:4px;font-size:12px;cursor:pointer;">🔄 重設成檔案值</button>
+      </div>
+      <div id="settings-status" style="margin-top:10px;font-size:11px;color:var(--sub);"></div>
+    </div>
+
+    <div class="panel" style="overflow:auto;">
+      <div class="pl">💡 使用說明</div>
+      <div style="font-size:12px;line-height:1.7;color:var(--ink);">
+        <p style="margin-bottom:8px;"><strong>① 即時試算：</strong></p>
+        <p style="margin-bottom:12px;color:var(--sub);font-size:11.5px;">在欄位裡修改目標 → 旁邊的達成率立刻更新（只在這台瀏覽器看得到）</p>
+
+        <p style="margin-bottom:8px;"><strong>② 儲存到瀏覽器：</strong></p>
+        <p style="margin-bottom:12px;color:var(--sub);font-size:11.5px;">點「💾 儲存」→ 下次開頁面還在 → 但只有「這台裝置 + 這個瀏覽器」看得到</p>
+
+        <p style="margin-bottom:8px;"><strong>③ 全機構同步：</strong></p>
+        <p style="margin-bottom:12px;color:var(--sub);font-size:11.5px;">點「📥 下載」→ 用新檔取代專案根目錄的 <code style="background:var(--bg2);padding:1px 5px;border-radius:3px;">annual_plan.json</code> → push 到 GitHub → 全機構生效</p>
+
+        <p style="margin-bottom:8px;"><strong>④ 也可以直接在 GitHub 編輯：</strong></p>
+        <p style="margin-bottom:12px;color:var(--sub);font-size:11.5px;">手機或電腦打開 <a href="https://github.com/VitoKOK-lab/tzg-dashboard/edit/main/annual_plan.json" target="_blank" style="color:var(--blue);">這個連結</a> 直接改數字 commit</p>
+
+        <div style="padding:12px;background:linear-gradient(135deg,rgba(255,184,0,.08),rgba(123,95,199,.05));border-left:3px solid var(--pur);border-radius:5px;margin-top:14px;">
+          <div style="font-weight:700;font-size:12px;color:var(--pur);margin-bottom:5px;">🎯 接下來：UTM 責任額</div>
+          <div style="font-size:11px;line-height:1.6;color:var(--ink);">
+            未來會擴充成「每個來源各有目標」（如 LINE 80萬、業務 150萬）。<br>
+            JSON 結構會變成：<br>
+            <code style="display:block;background:var(--bg2);padding:6px 8px;border-radius:3px;margin-top:5px;font-size:10.5px;line-height:1.5;">{<br>&nbsp;&nbsp;"2026-04": 4500000,<br>&nbsp;&nbsp;"quotas_2026-04": {<br>&nbsp;&nbsp;&nbsp;&nbsp;"業務推薦": 1500000,<br>&nbsp;&nbsp;&nbsp;&nbsp;"LINE 來源": 800000<br>&nbsp;&nbsp;}<br>}</code>
+            通路頁（📡 通路）會多一欄「責任額 / 達成」。
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 const ALL_DATA={};
+const ORIGINAL_PLAN={};
+const TARGET_LS_KEY='tzg_target_overrides_v1';
 
 const fN=v=>'NT$ '+(v||0).toLocaleString();
 const fF=v=>{
@@ -794,10 +860,168 @@ function renderP7(m){
   }).join('');
 }
 
+// ============ 目標設定（localStorage + 下載 JSON） ============
+function loadLocalTargets(){
+  try{return JSON.parse(localStorage.getItem(TARGET_LS_KEY)||'{}');}catch(e){return {};}
+}
+function saveLocalTargets(map){localStorage.setItem(TARGET_LS_KEY,JSON.stringify(map));}
+
+// 把瀏覽器存的目標套用到 ALL_DATA（覆蓋伺服器的 m.target / 重算 m.achievement_pct）
+function applyTargetOverrides(){
+  const ov=loadLocalTargets();
+  Object.entries(ov).forEach(([ym,t])=>{
+    if(ALL_DATA[ym]&&t>0){
+      const m=ALL_DATA[ym];
+      m.target=t;
+      m.achievement_pct=m.rev>0?Math.round(m.rev/t*1000)/10:0;
+    }
+  });
+}
+
+// 取得月份的「當前目標」：localStorage > ORIGINAL_PLAN > _default
+function getEffectiveTarget(ym){
+  const ov=loadLocalTargets();
+  if(ov[ym])return parseInt(ov[ym]);
+  if(ORIGINAL_PLAN[ym])return parseInt(ORIGINAL_PLAN[ym]);
+  if(ORIGINAL_PLAN._default)return parseInt(ORIGINAL_PLAN._default);
+  return 4500000;
+}
+
+function buildSettingsYearOptions(){
+  const sel=document.getElementById('settings-year');
+  const years=new Set();
+  // 把 ORIGINAL_PLAN 裡有的年份 + ALL_DATA 的年份 + 當年 + 下一年都列出來
+  Object.keys(ORIGINAL_PLAN).forEach(k=>{
+    const m=k.match(/^(\d{4})-\d{2}$/);
+    if(m)years.add(parseInt(m[1]));
+  });
+  Object.keys(ALL_DATA).forEach(k=>{
+    const m=k.match(/^(\d{4})/);
+    if(m)years.add(parseInt(m[1]));
+  });
+  const cur=new Date().getFullYear();
+  years.add(cur);years.add(cur+1);
+  const sorted=[...years].sort((a,b)=>b-a);
+  sel.innerHTML=sorted.map(y=>`<option value="${y}">${y} 年</option>`).join('');
+  sel.value=cur;
+}
+
+function renderSettings(){
+  const yr=parseInt(document.getElementById('settings-year').value);
+  const tbody=document.querySelector('#settings-table tbody');
+  const ov=loadLocalTargets();
+  const rows=[];
+  for(let mo=1;mo<=12;mo++){
+    const ym=`${yr}-${String(mo).padStart(2,'0')}`;
+    const data=ALL_DATA[ym]||null;
+    // 來源優先：localStorage > ORIGINAL_PLAN > 4500000
+    const target=ov[ym]!=null?ov[ym]:(ORIGINAL_PLAN[ym]!=null?parseInt(ORIGINAL_PLAN[ym]):(ORIGINAL_PLAN._default||4500000));
+    const rev=data?data.rev:null;
+    const ach=(data&&rev>0&&target>0)?Math.round(rev/target*1000)/10:null;
+    const gap=(data&&target>0)?(target-rev):null;
+    const isOv=ov[ym]!=null;
+    const ovTag=isOv?` <span style="font-size:9px;color:var(--yellow);font-weight:600;">已修改</span>`:'';
+    rows.push(`<tr data-ym="${ym}">
+      <td><strong>${yr}/${String(mo).padStart(2,'0')}</strong>${ovTag}</td>
+      <td><input type="number" class="target-input" value="${target}" min="0" step="100000" data-ym="${ym}" style="width:120px;font-family:'DM Mono',monospace;font-size:12px;padding:5px 8px;border:1px solid var(--line);border-radius:3px;text-align:right;"></td>
+      <td class="num">${rev!==null?fN(rev):'<span style="color:var(--sub);">未開始</span>'}</td>
+      <td class="num achievement"><strong>${ach!==null?ach+'%':'—'}</strong></td>
+      <td class="num gap" style="color:var(--sub);">${gap!==null?(gap>0?'-'+fN(gap):'+'+fN(-gap)):'—'}</td>
+    </tr>`);
+  }
+  tbody.innerHTML=rows.join('');
+
+  // 即時試算（input 變化時）
+  document.querySelectorAll('#settings-table .target-input').forEach(inp=>{
+    inp.addEventListener('input',e=>{
+      const ym=e.target.dataset.ym;
+      const t=parseInt(e.target.value)||0;
+      const tr=e.target.closest('tr');
+      const data=ALL_DATA[ym];
+      if(data&&t>0){
+        const ach=Math.round(data.rev/t*1000)/10;
+        const gap=t-data.rev;
+        tr.querySelector('.achievement').innerHTML=`<strong>${ach}%</strong>`;
+        tr.querySelector('.gap').textContent=gap>0?'-'+fN(gap):'+'+fN(-gap);
+      }else{
+        tr.querySelector('.achievement').innerHTML='<strong>—</strong>';
+        tr.querySelector('.gap').textContent='—';
+      }
+    });
+  });
+}
+
+function setStatus(msg,col){
+  const el=document.getElementById('settings-status');
+  el.textContent=msg;
+  el.style.color=col||'var(--sub)';
+  if(msg)setTimeout(()=>{el.textContent='';},5000);
+}
+
+function saveSettings(){
+  const ov=loadLocalTargets();
+  document.querySelectorAll('#settings-table .target-input').forEach(inp=>{
+    const v=parseInt(inp.value)||0;
+    const ym=inp.dataset.ym;
+    // 只記下「跟伺服器不一樣」的值
+    const orig=ORIGINAL_PLAN[ym]!=null?parseInt(ORIGINAL_PLAN[ym]):(ORIGINAL_PLAN._default||4500000);
+    if(v>0&&v!==orig){
+      ov[ym]=v;
+    }else{
+      delete ov[ym];
+    }
+  });
+  saveLocalTargets(ov);
+  applyTargetOverrides();
+  // 重畫當前選中月份
+  const sel=document.getElementById('month-select');
+  if(sel.value)renderAll(sel.value);
+  renderSettings();
+  setStatus('✅ 已儲存到瀏覽器（這台裝置看得到，請下載 JSON 推 GitHub 全機構同步）','var(--up)');
+}
+
+function downloadAnnualPlan(){
+  // 從 ORIGINAL_PLAN 開始，覆蓋上 localStorage 的修改
+  const ov=loadLocalTargets();
+  const out={};
+  // 保留說明欄位
+  if(ORIGINAL_PLAN._說明)out._說明=ORIGINAL_PLAN._說明;
+  if(ORIGINAL_PLAN._default)out._default=ORIGINAL_PLAN._default;
+  // 收集所有月份 keys
+  const allKeys=new Set([...Object.keys(ORIGINAL_PLAN).filter(k=>!k.startsWith('_')),...Object.keys(ov)]);
+  [...allKeys].sort().forEach(k=>{
+    out[k]=ov[k]!=null?parseInt(ov[k]):parseInt(ORIGINAL_PLAN[k]);
+  });
+  const blob=new Blob([JSON.stringify(out,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download='annual_plan.json';a.click();
+  URL.revokeObjectURL(url);
+  setStatus('📥 下載完成。請覆蓋專案根目錄的 annual_plan.json 然後 push 到 GitHub','var(--blue)');
+}
+
+function resetTargets(){
+  if(!confirm('確定要重設嗎？瀏覽器的修改會清掉，回到 annual_plan.json 的值。'))return;
+  localStorage.removeItem(TARGET_LS_KEY);
+  // 重新載入頁面以重置 ALL_DATA
+  location.reload();
+}
+
+function initSettings(){
+  buildSettingsYearOptions();
+  document.getElementById('settings-year').addEventListener('change',renderSettings);
+  document.getElementById('btn-save-targets').addEventListener('click',saveSettings);
+  document.getElementById('btn-download-plan').addEventListener('click',downloadAnnualPlan);
+  document.getElementById('btn-reset-targets').addEventListener('click',resetTargets);
+  renderSettings();
+}
+
 // ============ Init ============
 initTabs();
+applyTargetOverrides();             // 先套 localStorage 修改
 const defaultMonth=initSelector();
 if(defaultMonth)renderAll(defaultMonth);
+initSettings();                     // 設定頁
 </script>
 
 </body>

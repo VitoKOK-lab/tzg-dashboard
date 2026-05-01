@@ -38,18 +38,14 @@ def find_months_with_data(vd):
     return months
 
 
-def patch_html(html, all_data):
-    """把 data 注入到模板的 const ALL_DATA = {...} 標記"""
-    marker = 'const ALL_DATA='
+def _replace_object_after(html, marker, new_obj):
+    """把 html 裡 marker 後面的 JS 物件 {...} 換成 new_obj 的 JSON"""
     idx = html.find(marker)
     if idx < 0:
-        raise ValueError('找不到 "const ALL_DATA=" 標記')
+        return html  # 找不到 marker 直接返回
     start = html.find('{', idx)
-    depth = 0
-    in_str = False
-    esc = False
-    end = None
-    i = start
+    depth, in_str, esc = 0, False, False
+    end, i = None, start
     while i < len(html):
         c = html[i]
         if esc: esc = False
@@ -59,12 +55,21 @@ def patch_html(html, all_data):
             if c == '{': depth += 1
             elif c == '}':
                 depth -= 1
-                if depth == 0: end = i + 1; break
+                if depth == 0:
+                    end = i + 1
+                    break
         i += 1
     if end is None:
-        raise ValueError('ALL_DATA 物件括號不完整')
-    new_json = json.dumps(all_data, ensure_ascii=False, default=str)
+        return html
+    new_json = json.dumps(new_obj, ensure_ascii=False, default=str)
     return html[:start] + new_json + html[end:]
+
+
+def patch_html(html, all_data, annual_plan):
+    """注入 ALL_DATA 和 ORIGINAL_PLAN"""
+    html = _replace_object_after(html, 'const ALL_DATA=',      all_data)
+    html = _replace_object_after(html, 'const ORIGINAL_PLAN=', annual_plan)
+    return html
 
 
 def main():
@@ -122,8 +127,17 @@ def main():
         print(f'[X] 找不到模板：{TEMPLATE_HTML}')
         sys.exit(1)
 
+    # 載入年度業績目標檔（給設定頁使用）
+    annual_plan = {}
+    plan_path = Path('./annual_plan.json')
+    if plan_path.exists():
+        try:
+            annual_plan = json.loads(plan_path.read_text(encoding='utf-8'))
+        except Exception as e:
+            print(f'  [!] annual_plan.json 解析失敗：{e}')
+
     html = TEMPLATE_HTML.read_text(encoding='utf-8')
-    new_html = patch_html(html, all_data)
+    new_html = patch_html(html, all_data, annual_plan)
     OUTPUT_HTML.write_text(new_html, encoding='utf-8')
 
     size_kb = OUTPUT_HTML.stat().st_size // 1024
