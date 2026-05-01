@@ -105,14 +105,14 @@ def main():
             print(f'[X] 格式錯誤：{args.month}')
             sys.exit(1)
     else:
-        # 預設：重新封存「上 2 個月」（catch 跨月退款 / 取消）
+        # 預設：重新封存「上 1 個月」
+        # （catch 月底下載漏抓 + 跨月退款 / 取消）
         now = datetime.now()
-        for back in (2, 1):
-            yr, mo = now.year, now.month - back
-            while mo <= 0:
-                mo += 12
-                yr -= 1
-            months.append((yr, mo))
+        yr, mo = now.year, now.month - 1
+        if mo <= 0:
+            mo += 12
+            yr -= 1
+        months.append((yr, mo))
 
     print('=' * 60)
     print(f'  TZG 月份重新封存')

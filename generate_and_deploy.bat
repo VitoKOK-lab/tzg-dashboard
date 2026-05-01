@@ -63,12 +63,18 @@ if exist ".env" (
         echo.
     )
 
-    REM ── 每月 1 號：重新封存「上 2 個月」以捕捉跨月取消／退款 ──
+    REM ── 每月 1-7 號：重新封存上一個月 ──
+    REM   原因：
+    REM   1) 月底最後一天的 23:59 下載可能漏抓（電腦關機/排程延遲/手動跑覆蓋）
+    REM   2) 跨月退款／取消可能晚幾天才反映在 Shopline
+    REM   1-7 號每天保險重抓 1 次，確保上月資料 100%% 同步最新狀態。
     for /f "tokens=2 delims==" %%I in ('wmic os get localdatetime /value ^| find "="') do set _dt=%%I
     set _DAY=%_dt:~6,2%
-    if "!_DAY!"=="01" (
+    REM 把 _DAY 的前導 0 去掉（避免 cmd 把 08, 09 當八進位錯誤）
+    set /a _DAYNUM=1%_DAY% - 100
+    if !_DAYNUM! LEQ 7 (
         echo ===================================================
-        echo  Re-archiving past 2 months ^(monthly cleanup^)...
+        echo  Re-archiving last month ^(safety net, day !_DAYNUM!/7^)...
         echo ===================================================
         echo.
         python re_archive_month.py
