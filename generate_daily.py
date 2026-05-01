@@ -54,16 +54,74 @@ def load_annual_plan():
 
 
 def get_monthly_target(yr, mo):
-    """取得指定月份的業績目標"""
+    """取得指定月份的業績目標（支援新舊兩種 JSON 結構）"""
     plan = load_annual_plan()
     if not plan:
         return MONTHLY_TARGET
     key = f'{yr}-{mo:02d}'
+    # 新結構：plan["monthly"][key]
+    if 'monthly' in plan and key in plan['monthly']:
+        return int(plan['monthly'][key])
+    if '_default_monthly' in plan:
+        return int(plan['_default_monthly'])
+    # 舊結構（向後相容）
     if key in plan:
         return int(plan[key])
     if '_default' in plan:
         return int(plan['_default'])
     return MONTHLY_TARGET
+
+
+def compute_quota_achievements(pm_lines, pm_ord, ccol, yr, mo):
+    """
+    計算各「責任額」的實際業績與達成率
+    回傳 list，每個 holder 一筆：
+      [{id, name, match_type, match_value, target, rev, orders, achievement_pct, ...}]
+    """
+    plan = load_annual_plan()
+    if not plan:
+        return []
+    holders = plan.get('quota_holders', [])
+    month_q = plan.get('quotas', {}).get(f'{yr}-{mo:02d}', {})
+
+    if not holders or len(pm_ord) == 0:
+        return []
+
+    results = []
+    for h in holders:
+        target = int(month_q.get(h['id'], 0))
+        mt = h.get('match_type', '')
+        mv = h.get('match_value', '')
+
+        if mt == 'keyword' and mv:
+            kw = mv.lower()
+            mask_lines = pm_lines['推薦活動'].astype(str).str.lower().str.contains(kw, na=False)
+            matched_lines = pm_lines[mask_lines]
+            matched_ord = order_level(matched_lines)
+        elif mt == 'source' and mv:
+            mask_ord = pm_ord.apply(lambda r: classify_source(r) == mv, axis=1)
+            matched_ord = pm_ord[mask_ord]
+        else:
+            matched_ord = pm_ord.iloc[0:0]
+
+        rev = int(matched_ord['訂單合計'].sum()) if len(matched_ord) else 0
+        orders = len(matched_ord)
+        customers = matched_ord[ccol].nunique() if ccol in matched_ord.columns and len(matched_ord) else 0
+        ach = round(rev / target * 100, 1) if target > 0 else None
+
+        results.append({
+            'id':              h['id'],
+            'name':            h['name'],
+            'match_type':      mt,
+            'match_value':     mv,
+            'note':            h.get('note', ''),
+            'target':          target,
+            'rev':             rev,
+            'orders':          orders,
+            'customers':       int(customers),
+            'achievement_pct': ach,
+        })
+    return results
 MANUAL_TODAY   = None
 
 PAID_STATUSES       = ['已付款', '付款完成', '已收款', 'paid', 'Paid']
@@ -479,6 +537,9 @@ def compute_month_review(vd, ccol, yr, mo, target=None):
     # 平均每位客戶下單次數
     avg_orders_per_cust = round(pm_orders / pm_total_c, 2) if pm_total_c else 0
 
+    # 各責任額（UTM）達成率
+    pm_quotas = compute_quota_achievements(pm_lines, pm_ord, ccol, yr, mo)
+
     return {
         'year_month':   f'{yr}-{mo:02d}',
         'month_label':  f'{yr}年{mo}月',
@@ -513,6 +574,7 @@ def compute_month_review(vd, ccol, yr, mo, target=None):
         'concentration_top10': concentration_top10,
         'concentration_top20': concentration_top20,
         'avg_orders_per_customer': avg_orders_per_cust,
+        'quotas':              pm_quotas,
     }
 
 def clean_city(c):
