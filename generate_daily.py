@@ -423,6 +423,34 @@ def compute_month_review(vd, ccol, yr, mo, target=MONTHLY_TARGET):
         elif v < 30000: spend_buckets['1–3萬'] += 1
         else: spend_buckets['>3萬'] += 1
 
+    # Top 客戶（依本月營收，前 15 位）
+    pm_top_customers = []
+    cust_rev_series  = pm_ord.groupby(ccol)['訂單合計'].sum().sort_values(ascending=False)
+    if '顧客' in pm_ord.columns:
+        name_map = pm_ord.drop_duplicates(ccol).set_index(ccol)['顧客'].to_dict()
+    else:
+        name_map = {}
+    cust_g = pm_ord.groupby(ccol).agg(
+        orders=('訂單號碼', 'count'),
+        rev=('訂單合計', 'sum')
+    ).sort_values('rev', ascending=False).head(15).reset_index()
+    for _, r in cust_g.iterrows():
+        pm_top_customers.append({
+            'name':   mask_name(name_map.get(r[ccol], '')),
+            'orders': int(r['orders']),
+            'rev':    int(r['rev']),
+        })
+
+    # 客戶集中度（前 10 / 20 位佔總營收比例）
+    total_rev = float(cust_rev_series.sum()) if len(cust_rev_series) else 0
+    top10_rev = float(cust_rev_series.head(10).sum()) if len(cust_rev_series) else 0
+    top20_rev = float(cust_rev_series.head(20).sum()) if len(cust_rev_series) else 0
+    concentration_top10 = round(top10_rev / total_rev * 100, 1) if total_rev else 0
+    concentration_top20 = round(top20_rev / total_rev * 100, 1) if total_rev else 0
+
+    # 平均每位客戶下單次數
+    avg_orders_per_cust = round(pm_orders / pm_total_c, 2) if pm_total_c else 0
+
     return {
         'year_month':   f'{yr}-{mo:02d}',
         'month_label':  f'{yr}年{mo}月',
@@ -453,6 +481,10 @@ def compute_month_review(vd, ccol, yr, mo, target=MONTHLY_TARGET):
         'hours':        pm_hours,
         'dow':          pm_dow,
         'spend_dist':   spend_buckets,
+        'top_customers':       pm_top_customers,
+        'concentration_top10': concentration_top10,
+        'concentration_top20': concentration_top20,
+        'avg_orders_per_customer': avg_orders_per_cust,
     }
 
 def clean_city(c):

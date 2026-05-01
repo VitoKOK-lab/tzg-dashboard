@@ -118,8 +118,8 @@ td.num{font-family:'DM Mono',monospace;}
   .sec-desc{font-size:11px;margin-top:2px;}
   .summary-bar{font-size:12px;padding:10px 12px;line-height:1.55;margin-bottom:12px;}
 
-  /* KPI：2 欄 */
-  .kpi-grid{grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}
+  /* KPI：2 欄（!important 覆寫 P5 的 inline style） */
+  .kpi-grid{grid-template-columns:1fr 1fr!important;gap:8px;margin-bottom:12px;}
   .kpi-card{padding:9px 11px;}
   .kpi-l{font-size:8px;letter-spacing:1px;}
   .kpi-v{font-size:17px;}
@@ -157,7 +157,7 @@ td.num{font-family:'DM Mono',monospace;}
 
 /* 小螢幕（< 380px，舊機 / 直立） */
 @media (max-width:380px){
-  .kpi-grid{grid-template-columns:1fr;}
+  .kpi-grid{grid-template-columns:1fr!important;}
   .tab{padding:9px 10px;font-size:11px;}
   .chart-wrap{height:220px;}
 }
@@ -218,7 +218,7 @@ td.num{font-family:'DM Mono',monospace;}
 <div class="page" id="p2">
   <div class="page-head">
     <div class="sec-title">業績結算</div>
-    <div class="sec-desc">每日營收、累計達標、時段分布</div>
+    <div class="sec-desc">每日營收、累計達標、時段分布、客單分布</div>
   </div>
   <div class="row" style="margin-bottom:10px;">
     <div class="panel">
@@ -230,7 +230,7 @@ td.num{font-family:'DM Mono',monospace;}
       <div class="chart-wrap"><canvas id="p2-chart-cum"></canvas></div>
     </div>
   </div>
-  <div class="row3">
+  <div class="row4">
     <div class="panel">
       <div class="pl">星期分布</div>
       <div class="chart-wrap"><canvas id="p2-chart-dow"></canvas></div>
@@ -239,9 +239,13 @@ td.num{font-family:'DM Mono',monospace;}
       <div class="pl">時段分布</div>
       <div class="chart-wrap"><canvas id="p2-chart-hour"></canvas></div>
     </div>
+    <div class="panel" style="overflow:auto;">
+      <div class="pl">🔥 高峰時段 vs 上月</div>
+      <div id="p2-peak-shift" style="flex:1;display:flex;flex-direction:column;justify-content:center;"></div>
+    </div>
     <div class="panel">
       <div class="pl">客單分布</div>
-      <div class="chart-wrap"><canvas id="p2-chart-spend"></canvas></div>
+      <div id="p2-spend-list" style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:6px;"></div>
     </div>
   </div>
 </div>
@@ -291,9 +295,10 @@ td.num{font-family:'DM Mono',monospace;}
 <div class="page" id="p5">
   <div class="page-head">
     <div class="sec-title">客戶分析</div>
-    <div class="sec-desc">新客／回購比例、首購 vs 回購均價</div>
+    <div class="sec-desc">客戶結構、首購 vs 回購、來源、集中度</div>
   </div>
-  <div class="row">
+  <div class="kpi-grid" id="p5-kpis" style="grid-template-columns:repeat(4,1fr);"></div>
+  <div class="row" style="margin-bottom:10px;">
     <div class="panel">
       <div class="pl">新客 vs 回購</div>
       <div class="chart-wrap"><canvas id="p5-chart-nr"></canvas></div>
@@ -301,6 +306,16 @@ td.num{font-family:'DM Mono',monospace;}
     <div class="panel">
       <div class="pl">首購 vs 回購均價</div>
       <div id="p5-aov" style="flex:1;display:flex;flex-direction:column;justify-content:center;"></div>
+    </div>
+  </div>
+  <div class="row">
+    <div class="panel">
+      <div class="pl">🌱 新客來源 Top</div>
+      <div id="p5-new-src" style="flex:1;overflow:auto;"></div>
+    </div>
+    <div class="panel">
+      <div class="pl">💎 高消費客戶 Top 12</div>
+      <div id="p5-top-cust" class="tbl-scroll"></div>
     </div>
   </div>
 </div>
@@ -384,11 +399,19 @@ function initTabs(){
   });
 }
 
+function getPrevYM(ym){
+  const [y,m]=ym.split('-').map(Number);
+  const py=m===1?y-1:y, pm=m===1?12:m-1;
+  return `${py}-${String(pm).padStart(2,'0')}`;
+}
+
 function renderAll(ym){
   const m=ALL_DATA[ym];
   if(!m)return;
   destroyCharts();
-  renderP1(m);renderP2(m);renderP3(m);renderP4(m);renderP5(m);renderP6(m);renderP7(m);
+  const prevKey=getPrevYM(ym);
+  const prev=ALL_DATA[prevKey]||null;
+  renderP1(m);renderP2(m,prev);renderP3(m);renderP4(m);renderP5(m,prev);renderP6(m);renderP7(m);
 }
 
 // ============ Page 1: 總覽 ============
@@ -455,7 +478,7 @@ function renderP1(m){
 }
 
 // ============ Page 2: 業績 ============
-function renderP2(m){
+function renderP2(m, prev){
   // Daily bar
   const max1=Math.max(...m.daily.map(d=>d.rev));
   CHARTS['p2-daily']=new Chart(document.getElementById('p2-chart-daily'),{
@@ -491,14 +514,63 @@ function renderP2(m){
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:9}}},y:{ticks:{font:{size:9}}}}}
   });
 
-  // Spend dist
+  // 高峰時段對比（前3名 vs 上月）
+  const peakEl=document.getElementById('p2-peak-shift');
+  if(peakEl){
+    const top3=[...m.hours].sort((a,b)=>b.orders-a.orders).slice(0,3);
+    if(!prev){
+      peakEl.innerHTML=`<div style="text-align:center;color:var(--sub);font-size:11px;padding:14px 4px;line-height:1.6;">無上月資料可對比<br>（首月或缺失）</div>`;
+    }else{
+      const prevTop3=[...prev.hours].sort((a,b)=>b.orders-a.orders).slice(0,3);
+      peakEl.innerHTML=top3.map((cur,i)=>{
+        const p=prevTop3[i];
+        if(!p)return '';
+        const dh=cur.hour-p.hour;
+        const dpct=p.orders?Math.round((cur.orders-p.orders)/p.orders*100):0;
+        const arrow=dh>0?`<span class="u">↑${dh}h</span>`:dh<0?`<span class="d">↓${Math.abs(dh)}h</span>`:`<span class="f">→ 持平</span>`;
+        const cntCol=dpct>0?'var(--up)':dpct<0?'var(--dn)':'var(--flat)';
+        const medal=['🥇','🥈','🥉'][i];
+        return `<div style="padding:6px 4px;border-bottom:${i<2?'1px dashed var(--line)':'none'};">
+          <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;">
+            <span><span style="font-size:13px;">${medal}</span> 本月 <strong style="font-family:'DM Mono',monospace;font-size:13px;color:var(--ink);">${cur.hour.toString().padStart(2,'0')}:00</strong></span>
+            <span style="font-family:'DM Mono',monospace;color:var(--sub);">${cur.orders}筆</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;font-size:10px;color:var(--sub);margin-top:2px;">
+            <span>上月 <span style="font-family:'DM Mono',monospace;">${p.hour.toString().padStart(2,'0')}:00</span></span>
+            <span style="font-family:'DM Mono',monospace;">${p.orders}筆</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:10.5px;font-weight:600;margin-top:3px;">
+            ${arrow}
+            <span style="color:${cntCol};">${dpct>=0?'+':''}${dpct}%</span>
+          </div>
+        </div>`;
+      }).join('');
+    }
+  }
+
+  // 客單分布（清楚版：橫條 + 數字 + 百分比）
   const sd=m.spend_dist;
   const spendKeys=['<2千','2–5千','5千–1萬','1–3萬','>3萬'];
-  CHARTS['p2-spend']=new Chart(document.getElementById('p2-chart-spend'),{
-    type:'doughnut',
-    data:{labels:spendKeys,datasets:[{data:spendKeys.map(k=>sd[k]||0),backgroundColor:['#10A37F','#0F8F85','#3B7DD8','#B8902A','#D94B6B']}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{boxWidth:10,font:{size:10}}}}}
-  });
+  const colors=['#10A37F','#0F8F85','#3B7DD8','#B8902A','#D94B6B'];
+  const total=spendKeys.reduce((s,k)=>s+(sd[k]||0),0);
+  const maxV=Math.max(...spendKeys.map(k=>sd[k]||0),1);
+  const spendEl=document.getElementById('p2-spend-list');
+  if(spendEl){
+    spendEl.innerHTML=spendKeys.map((k,i)=>{
+      const c=sd[k]||0;
+      const pct=total?Math.round(c/total*1000)/10:0;
+      const w=Math.round(c/maxV*100);
+      return `<div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:11px;margin-bottom:3px;">
+          <span style="font-weight:600;color:var(--ink);">${k}</span>
+          <span style="font-family:'DM Mono',monospace;font-size:10.5px;"><strong style="color:${colors[i]};">${c}</strong> 筆 <span style="color:var(--sub);">(${pct}%)</span></span>
+        </div>
+        <div style="height:8px;background:var(--line);border-radius:4px;overflow:hidden;">
+          <div style="height:100%;width:${w}%;background:${colors[i]};border-radius:4px;"></div>
+        </div>
+      </div>`;
+    }).join('');
+  }
 }
 
 // ============ Page 3: 業務 ============
@@ -555,32 +627,99 @@ function renderP4(m){
 }
 
 // ============ Page 5: 客戶 ============
-function renderP5(m){
+function renderP5(m, prev){
+  // KPI 4 卡：客戶數 / 新客率 / 平均下單 / Top10集中度（含 vs 上月）
+  const kpiEl=document.getElementById('p5-kpis');
+  if(kpiEl){
+    const custDelta = prev?Math.round((m.total_customers-prev.total_customers)/prev.total_customers*1000)/10:null;
+    const newDelta  = prev?Math.round((m.new_customers-prev.new_customers)/Math.max(prev.new_customers,1)*1000)/10:null;
+    const aovDelta  = prev?Math.round((m.avg_orders_per_customer-prev.avg_orders_per_customer)/Math.max(prev.avg_orders_per_customer,0.01)*1000)/10:null;
+    const concDelta = prev?Math.round((m.concentration_top10-prev.concentration_top10)*10)/10:null;
+    const fmtDelta  = (v,suffix='')=>v===null?'':`<span style="font-size:9.5px;color:${colTrend(v)};">${v>=0?'+':''}${v}${suffix}</span>`;
+    kpiEl.innerHTML=[
+      {l:'客戶數',  v:m.total_customers+' 位', sub:`vs 上月 ${fmtDelta(custDelta,'%')}`},
+      {l:'新客數',  v:m.new_customers+' 位',   sub:`新客佔 ${m.new_pct}% ${fmtDelta(newDelta,'%')}`},
+      {l:'平均下單', v:m.avg_orders_per_customer+' 次', sub:`/位客戶 ${fmtDelta(aovDelta,'%')}`},
+      {l:'Top10 集中度', v:m.concentration_top10+'%',   sub:`Top20 ${m.concentration_top20}% ${fmtDelta(concDelta,'pp')}`},
+    ].map(k=>`<div class="kpi-card"><div class="kpi-l">${k.l}</div><div class="kpi-v">${k.v}</div><div class="kpi-sub">${k.sub}</div></div>`).join('');
+  }
+
+  // 新客 vs 回購
   CHARTS['p5-nr']=new Chart(document.getElementById('p5-chart-nr'),{
     type:'doughnut',
     data:{labels:['新客 '+m.new_customers,'回購 '+m.returning],datasets:[{data:[m.new_customers,m.returning],backgroundColor:['#3B7DD8','#10A37F']}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{boxWidth:14,font:{size:12}}}}}
   });
 
+  // 首購 vs 回購均價
   const max=Math.max(m.first_aov,m.return_aov,1);
   document.getElementById('p5-aov').innerHTML=`
-    <div style="margin-bottom:18px;">
-      <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
-        <span style="font-size:13px;font-weight:600;">首購均價</span>
-        <span class="num" style="font-family:'DM Mono',monospace;font-size:20px;font-weight:700;color:var(--blue);">${fN(m.first_aov)}</span>
-      </div>
-      <div class="bar" style="height:10px;"><div class="bf" style="width:${Math.round(m.first_aov/max*100)}%;background:var(--blue);"></div></div>
-    </div>
     <div style="margin-bottom:14px;">
       <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
-        <span style="font-size:13px;font-weight:600;">回購均價</span>
-        <span class="num" style="font-family:'DM Mono',monospace;font-size:20px;font-weight:700;color:var(--gold);">${fN(m.return_aov)}</span>
+        <span style="font-size:12px;font-weight:600;">首購均價</span>
+        <span style="font-family:'DM Mono',monospace;font-size:18px;font-weight:700;color:var(--blue);">${fN(m.first_aov)}</span>
       </div>
-      <div class="bar" style="height:10px;"><div class="bf" style="width:${Math.round(m.return_aov/max*100)}%;background:var(--gold);"></div></div>
+      <div class="bar" style="height:8px;"><div class="bf" style="width:${Math.round(m.first_aov/max*100)}%;background:var(--blue);"></div></div>
     </div>
-    <div style="padding:12px;background:var(--bg2);border-radius:6px;font-size:12px;line-height:1.6;color:var(--ink);">
-      ${m.return_aov>m.first_aov?`<strong>回購客戶平均消費比首購客戶高 ${Math.round((m.return_aov-m.first_aov)/m.first_aov*100)}%</strong>，回購是高價值來源。`:`<strong>首購均價略高於回購</strong>，可能是首購客戶傾向買大件入門商品。`}
+    <div style="margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+        <span style="font-size:12px;font-weight:600;">回購均價</span>
+        <span style="font-family:'DM Mono',monospace;font-size:18px;font-weight:700;color:var(--gold);">${fN(m.return_aov)}</span>
+      </div>
+      <div class="bar" style="height:8px;"><div class="bf" style="width:${Math.round(m.return_aov/max*100)}%;background:var(--gold);"></div></div>
+    </div>
+    <div style="padding:10px 12px;background:var(--bg2);border-radius:5px;font-size:11.5px;line-height:1.55;color:var(--ink);">
+      ${m.return_aov>m.first_aov?`<strong>回購客戶平均消費比首購高 ${Math.round((m.return_aov-m.first_aov)/Math.max(m.first_aov,1)*100)}%</strong>。回購是高價值來源。`:`<strong>首購均價略高於回購</strong>，可能是首購客戶傾向買大件入門商品。`}
     </div>`;
+
+  // 新客來源 Top（依各來源新客數）
+  const newSrcEl=document.getElementById('p5-new-src');
+  if(newSrcEl){
+    const srcByNew=[...m.sources].sort((a,b)=>b.new_customers-a.new_customers).slice(0,8);
+    const totalNew=srcByNew.reduce((s,x)=>s+x.new_customers,0);
+    if(!totalNew){
+      newSrcEl.innerHTML='<div class="empty">無新客資料</div>';
+    }else{
+      const maxN=srcByNew[0].new_customers||1;
+      newSrcEl.innerHTML=srcByNew.filter(s=>s.new_customers>0).map(s=>{
+        const w=Math.round(s.new_customers/maxN*100);
+        const col=SRC_COL[s.src]||'#9E9E9E';
+        const pctOfNew=Math.round(s.new_customers/totalNew*1000)/10;
+        return `<div style="margin-bottom:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:11.5px;margin-bottom:3px;">
+            <span><span style="display:inline-block;width:8px;height:8px;background:${col};border-radius:50%;margin-right:5px;"></span><strong>${s.src}</strong></span>
+            <span style="font-family:'DM Mono',monospace;"><strong style="color:${col};">${s.new_customers}</strong> 位 <span style="color:var(--sub);">(${pctOfNew}%)</span></span>
+          </div>
+          <div style="height:5px;background:var(--line);border-radius:3px;overflow:hidden;"><div style="height:100%;width:${w}%;background:${col};border-radius:3px;"></div></div>
+        </div>`;
+      }).join('');
+    }
+  }
+
+  // 高消費客戶 Top 12
+  const topCustEl=document.getElementById('p5-top-cust');
+  if(topCustEl){
+    if(!m.top_customers||!m.top_customers.length){
+      topCustEl.innerHTML='<div class="empty">無客戶資料</div>';
+    }else{
+      const tops=m.top_customers.slice(0,12);
+      const maxR=tops[0].rev||1;
+      topCustEl.innerHTML=`<table>
+        <thead><tr><th>#</th><th>客戶</th><th>訂單</th><th>業績</th><th></th></tr></thead>
+        <tbody>${tops.map((c,i)=>{
+          const w=Math.round(c.rev/maxR*100);
+          const medal=i<3?['🥇','🥈','🥉'][i]:i+1;
+          return `<tr>
+            <td>${medal}</td>
+            <td><strong>${c.name}</strong></td>
+            <td class="num">${c.orders}</td>
+            <td class="num"><strong>${fN(c.rev)}</strong></td>
+            <td style="width:90px;"><div class="bar"><div class="bf" style="width:${w}%;background:var(--coral);"></div></div></td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>`;
+    }
+  }
 }
 
 // ============ Page 6: 通路 ============
