@@ -99,7 +99,7 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
 .r1 .rn{color:var(--gold);font-size:15px;font-weight:700;}.r2 .rn{color:#9CA3AF;}.r3 .rn{color:#CD7F32;}
 .rv{font-family:'DM Mono',monospace;font-size:13px;color:var(--ink);text-align:right;flex-shrink:0;font-weight:500;}
 .rs{font-size:10px;color:var(--sub);}
-.rbar-w{flex:1;height:5px;background:rgba(30,58,95,.06);border-radius:3px;overflow:hidden;}
+.rbar-w{flex:0 0 75%;width:75%;height:5px;background:rgba(30,58,95,.06);border-radius:3px;overflow:hidden;}
 .rbar{height:100%;border-radius:3px;width:0%;transition:width 1.3s cubic-bezier(.23,1,.32,1);}
 .av{width:30px;height:30px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;}
 
@@ -543,16 +543,16 @@ function renderS1Kpi(){
         <div id="s1-progress" style="height:100%;width:0%;background:linear-gradient(90deg,var(--teal),var(--blue));border-radius:4px;transition:width 1.4s ease;"></div>
       </div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding-top:10px;border-top:1px dashed var(--line);">
-      <div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding-top:10px;border-top:1px dashed var(--line);">
+      <div style="min-width:0;">
         <div style="font-size:9px;color:var(--sub);letter-spacing:1px;margin-bottom:2px;">昨日業績</div>
         <div style="font-family:'DM Mono',monospace;font-size:15px;font-weight:700;color:var(--ink);">${fN(y.rev)}</div>
-        <div style="font-size:10px;margin-top:2px;">去年同日 ${fN(y.rev_ly_same)} <span class="cmp c${ydr}">${ar(ydr)} ${pc(y.rev,y.rev_ly_same)}</span></div>
+        <div style="font-size:10px;margin-top:2px;line-height:1.45;word-break:break-all;">去年 ${fN(y.rev_ly_same)}<br><span class="cmp c${ydr}">${ar(ydr)} ${pc(y.rev,y.rev_ly_same)}</span></div>
       </div>
-      <div>
+      <div style="min-width:0;">
         <div style="font-size:9px;color:var(--sub);letter-spacing:1px;margin-bottom:2px;">本週業績</div>
         <div style="font-family:'DM Mono',monospace;font-size:15px;font-weight:700;color:var(--ink);">${fN(w.this_rev)}</div>
-        <div style="font-size:10px;margin-top:2px;">上週同期 ${fN(w.last_rev||0)} <span class="cmp c${wdr}">${ar(wdr)} ${pc(w.this_rev,w.last_rev||0)}</span></div>
+        <div style="font-size:10px;margin-top:2px;line-height:1.45;word-break:break-all;">上週 ${fN(w.last_rev||0)}<br><span class="cmp c${wdr}">${ar(wdr)} ${pc(w.this_rev,w.last_rev||0)}</span></div>
       </div>
     </div>`;
   setTimeout(()=>{const b=document.getElementById('s1-progress');if(b)b.style.width=Math.min(ach,100)+'%';},500);
@@ -590,60 +590,51 @@ function renderS1Quarter(){
 function renderS1Action(){
   const af=D.action_focus||{};
   const gap=af.target_gap||{}, rec=af.recovery_strategy, churn=af.churn_risk||{}, up=af.unpaid_summary||{}, cs=af.cross_sell||[];
-  let html='';
-  
-  // 達標補救
+  // 2x2 grid：達標補救 ｜ 流失風險 ｜ 未付款 ｜ 可推組合
+  let blockGap='';
   if(gap.remaining>0){
-    html+=`<div style="padding:12px 14px;background:rgba(184,144,42,.08);border-left:3px solid var(--gold);border-radius:4px;margin-bottom:10px;">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
-        <span style="font-size:11px;font-weight:700;color:var(--gold);letter-spacing:1px;">🎯 達標補救</span>
-        <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--sub);">缺 ${fN(gap.remaining)} · 剩 ${gap.days_left} 天</span>
-      </div>`;
-    if(rec){
-      html+=`<div style="font-size:12px;line-height:1.7;color:var(--ink);">
-        建議觸達 <b>${rec.target_segment}</b>，以 ${rec.response_rate}% 回購率估算，
-        可帶回 <b style="color:var(--up);">${fN(rec.potential_recovery)}</b>（填補缺口 ${rec.coverage_pct}%）
-      </div>`;
-    }else{
-      html+=`<div style="font-size:12px;color:var(--sub);">日均需 ${fN(gap.daily_needed)}（目前日均 ${fN(gap.current_daily_avg)}）</div>`;
-    }
-    html+=`</div>`;
+    const inner=rec
+      ? `<div style="font-size:11px;line-height:1.55;color:var(--ink);">建議觸達 <b>${rec.target_segment}</b>，${rec.response_rate}% 回購估，可回 <b style="color:var(--up);">${fN(rec.potential_recovery)}</b>（${rec.coverage_pct}%）</div>`
+      : `<div style="font-size:11px;color:var(--sub);">日均需 ${fN(gap.daily_needed)}（目前 ${fN(gap.current_daily_avg)}）</div>`;
+    blockGap=`<div style="padding:10px 12px;background:rgba(184,144,42,.08);border-left:3px solid var(--gold);border-radius:4px;min-width:0;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;gap:6px;flex-wrap:wrap;">
+        <span style="font-size:10px;font-weight:700;color:var(--gold);letter-spacing:1px;">🎯 達標補救</span>
+        <span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--sub);">缺 ${fN(gap.remaining)} · ${gap.days_left}天</span>
+      </div>${inner}</div>`;
   }else{
-    html+=`<div style="padding:12px 14px;background:rgba(16,163,127,.08);border-left:3px solid var(--up);border-radius:4px;margin-bottom:10px;">
-      <span style="font-size:11px;font-weight:700;color:var(--up);letter-spacing:1px;">🎯 本月已達標</span>
-      <div style="font-size:12px;margin-top:4px;">預估月底 ${fN(gap.rev_projected||0)} · 超標 ${(gap.proj_achievement_pct-100).toFixed(1)}%</div>
+    blockGap=`<div style="padding:10px 12px;background:rgba(16,163,127,.08);border-left:3px solid var(--up);border-radius:4px;min-width:0;">
+      <div style="font-size:10px;font-weight:700;color:var(--up);letter-spacing:1px;margin-bottom:4px;">🎯 本月已達標</div>
+      <div style="font-size:11px;line-height:1.5;">預估月底 ${fN(gap.rev_projected||0)}<br>超標 ${(gap.proj_achievement_pct-100).toFixed(1)}%</div>
     </div>`;
   }
-  
-  // 兩欄：流失風險 + 未付款
-  html+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
-    <div style="padding:10px 12px;background:rgba(217,75,107,.06);border-left:3px solid var(--dn);border-radius:4px;">
-      <div style="font-size:10px;font-weight:700;color:var(--dn);letter-spacing:1px;margin-bottom:4px;">⚠️ 流失風險</div>
-      <div style="font-family:'DM Mono',monospace;font-size:16px;font-weight:700;color:var(--dn);line-height:1;">${churn.count||0} 位</div>
-      <div style="font-size:10px;color:var(--sub);margin-top:3px;">潛在損失 ${fN(churn.potential_loss_90d||0)}</div>
-    </div>
-    <div style="padding:10px 12px;background:rgba(59,125,216,.06);border-left:3px solid var(--blue);border-radius:4px;">
-      <div style="font-size:10px;font-weight:700;color:var(--blue);letter-spacing:1px;margin-bottom:4px;">🔔 48h 未付款</div>
-      <div style="font-family:'DM Mono',monospace;font-size:16px;font-weight:700;color:var(--blue);line-height:1;">${up.count||0} 筆</div>
-      <div style="font-size:10px;color:var(--sub);margin-top:3px;">金額 ${fN(up.total_amount||0)} · 最長 ${up.max_days||0} 天</div>
-    </div>
+  const blockChurn=`<div style="padding:10px 12px;background:rgba(217,75,107,.06);border-left:3px solid var(--dn);border-radius:4px;min-width:0;">
+    <div style="font-size:10px;font-weight:700;color:var(--dn);letter-spacing:1px;margin-bottom:4px;">⚠️ 流失風險</div>
+    <div style="font-family:'DM Mono',monospace;font-size:16px;font-weight:700;color:var(--dn);line-height:1;">${churn.count||0} 位</div>
+    <div style="font-size:10px;color:var(--sub);margin-top:3px;">潛在損失 ${fN(churn.potential_loss_90d||0)}</div>
   </div>`;
-  
-  // 推薦組合
+  const blockUnpaid=`<div style="padding:10px 12px;background:rgba(59,125,216,.06);border-left:3px solid var(--blue);border-radius:4px;min-width:0;">
+    <div style="font-size:10px;font-weight:700;color:var(--blue);letter-spacing:1px;margin-bottom:4px;">🔔 48h 未付款</div>
+    <div style="font-family:'DM Mono',monospace;font-size:16px;font-weight:700;color:var(--blue);line-height:1;">${up.count||0} 筆</div>
+    <div style="font-size:10px;color:var(--sub);margin-top:3px;">${fN(up.total_amount||0)} · 最長 ${up.max_days||0}天</div>
+  </div>`;
+  let blockCs='';
   if(cs.length){
-    html+=`<div style="padding:10px 12px;background:rgba(15,143,133,.06);border-left:3px solid var(--teal);border-radius:4px;">
-      <div style="font-size:10px;font-weight:700;color:var(--teal);letter-spacing:1px;margin-bottom:6px;">🎁 本月可推組合</div>`;
-    cs.forEach(c=>{
-      const names=c.combo.map(n=>n.length>14?n.slice(0,14)+'…':n).join(' ✚ ');
-      html+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px dashed rgba(30,58,95,.08);font-size:11px;">
+    const rows=cs.slice(0,3).map(c=>{
+      const names=c.combo.map(n=>n.length>10?n.slice(0,10)+'…':n).join(' ✚ ');
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px dashed rgba(30,58,95,.08);font-size:10px;gap:6px;">
         <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${names}</span>
-        <span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--sub);flex-shrink:0;margin-left:8px;">${c.count} 組</span>
+        <span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--sub);flex-shrink:0;">${c.count}</span>
       </div>`;
-    });
-    html+=`</div>`;
+    }).join('');
+    blockCs=`<div style="padding:10px 12px;background:rgba(15,143,133,.06);border-left:3px solid var(--teal);border-radius:4px;min-width:0;">
+      <div style="font-size:10px;font-weight:700;color:var(--teal);letter-spacing:1px;margin-bottom:4px;">🎁 可推組合</div>${rows}</div>`;
+  }else{
+    blockCs=`<div style="padding:10px 12px;background:rgba(15,143,133,.04);border-left:3px solid var(--teal);border-radius:4px;min-width:0;">
+      <div style="font-size:10px;font-weight:700;color:var(--teal);letter-spacing:1px;margin-bottom:4px;">🎁 可推組合</div>
+      <div style="font-size:10px;color:var(--sub);">本月暫無推薦組合</div></div>`;
   }
-  
-  document.getElementById('s1-action-focus').innerHTML=html;
+  document.getElementById('s1-action-focus').innerHTML=
+    `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">${blockGap}${blockChurn}${blockUnpaid}${blockCs}</div>`;
 }
 
 function renderS1Health(){
