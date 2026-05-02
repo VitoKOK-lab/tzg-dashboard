@@ -734,6 +734,10 @@ def compute(df):
     # Week
     dow_t = today.weekday()
     tws = (today - timedelta(days=dow_t)).replace(hour=0, minute=0, second=0, microsecond=0)
+    # 「本週」只計算當月：若週一落在上個月，從本月 1 號起算
+    month_start = datetime(yr, mo, 1)
+    if tws < month_start:
+        tws = month_start
     lws = tws - timedelta(days=7)
     lwe = lws + timedelta(days=dow_t+1)
     tw  = order_level(in_range(vd, tws, today + timedelta(days=1)))
