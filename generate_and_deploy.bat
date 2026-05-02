@@ -49,48 +49,65 @@ echo.
 
 REM ============ Step 5a: Auto Download from Shopline ============
 if exist ".env" (
-    echo ===================================================
-    echo  Downloading from Shopline...
-    echo ===================================================
-    echo.
-    "C:\Users\user\AppData\Local\Programs\Python\Python313\python.exe" auto_shopline.py
-    if errorlevel 1 (
-        echo.
-        echo WARNING: Shopline download failed. Continuing with existing data...
-        echo.
-    ) else (
-        echo [5a] Shopline download OK
-        echo.
-    )
+    REM ── 取得今天日期 ──
+    for /f "tokens=2 delims==" %%I in ('wmic os get localdatetime /value ^| find "="') do set _dt=%%I
+    set _YEAR=!_dt:~0,4!
+    set _MONTH=!_dt:~4,2!
+    set _DAY=!_dt:~6,2!
+    set /a _DAYNUM=1!_DAY! - 100
+    set _TODAY=!_YEAR!-!_MONTH!-!_DAY!
 
-    REM ── 每月 1-7 號：重新封存上一個月（僅排程自動執行才跑，手動跑跳過）──
-    REM   原因：
-    REM   1) 月底最後一天的 23:59 下載可能漏抓（電腦關機/排程延遲/手動跑覆蓋）
-    REM   2) 跨月退款／取消可能晚幾天才反映在 Shopline
-    REM   1-7 號每天保險重抓 1 次，確保上月資料 100%% 同步最新狀態。
-    REM   ⚠️ 手動執行（沒帶 --shutdown）跳過此步驟，避免要等兩次下載。
-    if "%1"=="--shutdown" (
-        for /f "tokens=2 delims==" %%I in ('wmic os get localdatetime /value ^| find "="') do set _dt=%%I
-        set _DAY=!_dt:~6,2!
-        REM 把 _DAY 的前導 0 去掉（避免 cmd 把 08, 09 當八進位錯誤）
-        set /a _DAYNUM=1!_DAY! - 100
-        if !_DAYNUM! LEQ 7 (
-            echo ===================================================
-            echo  Re-archiving last month ^(safety net, day !_DAYNUM!/7^)...
-            echo ===================================================
+    REM ── 算出「上個月 1 號」（給 1-7 號廣域下載用）──
+    set /a _LM_M=1!_MONTH! - 100 - 1
+    set _LM_Y=!_YEAR!
+    if !_LM_M! LEQ 0 (
+        set /a _LM_M=12
+        set /a _LM_Y=!_YEAR! - 1
+    )
+    if !_LM_M! LSS 10 (set _LM_MM=0!_LM_M!) else (set _LM_MM=!_LM_M!)
+    set _LASTMONTH=!_LM_Y!-!_LM_MM!
+    set _LASTMONTH_START=!_LM_Y!-!_LM_MM!-01
+
+    REM ── 排程模式（--shutdown）+ 每月 1-7 號：一次抓「上月 1 號 ~ 今天」 ──
+    REM    這樣只下載 1 次，同時涵蓋上月補抓（防漏抓+跨月退款）和當月最新資料。
+    REM    手動執行：只抓當月（預設行為）→ 等待時間最短。
+    if "%1"=="--shutdown" if !_DAYNUM! LEQ 7 (
+        echo ===================================================
+        echo  Downloading from Shopline ^(wide range: !_LASTMONTH_START! ~ !_TODAY!^)
+        echo  Day !_DAYNUM!/7 of month - includes last-month safety net
+        echo ===================================================
+        echo.
+        "C:\Users\user\AppData\Local\Programs\Python\Python313\python.exe" auto_shopline.py --start !_LASTMONTH_START! --end !_TODAY!
+        if errorlevel 1 (
+            echo WARNING: Shopline download failed. Continuing with existing data...
             echo.
-            "C:\Users\user\AppData\Local\Programs\Python\Python313\python.exe" re_archive_month.py
+        ) else (
+            echo [5a] Shopline wide-range download OK
+            echo.
+            REM 重建上月封存（從剛下載的 shopline_*.xlsx 撈該月資料）
+            echo  Rebuilding last-month archive ^(!_LASTMONTH!^)...
+            "C:\Users\user\AppData\Local\Programs\Python\Python313\python.exe" generate_monthly_archive.py --month !_LASTMONTH! --force
             if errorlevel 1 (
-                echo WARNING: Re-archive failed, continuing...
+                echo WARNING: Last-month archive rebuild failed, continuing...
                 echo.
             ) else (
-                echo [5a+] Re-archive OK
+                echo [5a+] Last-month archive OK
                 echo.
             )
         )
     ) else (
-        echo [5a+] Manual run - skipping last-month re-archive
+        echo ===================================================
+        echo  Downloading from Shopline ^(current month^)...
+        echo ===================================================
         echo.
+        "C:\Users\user\AppData\Local\Programs\Python\Python313\python.exe" auto_shopline.py
+        if errorlevel 1 (
+            echo WARNING: Shopline download failed. Continuing with existing data...
+            echo.
+        ) else (
+            echo [5a] Shopline download OK
+            echo.
+        )
     )
 ) else (
     echo [5a] .env not found, skipping auto-download
