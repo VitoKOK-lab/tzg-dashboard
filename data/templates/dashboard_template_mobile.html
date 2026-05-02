@@ -58,12 +58,12 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
 #astrip{position:fixed;top:56px;left:0;right:0;height:30px;background:#000;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 22px;gap:14px;z-index:400;}
 #astrip .al{color:rgba(255,255,255,.55);}
 #astrip .av2{color:#fff;}
-#astrip #a-pct{color:#FFB800;}
+#astrip #a-pct{color:#FF8FAB;}
 #astrip .abar{background:rgba(255,255,255,.15);}
 .al{font-size:9px;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase;white-space:nowrap;}
 .av2{font-family:'DM Mono',monospace;font-size:14px;color:var(--ink);white-space:nowrap;font-weight:500;}
 .abar{flex:1;height:7px;background:rgba(30,58,95,.08);border-radius:4px;overflow:hidden;position:relative;}
-.abar-f{height:100%;border-radius:4px;background:linear-gradient(90deg,#FFB800,#FFD700);transition:width 2s cubic-bezier(.23,1,.32,1);}
+.abar-f{height:100%;border-radius:4px;background:linear-gradient(90deg,#FF8FAB,#FFB6C1);transition:width 2s cubic-bezier(.23,1,.32,1);}
 .abar-t{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--coral);}
 .adiv{width:1px;height:14px;background:var(--line);}
 .cmp{display:inline-flex;align-items:center;gap:2px;font-family:'DM Mono',monospace;font-size:11px;padding:1px 6px;border-radius:8px;font-weight:500;}
@@ -189,7 +189,7 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
   #s1 .body > div{flex:unset!important;}
   #s2 #monthly-tbl{font-size:10px;}
   #s3 .body > div:nth-child(3){display:none;}
-  #s5 [style*="grid-template-columns:14px 1fr 26px 42px 50px"]{grid-template-columns:14px 1fr 28px 46px 58px;font-size:8px;}
+  #s5 [style*="grid-template-columns:14px 1fr 32px 52px 64px"]{grid-template-columns:14px 1fr 28px 46px 58px;font-size:8px;}
   #s6 .body > div:nth-child(3){display:none;}
   #heatmap > div{grid-template-columns:30px repeat(24,1fr)!important;}
   .chart-box{min-height:200px;max-height:280px;}
@@ -232,13 +232,12 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
 </div>
 
 <div id="astrip">
-  <div class="al">當月累計</div><div class="av2" id="a-rev"></div>
+  <div class="al">目標</div><div class="av2" id="a-rev"></div>
   <div class="abar"><div class="abar-f" id="a-fill" style="width:0%"></div><div class="abar-t" id="a-tgt"></div></div>
   <div id="a-pct" style="font-family:'DM Mono',monospace;font-size:15px;font-weight:700;"></div>
   <div class="adiv"></div><div class="al">本週至今</div><div id="a-week" class="av2"></div>
   <div class="adiv"></div><div class="al">昨日</div><div id="a-yday" class="av2"></div>
   <div class="adiv"></div><div class="al">均價 / 中位</div><div id="a-aov" class="av2"></div>
-  <div class="adiv"></div><div class="al">預估全月</div><div id="a-proj" class="av2"></div>
 </div>
 <div id="prog"><div id="pfill"></div></div>
 
@@ -343,24 +342,6 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
   </div>
 </div>
 
-<div class="slide" id="s4">
-  <div class="sh"><div class="sh-t">地區業績 · 區域分群</div><div class="stag tt">區域分析</div></div>
-  <div class="body">
-    <div class="panel">
-      <div class="pl">區域分群</div><div class="pt">六大區域營收</div>
-      <div class="sc" id="region-cards" style="display:flex;flex-direction:column;gap:8px;"></div>
-    </div>
-    <div class="panel">
-      <div class="pl" id="city-tbl-title">城市業績明細</div>
-      <div class="pt" id="city-tbl-sub">含客戶數 · 訂單數 · 客單價</div>
-      <div class="sc" id="city-tbl"></div>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:10px;">
-      <div class="panel" style="flex:1;"><div class="pl">地區洞察</div><div id="city-insight" style="margin-top:5px;"></div></div>
-    </div>
-  </div>
-</div>
-
 <div class="slide" id="s5">
   <div class="sh"><div class="sh-t">商品銷售排行</div><div class="stag tg">收入 · 數量 · 未銷售</div></div>
   <div class="body">
@@ -369,7 +350,7 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
         <div><div class="pl">賺最多錢</div><div class="pt" style="margin-bottom:0;">收入 TOP 10</div></div>
         <div class="stag tc" style="margin-left:auto;font-size:8px;">本月</div>
       </div>
-      <div style="display:grid;grid-template-columns:14px 1fr 26px 42px 50px;font-size:8px;color:var(--sub);letter-spacing:1px;text-transform:uppercase;padding:0 2px 3px;border-bottom:1px solid var(--line);">
+      <div style="display:grid;grid-template-columns:14px 1fr 32px 52px 64px;font-size:8px;color:var(--sub);letter-spacing:1px;text-transform:uppercase;padding:0 2px 3px;border-bottom:1px solid var(--line);">
         <span>#</span><span>商品</span><span style="text-align:right;">件</span><span style="text-align:right;">均價</span><span style="text-align:right;">收入</span></div>
       <div class="sc" id="prod-rev"></div>
     </div>
@@ -378,7 +359,7 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
         <div><div class="pl">賣最多件</div><div class="pt" style="margin-bottom:0;">數量 TOP 10</div></div>
         <div class="stag tt" style="margin-left:auto;font-size:8px;">本月</div>
       </div>
-      <div style="display:grid;grid-template-columns:14px 1fr 26px 42px 50px;font-size:8px;color:var(--sub);letter-spacing:1px;text-transform:uppercase;padding:0 2px 3px;border-bottom:1px solid var(--line);">
+      <div style="display:grid;grid-template-columns:14px 1fr 32px 52px 64px;font-size:8px;color:var(--sub);letter-spacing:1px;text-transform:uppercase;padding:0 2px 3px;border-bottom:1px solid var(--line);">
         <span>#</span><span>商品</span><span style="text-align:right;">件</span><span style="text-align:right;">均價</span><span style="text-align:right;">收入</span></div>
       <div class="sc" id="prod-qty"></div>
     </div>
@@ -388,36 +369,6 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
         <div class="stag tc" style="margin-left:auto;font-size:8px;">全歷史</div>
       </div>
       <div id="zero-list" style="flex:1;"></div>
-    </div>
-  </div>
-</div>
-
-<div class="slide" id="s6">
-  <div class="sh"><div class="sh-t">客戶結構分析</div><div class="stag tn">RFM · 活躍分層 · 首購vs回購</div></div>
-  <div class="body">
-    <div class="panel">
-      <div class="pl">RFM 九宮格分層</div>
-      <div class="pt">R = 最近購買 · F/M = 頻次/金額</div>
-      <div id="rfm-grid" style="flex:1;display:grid;grid-template-columns:60px repeat(3,1fr);grid-template-rows:20px repeat(3,1fr);gap:3px;margin-top:4px;"></div>
-      <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--sub);margin-top:6px;"><span>← 沉睡</span><span>中間</span><span>高價值 →</span></div>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:10px;">
-      <div class="panel" style="flex:1;">
-        <div class="pl">活躍度分層</div><div class="pt">依最近下單距今天數</div>
-        <div id="active-tiers" style="flex:1;display:flex;flex-direction:column;gap:8px;margin-top:4px;"></div>
-      </div>
-      <div class="panel" style="flex:1.1;">
-        <div class="pl">近6個月 新客 vs 舊客</div>
-        <div style="display:flex;gap:10px;margin:3px 0 4px;">
-          <div style="display:flex;align-items:center;gap:4px;font-size:9px;color:var(--sub);"><div style="width:9px;height:9px;background:var(--teal);border-radius:2px;"></div>新客</div>
-          <div style="display:flex;align-items:center;gap:4px;font-size:9px;color:var(--sub);"><div style="width:9px;height:9px;background:var(--coral);border-radius:2px;"></div>舊客</div>
-        </div>
-        <div class="chart-box"><canvas id="new6m-chart"></canvas></div>
-      </div>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:10px;">
-      <div class="panel" style="flex:1;"><div class="pl">首購 vs 回購 金額</div><div class="chart-box"><canvas id="fvr-chart"></canvas></div></div>
-      <div class="panel" style="flex:1;"><div class="pl">會員等級漏斗</div><div class="chart-box"><canvas id="member-chart"></canvas></div></div>
     </div>
   </div>
 </div>
@@ -470,6 +421,54 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
   </div>
 </div>
 
+<div class="slide" id="s4">
+  <div class="sh"><div class="sh-t">地區業績 · 區域分群</div><div class="stag tt">區域分析</div></div>
+  <div class="body">
+    <div class="panel">
+      <div class="pl">區域分群</div><div class="pt">六大區域營收</div>
+      <div class="sc" id="region-cards" style="display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
+    <div class="panel">
+      <div class="pl" id="city-tbl-title">城市業績明細</div>
+      <div class="pt" id="city-tbl-sub">含客戶數 · 訂單數 · 客單價</div>
+      <div class="sc" id="city-tbl"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div class="panel" style="flex:1;"><div class="pl">地區洞察</div><div id="city-insight" style="margin-top:5px;"></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="slide" id="s6">
+  <div class="sh"><div class="sh-t">客戶結構分析</div><div class="stag tn">RFM · 活躍分層 · 首購vs回購</div></div>
+  <div class="body">
+    <div class="panel">
+      <div class="pl">RFM 九宮格分層</div>
+      <div class="pt">R = 最近購買 · F/M = 頻次/金額</div>
+      <div id="rfm-grid" style="flex:1;display:grid;grid-template-columns:60px repeat(3,1fr);grid-template-rows:20px repeat(3,1fr);gap:3px;margin-top:4px;"></div>
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--sub);margin-top:6px;"><span>← 沉睡</span><span>中間</span><span>高價值 →</span></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div class="panel" style="flex:1;">
+        <div class="pl">活躍度分層</div><div class="pt">依最近下單距今天數</div>
+        <div id="active-tiers" style="flex:1;display:flex;flex-direction:column;gap:8px;margin-top:4px;"></div>
+      </div>
+      <div class="panel" style="flex:1.1;">
+        <div class="pl">近6個月 新客 vs 舊客</div>
+        <div style="display:flex;gap:10px;margin:3px 0 4px;">
+          <div style="display:flex;align-items:center;gap:4px;font-size:9px;color:var(--sub);"><div style="width:9px;height:9px;background:var(--teal);border-radius:2px;"></div>新客</div>
+          <div style="display:flex;align-items:center;gap:4px;font-size:9px;color:var(--sub);"><div style="width:9px;height:9px;background:var(--coral);border-radius:2px;"></div>舊客</div>
+        </div>
+        <div class="chart-box"><canvas id="new6m-chart"></canvas></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div class="panel" style="flex:1;"><div class="pl">首購 vs 回購 金額</div><div class="chart-box"><canvas id="fvr-chart"></canvas></div></div>
+      <div class="panel" style="flex:1;"><div class="pl">會員等級漏斗</div><div class="chart-box"><canvas id="member-chart"></canvas></div></div>
+    </div>
+  </div>
+</div>
+
 
 </div>
 
@@ -499,27 +498,23 @@ const CHARTS={};
 function makeChart(id,cfg){if(CHARTS[id])CHARTS[id].destroy();const cv=document.getElementById(id);if(!cv)return;CHARTS[id]=new Chart(cv,cfg);return CHARTS[id];}
 
 function renderTopBar(){
-  const k=D.kpi;const est25=k.rev_25_apr/D.meta.days_total*D.meta.days_elapsed;
+  const k=D.kpi;
   document.getElementById('tb-kpis').innerHTML=[
-    {l:'當月累計',v:fN(k.rev_mtd),c:pc(k.rev_mtd,est25),d:dr(k.rev_mtd,est25)},
     {l:'均價/中位',v:fN(k.avg_order)+' / '+fN(k.median_order)},
     {l:'有效訂單',v:k.orders_mtd+' 筆'},
-    {l:'新客/回購',v:k.new_customers+' / '+k.returning},
-    {l:'Q1累計',v:fN(k.rev_jan+k.rev_feb+k.rev_mar)},
   ].map(i=>`<div class="tbk"><div class="tbk-l">${i.l}</div><div class="tbk-v">${i.v}</div>${i.c?`<div class="tbk-c ${i.d==='up'?'u':i.d==='flat'?'f':'d'}">${ar(i.d)} ${i.c}</div>`:''}</div>`).join('');
 }
 
 function renderAchStrip(){
   const k=D.kpi,w=D.week,y=D.yesterday;
-  document.getElementById('a-rev').textContent=fF(k.rev_mtd)+' / '+fF(D.target);
+  document.getElementById('a-rev').textContent=fF(D.target);
   setTimeout(()=>{document.getElementById('a-fill').style.width=Math.min(k.achievement_pct/120*100,100)+'%';},300);
   document.getElementById('a-tgt').style.left=(100/120*100)+'%';
-  document.getElementById('a-pct').innerHTML=`<span style="color:#FFB800;">${k.achievement_pct>=100?'達標':k.achievement_pct+'%'}</span>`;
+  document.getElementById('a-pct').innerHTML=`<span style="color:#FF8FAB;">${k.achievement_pct>=100?'達標':k.achievement_pct+'%'}</span>`;
   const wd=dr(w.this_rev,w.last_rev);
   document.getElementById('a-week').innerHTML=`${fN(w.this_rev)} <span class="cmp c${wd}">${ar(wd)} ${pc(w.this_rev,w.last_rev)}</span>`;
   document.getElementById('a-yday').textContent=fF(y.rev);
   document.getElementById('a-aov').textContent=fN(k.avg_order)+' / '+fN(k.median_order);
-  document.getElementById('a-proj').textContent=fN(k.rev_projected)+' ('+k.proj_achievement_pct+'%)';
 }
 
 function renderS1Kpi(){
@@ -875,7 +870,7 @@ function renderCityInsight(){
 function renderProdRows(id,data,bc,useQty){
   const max=useQty?Math.max(...data.map(p=>p.qty),1):Math.max(...data.map(p=>p.rev),1);
   const el=document.getElementById(id);
-  el.innerHTML=data.map((p,i)=>`<div class="rr r${i+1}"><div class="rn">${i+1}</div><div style="flex:1;min-width:0;"><div style="font-size:10px;font-weight:500;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.name.length>15?p.name.slice(0,15)+'…':p.name}</div><div class="rbar-w"><div class="rbar" data-w="${Math.round((useQty?p.qty:p.rev)/max*100)}" style="background:${bc};opacity:.55;"></div></div></div><div style="display:flex;gap:3px;flex-shrink:0;text-align:right;align-items:center;"><div style="min-width:22px;"><div style="font-family:'DM Mono',monospace;font-size:10px;">${p.qty}</div><div style="font-size:7px;color:var(--sub);">件</div></div><div style="min-width:40px;"><div style="font-family:'DM Mono',monospace;font-size:10px;">${fN(p.price)}</div><div style="font-size:7px;color:var(--sub);">均</div></div><div style="min-width:48px;"><div style="font-family:'DM Mono',monospace;font-size:11px;font-weight:600;color:${bc};">${fN(p.rev)}</div><div style="font-size:7px;color:var(--sub);">收入</div></div></div></div>`).join('');
+  el.innerHTML=data.map((p,i)=>`<div class="rr r${i+1}"><div class="rn">${i+1}</div><div style="flex:1 1 0;min-width:0;max-width:calc(100% - 168px);"><div style="font-size:10px;font-weight:500;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.name.length>11?p.name.slice(0,11)+'…':p.name}</div><div class="rbar-w"><div class="rbar" data-w="${Math.round((useQty?p.qty:p.rev)/max*100)}" style="background:${bc};opacity:.55;"></div></div></div><div style="display:flex;gap:4px;flex-shrink:0;text-align:right;align-items:center;"><div style="min-width:30px;"><div style="font-family:'DM Mono',monospace;font-size:10px;">${p.qty}</div><div style="font-size:7px;color:var(--sub);">件</div></div><div style="min-width:50px;"><div style="font-family:'DM Mono',monospace;font-size:10px;">${fN(p.price)}</div><div style="font-size:7px;color:var(--sub);">均</div></div><div style="min-width:60px;"><div style="font-family:'DM Mono',monospace;font-size:11px;font-weight:600;color:${bc};">${fN(p.rev)}</div><div style="font-size:7px;color:var(--sub);">收入</div></div></div></div>`).join('');
   onVis(el,()=>stagger(el));
 }
 function renderZeroList(){
@@ -1009,7 +1004,7 @@ const IDLE_MS=5*60*1000;  // 5 分鐘閒置後啟動自動播放
 const slides=document.querySelectorAll('.slide');
 let cur=0, timer, idleTimer, autoPlaying=false;
 
-const inits={3:[],5:[renderNew6mChart,renderFvrChart,renderMemberChart,renderRfmGrid,renderActiveTiers],6:[renderRepurchaseChart],7:[]};
+const inits={4:[renderRepurchaseChart],6:[renderNew6mChart,renderFvrChart,renderMemberChart,renderRfmGrid,renderActiveTiers]};
 function buildNav(){const el=document.getElementById('snav');el.innerHTML=Array.from({length:slides.length},(_,i)=>`<div class="sdot${i===0?' on':''}" data-i="${i}"></div>`).join('');el.querySelectorAll('.sdot').forEach(d=>d.addEventListener('click',()=>{goTo(+d.dataset.i);userAction();}));}
 function goTo(n){slides[cur].classList.remove('on');document.querySelectorAll('.sdot')[cur].classList.remove('on');cur=((n%slides.length)+slides.length)%slides.length;slides[cur].classList.add('on');document.querySelectorAll('.sdot')[cur].classList.add('on');document.getElementById('snum').textContent=`${cur+1}/${slides.length}`;if(autoPlaying)startProg();else stopProg();trigAnim(slides[cur]);if(inits[cur])inits[cur].forEach(fn=>setTimeout(fn,200));}
 
