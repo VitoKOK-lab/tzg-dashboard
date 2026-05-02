@@ -122,7 +122,7 @@ def compute_quota_achievements(pm_lines, pm_ord, ccol, yr, mo):
             'achievement_pct': ach,
         })
     return results
-MANUAL_TODAY   = None
+MANUAL_TODAY   = None  # 自動根據數據最新日期判斷
 
 PAID_STATUSES       = ['已付款', '付款完成', '已收款', 'paid', 'Paid']
 CANCELLED_STATUSES  = ['已取消', '取消', '訂單已取消', 'cancelled', 'Cancelled']
@@ -231,7 +231,7 @@ def load_data():
     # 🔧 修復：只提取需要的欄位，以匹配 CSV 格式
     for f in xls_files:
         try:
-            df = pd.read_excel(f)
+            df = pd.read_excel(f)  # 讓 pandas 自動選擇引擎
             
             # 定義 CSV 的標準欄位（22 個）
             standard_cols = [
@@ -921,13 +921,17 @@ def compute(df):
     D['hour_dist'] = hour_agg(mtd_ord)
     
     # ═══════════════════════════════════════════════════════
-    # 🆕 近 7 天每日業績（今天 + 往前 6 天 = 7 天）
+    # 🆕 近 7 天每日業績（今天 + 往前 6 天 = 7 天，只計算當月）
     # ═══════════════════════════════════════════════════════
     DAILY_TARGET = 150000  # 平均業績要求線：NT$ 150,000/天（月 450 萬 / 30 天）
     last_7 = []
     dow_cn_full = ['週一','週二','週三','週四','週五','週六','週日']
+    month_start = datetime(yr, mo, 1)  # 當月開始日期
     for offset in range(6, -1, -1):  # 從 6 天前到今天
         d = today - timedelta(days=offset)
+        # ⚠️ 只計算「當月」的日期，跳過其他月份
+        if d < month_start:
+            continue
         d_start = datetime(d.year, d.month, d.day)
         d_end = d_start + timedelta(days=1)
         d_orders = order_level(in_range(vd, d_start, d_end))
