@@ -30,11 +30,14 @@ body{display:flex;flex-direction:column;}
 #month-select{font-family:'DM Mono',monospace;font-size:13px;font-weight:600;padding:5px 12px;background:rgba(255,255,255,.5);border:1px solid rgba(30,58,95,.25);color:#1E3A5F;border-radius:4px;cursor:pointer;outline:none;}
 #month-select option{background:#fff;color:#1E3A5F;}
 
+/* Topbar wrapper（hdr + tabs 一起黏在最上方） */
+.topbar-wrap{flex-shrink:0;}
+
 /* Tabs */
-.tabs{flex-shrink:0;background:#fff;border-bottom:1px solid var(--line);padding:0 24px;display:flex;overflow-x:auto;position:sticky;top:0;z-index:100;}
-.tab{padding:10px 16px;font-size:13px;font-weight:500;cursor:pointer;color:var(--sub);border-bottom:3px solid transparent;white-space:nowrap;transition:all .15s;}
-.tab:hover{color:var(--ink);}
-.tab.on{color:var(--ink);border-bottom-color:var(--gold);font-weight:700;}
+.tabs{flex-shrink:0;background:#000;border-bottom:1px solid #000;padding:0 24px;display:flex;overflow-x:auto;}
+.tab{padding:10px 16px;font-size:13px;font-weight:500;cursor:pointer;color:rgba(255,255,255,.65);border-bottom:3px solid transparent;white-space:nowrap;transition:all .15s;}
+.tab:hover{color:#fff;}
+.tab.on{color:#fff;border-bottom-color:#FFB6C1;font-weight:700;}
 
 /* Pages — 全部單頁滿版，不向下滾動 */
 .page{display:none;flex:1;flex-direction:column;padding:14px 22px;overflow:hidden;max-width:1600px;margin:0 auto;width:100%;min-height:0;}
@@ -97,8 +100,11 @@ td.num{font-family:'DM Mono',monospace;}
   html,body{height:auto;min-height:100vh;overflow:visible;font-size:13px;}
   body{display:block;}
 
+  /* Topbar wrapper：手機 sticky 黏在最上方，hdr + tabs 一起跟著畫面 */
+  .topbar-wrap{position:sticky;top:0;z-index:100;background:#000;}
+
   /* Header 縮小 + 月份切換移到下一行 */
-  .hdr{padding:10px 14px;gap:8px;flex-wrap:wrap;position:sticky;top:0;}
+  .hdr{padding:10px 14px;gap:8px;flex-wrap:wrap;}
   .hdr-logo{font-size:17px;}
   .hdr-sub{display:none;}
   .hdr-spacer{display:none;}
@@ -106,8 +112,15 @@ td.num{font-family:'DM Mono',monospace;}
   #month-select{padding:4px 10px;font-size:12px;flex:1;max-width:200px;}
 
   /* Tabs 橫向滑動 */
-  .tabs{padding:0 6px;position:sticky;top:auto;background:#fff;}
+  .tabs{padding:0 6px;background:#000;}
   .tab{padding:10px 12px;font-size:12px;}
+
+  /* p9 季度策略回顧手機 RWD */
+  #p9 div[style*="grid-template-columns:1.2fr 1fr 1fr"]{grid-template-columns:1fr!important;gap:10px!important;}
+  #p9 div[style*="grid-template-columns:1fr 1fr 1fr 1fr"]{grid-template-columns:1fr 1fr!important;gap:10px!important;border-bottom:none!important;}
+  #p9 div[style*="grid-template-columns:1fr 1fr"]:not([style*="1fr 1fr 1fr"]){grid-template-columns:1fr!important;gap:10px!important;}
+  #p9 .panel{flex:none!important;overflow:visible!important;}
+  #p9 .panel > div[style*="border-left:1px solid"]{border-left:none!important;}
 
   /* Pages：單欄堆疊，恢復自然流 */
   .page{display:none;flex-direction:column;flex:none;padding:14px;height:auto;overflow:visible;max-width:100%;}
@@ -172,6 +185,7 @@ td.num{font-family:'DM Mono',monospace;}
 </head>
 <body>
 
+<div class="topbar-wrap">
 <div class="hdr">
   <div>
     <div class="hdr-logo">電商部-月報表</div>
@@ -196,6 +210,7 @@ td.num{font-family:'DM Mono',monospace;}
   <div class="tab" data-page="p9">📅 季度策略回顧</div>
   <div class="tab" data-page="p8">⚙️ 目標設定</div>
 </div>
+</div><!-- /topbar-wrap -->
 
 <!-- ============ Page 1: 總覽 ============ -->
 <div class="page on" id="p1">
