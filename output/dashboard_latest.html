@@ -201,6 +201,9 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
   .pt{font-size:13px;}
   .sc{max-height:none;overflow:visible;}
   #s1 .panel > div[style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr!important;gap:10px!important;}
+  /* 手機：決策焦點 2x2 → 維持 2 欄；昨日/本週業績 grid 保留 2 欄但允許 KPI 數字字體縮小 */
+  #s1-action-focus > div{grid-template-columns:1fr 1fr!important;gap:8px!important;}
+  #s1-kpi-block div[style*="grid-template-columns:1fr 1fr"]{gap:6px!important;}
   #s1 .body{flex-direction:column!important;}
   #s1 .body > div{flex:unset!important;}
   #s2 #monthly-tbl{font-size:10px;}
@@ -214,6 +217,10 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
   .rv{font-size:11px;}
   .rs{font-size:8px;}
   .av{width:24px;height:24px;font-size:9px;}
+}
+/* 極小螢幕（手機直立 <480px）：決策焦點 2x2 改 1 欄堆疊，避免卡字 */
+@media (max-width:480px){
+  #s1-action-focus > div{grid-template-columns:1fr!important;}
 }
 
 @media print{
