@@ -54,10 +54,9 @@ if exist ".env" (
     set _YEAR=!_dt:~0,4!
     set _MONTH=!_dt:~4,2!
     set _DAY=!_dt:~6,2!
-    set /a _DAYNUM=1!_DAY! - 100
     set _TODAY=!_YEAR!-!_MONTH!-!_DAY!
 
-    REM ── 算出「上個月 1 號」（給 1-7 號廣域下載用）──
+    REM ── 算出「上個月 1 號」與「上個月 YYYY-MM」 ──
     set /a _LM_M=1!_MONTH! - 100 - 1
     set _LM_Y=!_YEAR!
     if !_LM_M! LEQ 0 (
@@ -68,13 +67,15 @@ if exist ".env" (
     set _LASTMONTH=!_LM_Y!-!_LM_MM!
     set _LASTMONTH_START=!_LM_Y!-!_LM_MM!-01
 
-    REM ── 排程模式（--shutdown）+ 每月 1-7 號：一次抓「上月 1 號 ~ 今天」 ──
-    REM    這樣只下載 1 次，同時涵蓋上月補抓（防漏抓+跨月退款）和當月最新資料。
-    REM    手動執行：只抓當月（預設行為）→ 等待時間最短。
-    if "%1"=="--shutdown" if !_DAYNUM! LEQ 7 (
+    REM ── 排程模式（--shutdown）：永遠抓「上月 1 號 ~ 今天」廣域下載 ──
+    REM    每天都重抓上月 + 當月，自動 catch 跨月退款／取消。
+    REM    封存檔 TZG_<上月>_orders.xlsx 也每天重建一次（內容 idempotent）。
+    REM
+    REM    手動執行（無 --shutdown）：只抓當月，速度最快。
+    if "%1"=="--shutdown" (
         echo ===================================================
-        echo  Downloading from Shopline ^(wide range: !_LASTMONTH_START! ~ !_TODAY!^)
-        echo  Day !_DAYNUM!/7 of month - includes last-month safety net
+        echo  Downloading from Shopline ^(rolling window^)
+        echo  Range: !_LASTMONTH_START! ~ !_TODAY!
         echo ===================================================
         echo.
         "C:\Users\user\AppData\Local\Programs\Python\Python313\python.exe" auto_shopline.py --start !_LASTMONTH_START! --end !_TODAY!
@@ -82,9 +83,9 @@ if exist ".env" (
             echo WARNING: Shopline download failed. Continuing with existing data...
             echo.
         ) else (
-            echo [5a] Shopline wide-range download OK
+            echo [5a] Shopline rolling-window download OK
             echo.
-            REM 重建上月封存（從剛下載的 shopline_*.xlsx 撈該月資料）
+            REM 重建上月封存（從剛下載的 shopline_*.xlsx 撈該月資料，捕捉退款／取消）
             echo  Rebuilding last-month archive ^(!_LASTMONTH!^)...
             "C:\Users\user\AppData\Local\Programs\Python\Python313\python.exe" generate_monthly_archive.py --month !_LASTMONTH! --force
             if errorlevel 1 (
@@ -94,10 +95,14 @@ if exist ".env" (
                 echo [5a+] Last-month archive OK
                 echo.
             )
+            REM 清理舊的 shopline_*.xlsx 下載檔，只保留最新一份
+            echo  Cleanup old downloads...
+            "C:\Users\user\AppData\Local\Programs\Python\Python313\python.exe" cleanup_old_downloads.py
+            echo.
         )
     ) else (
         echo ===================================================
-        echo  Downloading from Shopline ^(current month^)...
+        echo  Downloading from Shopline ^(current month, manual mode^)
         echo ===================================================
         echo.
         "C:\Users\user\AppData\Local\Programs\Python\Python313\python.exe" auto_shopline.py
