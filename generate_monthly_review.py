@@ -18,7 +18,7 @@ from datetime import datetime
 
 # 從 generate_daily 引入共用函數
 from generate_daily import (
-    load_data, paid_orders, compute_month_review,
+    load_data, paid_orders, compute_month_review, compute_quarter_review,
     DATA_DIR, MONTHLY_TARGET,
 )
 
@@ -65,10 +65,11 @@ def _replace_object_after(html, marker, new_obj):
     return html[:start] + new_json + html[end:]
 
 
-def patch_html(html, all_data, annual_plan):
-    """注入 ALL_DATA 和 ORIGINAL_PLAN"""
-    html = _replace_object_after(html, 'const ALL_DATA=',      all_data)
-    html = _replace_object_after(html, 'const ORIGINAL_PLAN=', annual_plan)
+def patch_html(html, all_data, annual_plan, quarter_review):
+    """注入 ALL_DATA、ORIGINAL_PLAN、QUARTER_REVIEW"""
+    html = _replace_object_after(html, 'const ALL_DATA=',       all_data)
+    html = _replace_object_after(html, 'const ORIGINAL_PLAN=',  annual_plan)
+    html = _replace_object_after(html, 'const QUARTER_REVIEW=', quarter_review)
     return html
 
 
@@ -136,8 +137,15 @@ def main():
         except Exception as e:
             print(f'  [!] annual_plan.json 解析失敗：{e}')
 
+    # 計算季度策略回顧（以最新資料日為基準）
+    ref_today = vd['訂單日期'].max().to_pydatetime().replace(hour=23, minute=59, second=59, microsecond=0)
+    qr_pkg = compute_quarter_review(vd, ccol, ref_today)
+    quarter_review = qr_pkg['quarter_review']
+    print(f'  [✓] 季度回顧：上季 Q{qr_pkg["prev_q"]} 營收 NT$ {qr_pkg["prev_total_rev"]:,} '
+          f'/ 本季 NT$ {qr_pkg["cur_q_rev"]:,}（YoY {qr_pkg["yoy_rev_pct"]}%）')
+
     html = TEMPLATE_HTML.read_text(encoding='utf-8')
-    new_html = patch_html(html, all_data, annual_plan)
+    new_html = patch_html(html, all_data, annual_plan, quarter_review)
     OUTPUT_HTML.write_text(new_html, encoding='utf-8')
 
     size_kb = OUTPUT_HTML.stat().st_size // 1024

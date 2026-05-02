@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
@@ -154,7 +154,6 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
 #s5 .body{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;flex:1;min-height:0;}
 #s6 .body{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:10px;flex:1;min-height:0;}
 #s7 .body{display:grid;grid-template-columns:1fr 1fr 1.3fr;gap:10px;flex:1;min-height:0;}
-#s8 .body{display:grid;grid-template-columns:1fr;gap:10px;flex:1;min-height:0;}
 
 @media (max-width:768px){
   #topbar{position:static;height:auto;padding:8px 12px;flex-wrap:wrap;}
@@ -175,14 +174,8 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
   .sh{flex-wrap:wrap;gap:6px;}
   .sh-t{font-size:15px;}
   .stag{font-size:8px;padding:1px 6px;}
-  #s1 .body,#s2 .body,#s3 .body,#s5 .body,#s7 .body,#s8 .body{display:flex;flex-direction:column;gap:10px;}
+  #s1 .body,#s2 .body,#s3 .body,#s5 .body,#s7 .body{display:flex;flex-direction:column;gap:10px;}
   #s4 .body,#s6 .body{grid-template-columns:1fr!important;}
-  /* s8 季度回顧手機強制 grid 重排 */
-  #s8 .panel > div[style*="grid-template-columns:1.2fr"]{grid-template-columns:1fr!important;gap:8px!important;}
-  #s8 .panel > div[style*="grid-template-columns:1fr 1fr 1fr 1fr"]{grid-template-columns:1fr 1fr!important;gap:10px!important;}
-  #s8 .panel > div[style*="grid-template-columns:1fr 1fr"]:not([style*="1fr 1fr 1fr"]){grid-template-columns:1fr!important;gap:10px!important;}
-  #s8 .panel > div > div[style*="border-left:1px solid"]{border-left:none!important;border-top:1px solid var(--line)!important;padding-top:8px!important;}
-  #s8 .sh{flex-wrap:wrap;}
   /* s2 訂單來源條狀圖手機調整 */
   #s2 #src-list > div > div:first-child > div:nth-last-child(2){font-size:12px!important;}
   .panel{padding:10px 12px;}
@@ -470,94 +463,6 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
   </div>
 </div>
 
-<div class="slide" id="s8">
-  <div class="sh"><div class="sh-t">季度策略回顧</div><div class="stag tg" id="s9-cur-tag">本季進行中</div><div class="stag tt" id="s9-prev-tag">上季完整回顧</div></div>
-  <div class="body">
-    <!-- 上區：本季進行中 vs 去年同期 -->
-    <div class="panel" style="padding:14px 18px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-        <div>
-          <div class="pl" style="margin:0;">📊 本季進行中 · 對比去年同期</div>
-          <div class="pt" style="margin:3px 0 0;" id="s9-cur-period"></div>
-        </div>
-        <span style="font-size:9px;padding:2px 7px;background:rgba(217,75,107,.1);color:var(--coral);border-radius:10px;letter-spacing:.5px;" id="s9-cur-quarter-label">Q2（2026）</span>
-      </div>
-      <div style="display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:14px;">
-        <!-- 本季至今 -->
-        <div style="padding:12px 14px;background:rgba(217,75,107,.06);border-left:3px solid var(--coral);border-radius:4px;">
-          <div style="font-size:9px;letter-spacing:1.5px;color:var(--coral);text-transform:uppercase;margin-bottom:6px;font-weight:700;">🔴 本季至今</div>
-          <div id="s9-cur-rev" style="font-family:'DM Mono',monospace;font-size:24px;font-weight:700;color:var(--coral);line-height:1;"></div>
-          <div id="s9-cur-orders" style="font-size:10px;color:var(--sub);margin-top:4px;"></div>
-        </div>
-        <!-- 去年同期同日 -->
-        <div style="padding:12px 14px;background:rgba(59,125,216,.05);border-left:3px solid var(--blue);border-radius:4px;">
-          <div style="font-size:9px;letter-spacing:1.5px;color:var(--blue);text-transform:uppercase;margin-bottom:6px;font-weight:700;">🔵 去年同期同日</div>
-          <div id="s9-ly-same-rev" style="font-family:'DM Mono',monospace;font-size:20px;font-weight:700;color:var(--blue);line-height:1;"></div>
-          <div id="s9-ly-same-period" style="font-size:9px;color:var(--sub);margin-top:2px;"></div>
-          <div id="s9-yoy" style="font-size:11px;margin-top:5px;font-weight:600;"></div>
-        </div>
-        <!-- 去年全季 -->
-        <div style="padding:12px 14px;background:rgba(100,116,139,.06);border-left:3px solid var(--sub);border-radius:4px;">
-          <div style="font-size:9px;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase;margin-bottom:6px;font-weight:700;">⚫ 去年全季</div>
-          <div id="s9-ly-full-rev" style="font-family:'DM Mono',monospace;font-size:20px;font-weight:700;color:var(--ink);line-height:1;"></div>
-          <div id="s9-ly-full-period" style="font-size:9px;color:var(--sub);margin-top:2px;"></div>
-          <div id="s9-progress" style="font-size:11px;margin-top:5px;font-weight:600;"></div>
-        </div>
-      </div>
-    </div>
-    
-    <!-- 下區：上季完整回顧 -->
-    <div class="panel" style="padding:14px 18px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-        <div>
-          <div class="pl" style="margin:0;">🏆 <span id="s9-prev-label">Q1</span> 完整回顧</div>
-          <div class="pt" style="margin:3px 0 0;" id="s9-prev-period"></div>
-        </div>
-        <span style="font-size:9px;padding:2px 7px;background:rgba(184,144,42,.1);color:var(--gold);border-radius:10px;letter-spacing:.5px;">已結束</span>
-      </div>
-      <!-- 大指標 -->
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;padding-bottom:12px;border-bottom:1px dashed var(--line);margin-bottom:12px;">
-        <div style="text-align:center;">
-          <div style="font-size:9px;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase;margin-bottom:4px;">總營收</div>
-          <div id="s9-rev" style="font-family:'DM Mono',monospace;font-size:22px;font-weight:700;color:var(--blue);line-height:1;"></div>
-        </div>
-        <div style="text-align:center;border-left:1px solid var(--line);">
-          <div style="font-size:9px;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase;margin-bottom:4px;">總訂單</div>
-          <div id="s9-orders" style="font-family:'DM Mono',monospace;font-size:22px;font-weight:700;color:var(--teal);line-height:1;"></div>
-          <div id="s9-orders-sub" style="font-size:9px;color:var(--sub);margin-top:3px;"></div>
-        </div>
-        <div style="text-align:center;border-left:1px solid var(--line);">
-          <div style="font-size:9px;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase;margin-bottom:4px;">新客／回購</div>
-          <div id="s9-custs" style="font-family:'DM Mono',monospace;font-size:20px;font-weight:700;line-height:1;"></div>
-          <div id="s9-custs-sub" style="font-size:9px;color:var(--sub);margin-top:3px;"></div>
-        </div>
-        <div style="text-align:center;border-left:1px solid var(--line);">
-          <div style="font-size:9px;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase;margin-bottom:4px;">接單王</div>
-          <div id="s9-topname" style="font-size:14px;font-weight:700;color:var(--gold);line-height:1.2;"></div>
-          <div id="s9-toprev" style="font-size:9px;color:var(--sub);margin-top:3px;"></div>
-        </div>
-      </div>
-      <!-- 月度趨勢 + Top 5 並排 -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
-        <div>
-          <div style="font-size:10px;letter-spacing:1px;color:var(--sub);margin-bottom:6px;">📈 月度趨勢</div>
-          <div id="s9-monthly"></div>
-        </div>
-        <div>
-          <div style="font-size:10px;letter-spacing:1px;color:var(--sub);margin-bottom:6px;">🏆 接單王 Top 5</div>
-          <div id="s9-top-agents" style="display:flex;flex-direction:column;gap:4px;"></div>
-        </div>
-      </div>
-      <!-- 總結條 -->
-      <div style="margin-top:12px;padding:8px 12px;background:rgba(184,144,42,.06);border-left:3px solid var(--gold);border-radius:4px;">
-        <div style="display:flex;align-items:center;gap:8px;">
-          <span style="font-size:14px;">✨</span>
-          <div id="s9-summary" style="font-size:12px;line-height:1.5;color:var(--ink);"></div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
 
 </div>
 
@@ -1099,105 +1004,6 @@ function renderS7WeekdayHour(){
                </div>`;
 }
 
-// ═══════════════════════════════════════════════════════
-// 🆕 s8: 季度策略回顧（上=本季 vs 去年同期，下=上季完整）
-// ═══════════════════════════════════════════════════════
-function renderS9(){
-  const qr=D.quarter_review;
-  if(!qr||!qr.previous){
-    const el=document.getElementById('s9-rev');
-    if(el)el.textContent='—';
-    return;
-  }
-  
-  // ---------- 上區：本季 vs 去年同期 ----------
-  const cur=qr.current, lys=qr.ly_same_day, lyf=qr.ly_full;
-  
-  document.getElementById('s9-cur-quarter-label').textContent=cur.quarter_label;
-  document.getElementById('s9-cur-period').textContent=`${cur.period_label} · Day ${cur.days_into}/${cur.days_total}`;
-  document.getElementById('s9-cur-rev').textContent=fF(cur.rev);
-  document.getElementById('s9-cur-orders').textContent=`${cur.orders.toLocaleString()} 筆訂單`;
-  
-  document.getElementById('s9-ly-same-rev').textContent=fF(lys.rev);
-  document.getElementById('s9-ly-same-period').textContent=lys.quarter_label+' · 同期至同日';
-  if(lys.yoy_pct!==null && lys.yoy_pct!==undefined){
-    const col=lys.yoy_pct>=0?'var(--up)':'var(--dn)';
-    const arr=lys.yoy_pct>=0?'↑':'↓';
-    document.getElementById('s9-yoy').innerHTML=`<span style="color:${col};">${arr} ${Math.abs(lys.yoy_pct)}%</span> <span style="color:var(--sub);font-weight:400;">vs 去年同日</span>`;
-  }else{
-    document.getElementById('s9-yoy').textContent='';
-  }
-  
-  document.getElementById('s9-ly-full-rev').textContent=fF(lyf.rev);
-  document.getElementById('s9-ly-full-period').textContent=lyf.quarter_label+' · 完整季度';
-  if(lyf.progress_pct!==null && lyf.progress_pct!==undefined){
-    const col=lyf.progress_pct>=50?'var(--up)':(lyf.progress_pct>=25?'var(--gold)':'var(--sub)');
-    document.getElementById('s9-progress').innerHTML=`<span style="color:${col};">達 ${lyf.progress_pct}%</span> <span style="color:var(--sub);font-weight:400;">（本季至今／去年全季）</span>`;
-  }else{
-    document.getElementById('s9-progress').textContent='';
-  }
-  
-  // ---------- 下區：上季完整回顧 ----------
-  const prev=qr.previous;
-  document.getElementById('s9-prev-tag').textContent=prev.quarter_label+' 完整回顧';
-  document.getElementById('s9-prev-label').textContent=prev.quarter_label;
-  document.getElementById('s9-prev-period').textContent=prev.period_label;
-  
-  // 大指標
-  document.getElementById('s9-rev').textContent=fF(prev.total_rev);
-  document.getElementById('s9-orders').textContent=prev.total_orders.toLocaleString();
-  document.getElementById('s9-orders-sub').textContent=prev.total_orders>0?`平均 ${fN(Math.round(prev.total_rev/prev.total_orders))}/筆`:'';
-  document.getElementById('s9-custs').innerHTML=
-    `<span style="color:var(--up);">${prev.new_customers||0}</span><span style="color:var(--sub);font-size:16px;">/</span><span style="color:var(--blue);">${prev.returning||0}</span>`;
-  document.getElementById('s9-custs-sub').textContent=`新客佔 ${prev.new_pct||0}%`;
-  
-  const agents=prev.top_agents||[];
-  if(agents[0]){
-    document.getElementById('s9-topname').textContent=agents[0].name.length>8?agents[0].name.slice(0,8)+'…':agents[0].name;
-    document.getElementById('s9-toprev').textContent=fN(agents[0].rev);
-  }else{
-    document.getElementById('s9-topname').textContent='—';
-    document.getElementById('s9-toprev').textContent='';
-  }
-  
-  // 月度趨勢
-  const mt=prev.monthly||[];
-  if(mt.length>0){
-    const maxV=Math.max(...mt.map(m=>m.rev),1);
-    document.getElementById('s9-monthly').innerHTML=mt.map(m=>{
-      const w=Math.round(m.rev/maxV*100);
-      return `<div class="hrow" style="margin-bottom:5px;">
-        <div style="min-width:50px;font-size:11px;font-weight:500;color:var(--ink);">${m.label}</div>
-        <div class="hw" style="height:14px;flex:1;"><div class="hb" data-w="${w}" style="background:var(--blue);height:100%;border-radius:2px;"></div></div>
-        <div class="hend" style="min-width:58px;font-family:'DM Mono',monospace;font-size:10px;text-align:right;">${fN(m.rev)}</div>
-      </div>`;
-    }).join('');
-  }else{
-    document.getElementById('s9-monthly').innerHTML='<div style="padding:12px;text-align:center;color:var(--sub);font-size:11px;">無資料</div>';
-  }
-  
-  // Top 5 業務
-  const top5=agents.slice(0,5);
-  const rI=i=>i<3?['🥇','🥈','🥉'][i]:`<span style="font-family:'DM Mono',monospace;font-size:11px;font-weight:700;">${i+1}</span>`;
-  const rC=i=>i===0?'var(--gold)':i===1?'#9CA3AF':i===2?'#CD7F32':'var(--dim)';
-  if(top5.length){
-    document.getElementById('s9-top-agents').innerHTML=top5.map((a,i)=>
-      `<div style="display:flex;align-items:center;gap:8px;padding:5px 9px;background:var(--card2);border-radius:4px;border-left:3px solid ${rC(i)};">
-        <div style="width:18px;text-align:center;flex-shrink:0;">${rI(i)}</div>
-        <div style="flex:1;min-width:0;">
-          <div style="font-size:10px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${a.name}</div>
-        </div>
-        <div style="font-family:'DM Mono',monospace;font-size:11px;font-weight:700;color:${rC(i)};flex-shrink:0;">${fN(a.rev)}</div>
-      </div>`
-    ).join('');
-  }else{
-    document.getElementById('s9-top-agents').innerHTML='<div style="padding:10px;text-align:center;color:var(--sub);font-size:10px;">無業務資料</div>';
-  }
-  
-  // Summary
-  document.getElementById('s9-summary').textContent=prev.summary||'上季資料彙整中';
-}
-
 // 前月總結已移至獨立的月會專用網頁 output/monthly_review.html
 
 const DUR=20000;  // 每頁停留時間（毫秒）
@@ -1281,7 +1087,7 @@ renderNew6mChart();renderFvrChart();renderMemberChart();
 renderRfmGrid();renderActiveTiers();
 renderCombosList();renderPaySpeed();
 renderRepurchaseChart();renderTimeInsight();
-renderS7WeekdayHour();renderS9();
+renderS7WeekdayHour();
 
 if(IS_MOBILE){
   document.querySelectorAll('.slide').forEach(s=>s.classList.add('on'));

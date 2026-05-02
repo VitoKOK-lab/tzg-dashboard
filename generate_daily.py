@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 ════════════════════════════════════════════════════════════
@@ -665,6 +665,150 @@ def is_real_product(name):
     return not any(k in s for k in COMBO_EXCLUDE_KEYWORDS)
 
 # ═══════════════════════════════════════════════
+def compute_quarter_review(vd, ccol, today):
+    """季度策略回顧（上季完整回顧 + 本季 vs 去年同期）。
+    回傳 {'quarter_review': {...}, 'prev_top_agents': [...], 'prev_quarter_label': '...'}。
+    """
+    yr, mo = today.year, today.month
+
+    def quarter_bounds(year, q):
+        start_mo = (q - 1) * 3 + 1
+        end_mo = start_mo + 2
+        start = datetime(year, start_mo, 1)
+        end = datetime(year + 1, 1, 1) if end_mo >= 12 else datetime(year, end_mo + 1, 1)
+        return start, end, start_mo
+
+    def get_prev_quarter(year, q):
+        if q == 1:
+            return year - 1, 4
+        return year, q - 1
+
+    def quarter_stats(start_date, end_date, start_mo):
+        top_agents = []
+        if '推薦活動' in vd.columns:
+            q_base = vd[vd['推薦活動'].notna() & vd['推薦活動'].apply(is_real_agent)]
+            q_orders = order_level(in_range(q_base, start_date, end_date))
+            if len(q_orders) > 0:
+                q_agg = q_orders.groupby('推薦活動').agg(
+                    orders=('訂單號碼', 'count'),
+                    rev=('訂單合計', 'sum')
+                ).sort_values('rev', ascending=False).head(10)
+                for n, r in q_agg.iterrows():
+                    agent_orders = q_orders[q_orders['推薦活動'] == n]
+                    months_active = agent_orders['訂單日期'].dt.month.nunique()
+                    top_agents.append({
+                        'name': str(n),
+                        'orders': int(r['orders']),
+                        'rev': int(r['rev']),
+                        'months_active': int(months_active),
+                    })
+        monthly = []
+        for m_offset in range(3):
+            m = start_mo + m_offset
+            m_year = start_date.year if m <= 12 else start_date.year + 1
+            m_actual = m if m <= 12 else m - 12
+            m_start = datetime(m_year, m_actual, 1)
+            m_end = datetime(m_year + 1, 1, 1) if m_actual == 12 else datetime(m_year, m_actual + 1, 1)
+            m_orders_lv = order_level(in_range(vd, m_start, m_end))
+            m_rev = int(m_orders_lv['訂單合計'].sum()) if len(m_orders_lv) else 0
+            m_cnt = int(len(m_orders_lv))
+            is_cur = (m_year == yr) and (m_actual == mo)
+            monthly.append({
+                'month': m_actual, 'label': f'{m_actual}月',
+                'rev': m_rev, 'orders': m_cnt,
+                'is_current': is_cur, 'is_partial': is_cur,
+            })
+        new_count = ret_count = 0
+        q_custs = order_level(in_range(vd, start_date, end_date))
+        if len(q_custs) > 0 and ccol in q_custs.columns:
+            prev_custs = set(order_level(vd[vd['訂單日期'] < start_date])[ccol].dropna().unique())
+            for cust in q_custs[ccol].dropna().unique():
+                if cust in prev_custs:
+                    ret_count += 1
+                else:
+                    new_count += 1
+        total_rev = sum(m['rev'] for m in monthly)
+        total_orders = sum(m['orders'] for m in monthly)
+        return {
+            'top_agents': top_agents, 'monthly': monthly,
+            'total_rev': total_rev, 'total_orders': total_orders,
+            'new_customers': new_count, 'returning': ret_count,
+            'new_pct': round(new_count / (new_count + ret_count) * 100, 1) if (new_count + ret_count) else 0,
+        }
+
+    cur_quarter = (mo - 1) // 3 + 1
+    prev_yr, prev_q = get_prev_quarter(yr, cur_quarter)
+    cur_q_start, cur_q_end, _ = quarter_bounds(yr, cur_quarter)
+    prev_q_start, prev_q_end, prev_q_start_mo = quarter_bounds(prev_yr, prev_q)
+    ly_q_start, ly_q_end, _ = quarter_bounds(yr - 1, cur_quarter)
+    try:
+        ly_same_day_end = datetime(yr - 1, mo, today.day) + timedelta(days=1)
+    except ValueError:
+        ly_same_day_end = datetime(yr - 1, mo, today.day - 1) + timedelta(days=1)
+
+    prev_q_stats = quarter_stats(prev_q_start, prev_q_end, prev_q_start_mo)
+    cur_to_today_end = today + timedelta(days=1)
+    cur_q_rev = int(order_level(in_range(vd, cur_q_start, cur_to_today_end))['訂單合計'].sum())
+    cur_q_orders_cnt = int(len(order_level(in_range(vd, cur_q_start, cur_to_today_end))))
+    ly_same_rev = int(order_level(in_range(vd, ly_q_start, ly_same_day_end))['訂單合計'].sum())
+    ly_same_orders = int(len(order_level(in_range(vd, ly_q_start, ly_same_day_end))))
+    ly_full_rev = int(order_level(in_range(vd, ly_q_start, ly_q_end))['訂單合計'].sum())
+    ly_full_orders = int(len(order_level(in_range(vd, ly_q_start, ly_q_end))))
+    days_into_q = (today - cur_q_start).days + 1
+    days_total_q = (cur_q_end - cur_q_start).days
+    yoy_rev_pct = round((cur_q_rev - ly_same_rev) / ly_same_rev * 100, 1) if ly_same_rev > 0 else None
+    progress_pct = round(cur_q_rev / ly_full_rev * 100, 1) if ly_full_rev > 0 else None
+
+    prev_summary_parts = []
+    if prev_q_stats['top_agents']:
+        top_a = prev_q_stats['top_agents'][0]
+        prev_summary_parts.append(f"業績王 {top_a['name']} 貢獻 NT$ {top_a['rev']:,}")
+    prev_summary_parts.append(f"總營收 NT$ {prev_q_stats['total_rev']:,}")
+    if prev_q_stats['new_customers'] + prev_q_stats['returning'] > 0:
+        prev_summary_parts.append(f"新客佔 {prev_q_stats['new_pct']:.0f}%")
+
+    quarter_review = {
+        'current': {
+            'quarter_label': f'Q{cur_quarter}（{yr}年）',
+            'period_label': f'{cur_q_start.strftime("%m/%d")}–{today.strftime("%m/%d")}',
+            'rev': cur_q_rev, 'orders': cur_q_orders_cnt,
+            'days_into': days_into_q, 'days_total': days_total_q,
+        },
+        'ly_same_day': {
+            'quarter_label': f'Q{cur_quarter}（{yr-1}年）',
+            'period_label': f'{ly_q_start.strftime("%m/%d")}–{ly_same_day_end.strftime("%m/%d") if ly_same_day_end else ""}',
+            'rev': ly_same_rev, 'orders': ly_same_orders, 'yoy_pct': yoy_rev_pct,
+        },
+        'ly_full': {
+            'quarter_label': f'Q{cur_quarter}（{yr-1}年全季）',
+            'period_label': f'{ly_q_start.strftime("%m/%d")}–{(ly_q_end - timedelta(days=1)).strftime("%m/%d")}',
+            'rev': ly_full_rev, 'orders': ly_full_orders, 'progress_pct': progress_pct,
+        },
+        'previous': {
+            'quarter_label': f'Q{prev_q}（{prev_yr}年）',
+            'period_label': f'{prev_q_start.strftime("%m/%d")}–{(prev_q_end - timedelta(days=1)).strftime("%m/%d")}',
+            'top_agents': prev_q_stats['top_agents'],
+            'monthly': prev_q_stats['monthly'],
+            'total_rev': prev_q_stats['total_rev'],
+            'total_orders': prev_q_stats['total_orders'],
+            'new_customers': prev_q_stats['new_customers'],
+            'returning': prev_q_stats['returning'],
+            'new_pct': prev_q_stats['new_pct'],
+            'summary': ' · '.join(prev_summary_parts),
+        },
+    }
+    return {
+        'quarter_review': quarter_review,
+        'prev_top_agents': prev_q_stats['top_agents'],
+        'prev_quarter_label': f'Q{prev_q}（{prev_yr}年）',
+        'prev_q_start_year': prev_q_start.year,
+        'prev_q': prev_q,
+        'prev_total_rev': prev_q_stats['total_rev'],
+        'cur_q_rev': cur_q_rev, 'ly_same_rev': ly_same_rev, 'yoy_rev_pct': yoy_rev_pct,
+    }
+
+
+# ═══════════════════════════════════════════════
 def compute(df):
     today = MANUAL_TODAY or df['訂單日期'].max().to_pydatetime()
     today = today.replace(hour=23, minute=59, second=59, microsecond=0)
@@ -1075,196 +1219,14 @@ def compute(df):
     }
     
     # ═══════════════════════════════════════════════════════
-    # 🆕 季度策略回顧（雙視角：上季完整回顧 + 本季 vs 去年同期）
+    # 季度策略回顧（已搬到 monthly_review.html，這邊只計算給 D['strategy'] 用的回相容資料）
     # ═══════════════════════════════════════════════════════
-    
-    def quarter_bounds(year, q):
-        """回傳指定年份季度的 (起始日期, 結束日期)"""
-        start_mo = (q - 1) * 3 + 1
-        end_mo = start_mo + 2
-        start = datetime(year, start_mo, 1)
-        if end_mo >= 12:
-            end = datetime(year + 1, 1, 1)
-        else:
-            end = datetime(year, end_mo + 1, 1)
-        return start, end, start_mo
-    
-    def get_prev_quarter(year, q):
-        """取得上一個季度（考慮跨年）"""
-        if q == 1:
-            return year - 1, 4
-        return year, q - 1
-    
-    def quarter_stats(start_date, end_date, start_mo, label_prefix=''):
-        """計算指定季度的完整統計資料"""
-        # Top 業務
-        top_agents = []
-        if '推薦活動' in vd.columns:
-            q_base = vd[vd['推薦活動'].notna() & vd['推薦活動'].apply(is_real_agent)]
-            q_orders = order_level(in_range(q_base, start_date, end_date))
-            if len(q_orders) > 0:
-                q_agg = q_orders.groupby('推薦活動').agg(
-                    orders=('訂單號碼', 'count'),
-                    rev=('訂單合計', 'sum')
-                ).sort_values('rev', ascending=False).head(10)
-                for n, r in q_agg.iterrows():
-                    agent_orders = q_orders[q_orders['推薦活動'] == n]
-                    months_active = agent_orders['訂單日期'].dt.month.nunique()
-                    top_agents.append({
-                        'name': str(n),
-                        'orders': int(r['orders']),
-                        'rev': int(r['rev']),
-                        'months_active': int(months_active),
-                    })
-        
-        # 月度趨勢（3 個月）
-        monthly = []
-        for m_offset in range(3):
-            m = start_mo + m_offset
-            m_year = start_date.year if m <= 12 else start_date.year + 1
-            m_actual = m if m <= 12 else m - 12
-            m_start = datetime(m_year, m_actual, 1)
-            m_end = datetime(m_year + 1, 1, 1) if m_actual == 12 else datetime(m_year, m_actual + 1, 1)
-            m_orders_lv = order_level(in_range(vd, m_start, m_end))
-            m_rev = int(m_orders_lv['訂單合計'].sum()) if len(m_orders_lv) else 0
-            m_cnt = int(len(m_orders_lv))
-            # 判斷是否為當前正在進行的月份
-            is_cur = (m_year == yr) and (m_actual == mo)
-            monthly.append({
-                'month': m_actual,
-                'label': f'{m_actual}月',
-                'rev': m_rev,
-                'orders': m_cnt,
-                'is_current': is_cur,
-                'is_partial': is_cur,
-            })
-        
-        # 新客 vs 回購
-        new_count = 0
-        ret_count = 0
-        q_custs = order_level(in_range(vd, start_date, end_date))
-        if len(q_custs) > 0 and ccol in q_custs.columns:
-            prev_custs = set(order_level(vd[vd['訂單日期'] < start_date])[ccol].dropna().unique())
-            for cust in q_custs[ccol].dropna().unique():
-                if cust in prev_custs:
-                    ret_count += 1
-                else:
-                    new_count += 1
-        
-        # 總計
-        total_rev = sum(m['rev'] for m in monthly)
-        total_orders = sum(m['orders'] for m in monthly)
-        
-        return {
-            'top_agents': top_agents,
-            'monthly': monthly,
-            'total_rev': total_rev,
-            'total_orders': total_orders,
-            'new_customers': new_count,
-            'returning': ret_count,
-            'new_pct': round(new_count / (new_count + ret_count) * 100, 1) if (new_count + ret_count) else 0,
-        }
-    
-    # 本季 & 上季
-    cur_quarter = (mo - 1) // 3 + 1
-    prev_yr, prev_q = get_prev_quarter(yr, cur_quarter)
-    
-    cur_q_start, cur_q_end, cur_q_start_mo = quarter_bounds(yr, cur_quarter)
-    prev_q_start, prev_q_end, prev_q_start_mo = quarter_bounds(prev_yr, prev_q)
-    
-    # 去年同季（for 對比）
-    ly_q_start, ly_q_end, ly_q_start_mo = quarter_bounds(yr - 1, cur_quarter)
-    # 去年同季同日（至 去年的「今天對應日」）—— 公平比較
-    try:
-        ly_same_day_end = datetime(yr - 1, mo, today.day) + timedelta(days=1)
-    except ValueError:
-        # 處理 2/29 之類的極端情況
-        ly_same_day_end = datetime(yr - 1, mo, today.day - 1) + timedelta(days=1)
-    
-    # 上季完整回顧
-    prev_q_stats = quarter_stats(prev_q_start, prev_q_end, prev_q_start_mo, '上季')
-    
-    # 本季至今（2026 Q2: 4/1 ~ 4/22+1）
-    cur_to_today_end = today + timedelta(days=1)
-    cur_q_rev = int(order_level(in_range(vd, cur_q_start, cur_to_today_end))['訂單合計'].sum())
-    cur_q_orders_cnt = int(len(order_level(in_range(vd, cur_q_start, cur_to_today_end))))
-    
-    # 去年同季至「去年同日」（公平比較：2025 Q2 4/1-4/22）
-    ly_same_rev = int(order_level(in_range(vd, ly_q_start, ly_same_day_end))['訂單合計'].sum())
-    ly_same_orders = int(len(order_level(in_range(vd, ly_q_start, ly_same_day_end))))
-    
-    # 去年同季完整（2025 Q2 4/1-6/30）
-    ly_full_rev = int(order_level(in_range(vd, ly_q_start, ly_q_end))['訂單合計'].sum())
-    ly_full_orders = int(len(order_level(in_range(vd, ly_q_start, ly_q_end))))
-    
-    # 天數資訊
-    days_into_q = (today - cur_q_start).days + 1
-    days_total_q = (cur_q_end - cur_q_start).days
-    
-    # 成長率計算
-    if ly_same_rev > 0:
-        yoy_rev_pct = round((cur_q_rev - ly_same_rev) / ly_same_rev * 100, 1)
-    else:
-        yoy_rev_pct = None
-    if ly_full_rev > 0:
-        progress_pct = round(cur_q_rev / ly_full_rev * 100, 1)
-    else:
-        progress_pct = None
-    
-    # 上季總結文字
-    prev_summary_parts = []
-    if prev_q_stats['top_agents']:
-        top_a = prev_q_stats['top_agents'][0]
-        prev_summary_parts.append(f"業績王 {top_a['name']} 貢獻 NT$ {top_a['rev']:,}")
-    prev_summary_parts.append(f"總營收 NT$ {prev_q_stats['total_rev']:,}")
-    if prev_q_stats['new_customers'] + prev_q_stats['returning'] > 0:
-        prev_summary_parts.append(f"新客佔 {prev_q_stats['new_pct']:.0f}%")
-    
-    D['quarter_review'] = {
-        # 本季進行中 + vs 去年同期
-        'current': {
-            'quarter_label': f'Q{cur_quarter}（{yr}年）',
-            'period_label': f'{cur_q_start.strftime("%m/%d")}–{today.strftime("%m/%d")}',
-            'rev': cur_q_rev,
-            'orders': cur_q_orders_cnt,
-            'days_into': days_into_q,
-            'days_total': days_total_q,
-        },
-        'ly_same_day': {
-            'quarter_label': f'Q{cur_quarter}（{yr-1}年）',
-            'period_label': f'{ly_q_start.strftime("%m/%d")}–{ly_same_day_end.strftime("%m/%d") if ly_same_day_end else ""}',
-            'rev': ly_same_rev,
-            'orders': ly_same_orders,
-            'yoy_pct': yoy_rev_pct,  # 本季至今 vs 去年同期同日的成長率
-        },
-        'ly_full': {
-            'quarter_label': f'Q{cur_quarter}（{yr-1}年全季）',
-            'period_label': f'{ly_q_start.strftime("%m/%d")}–{(ly_q_end - timedelta(days=1)).strftime("%m/%d")}',
-            'rev': ly_full_rev,
-            'orders': ly_full_orders,
-            'progress_pct': progress_pct,  # 本季至今 已達 去年全季的 X%
-        },
-        # 上季完整回顧
-        'previous': {
-            'quarter_label': f'Q{prev_q}（{prev_yr}年）',
-            'period_label': f'{prev_q_start.strftime("%m/%d")}–{(prev_q_end - timedelta(days=1)).strftime("%m/%d")}',
-            'top_agents': prev_q_stats['top_agents'],
-            'monthly': prev_q_stats['monthly'],
-            'total_rev': prev_q_stats['total_rev'],
-            'total_orders': prev_q_stats['total_orders'],
-            'new_customers': prev_q_stats['new_customers'],
-            'returning': prev_q_stats['returning'],
-            'new_pct': prev_q_stats['new_pct'],
-            'summary': ' · '.join(prev_summary_parts),
-        },
-    }
-    print(f'[季度回顧] 上季={prev_q_start.year}Q{prev_q} 營收={prev_q_stats["total_rev"]:,} / '
-          f'本季進行中 {cur_q_rev:,} vs 去年同期 {ly_same_rev:,} (YoY {yoy_rev_pct}%)')
-    
-    # 保留舊的 top3_q1 相容性（給 s1 用，這裡改成「上季」資料）
-    D['strategy']['top3_q1'] = prev_q_stats['top_agents'][:10]
-    D['strategy']['prev_quarter_label'] = f'Q{prev_q}（{prev_yr}年）'
-    
+    _qr_pkg = compute_quarter_review(vd, ccol, today)
+    D['strategy']['top3_q1'] = _qr_pkg['prev_top_agents'][:10]
+    D['strategy']['prev_quarter_label'] = _qr_pkg['prev_quarter_label']
+    print(f'[季度回顧] 上季={_qr_pkg["prev_q_start_year"]}Q{_qr_pkg["prev_q"]} 營收={_qr_pkg["prev_total_rev"]:,} / '
+          f'本季進行中 {_qr_pkg["cur_q_rev"]:,} vs 去年同期 {_qr_pkg["ly_same_rev"]:,} (YoY {_qr_pkg["yoy_rev_pct"]}%)')
+
     # Unpaid - 新邏輯：付款狀態有值 且 不是已付款類 且 訂單狀態不是已取消類，48h 內
     if '付款狀態' in df.columns:
         pay_str = df['付款狀態'].fillna('').astype(str).str.strip()

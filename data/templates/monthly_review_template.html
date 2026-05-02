@@ -193,6 +193,7 @@ td.num{font-family:'DM Mono',monospace;}
   <div class="tab" data-page="p5">👥 客戶</div>
   <div class="tab" data-page="p6">📡 通路</div>
   <div class="tab" data-page="p7">📍 地區</div>
+  <div class="tab" data-page="p9">📅 季度策略回顧</div>
   <div class="tab" data-page="p8">⚙️ 目標設定</div>
 </div>
 
@@ -395,6 +396,92 @@ td.num{font-family:'DM Mono',monospace;}
   </div>
 </div>
 
+<!-- ============ Page 9: 季度策略回顧 ============ -->
+<div class="page" id="p9">
+  <div class="page-head">
+    <div class="sec-title">季度策略回顧</div>
+    <div class="sec-desc">本季 vs 去年同期 + 上季完整回顧</div>
+  </div>
+
+  <!-- 上區：本季進行中 vs 去年同期 -->
+  <div class="panel" style="padding:14px 18px;margin-bottom:10px;flex-shrink:0;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+      <div>
+        <div class="pl" style="margin:0;">📊 本季進行中 · 對比去年同期</div>
+        <div class="sec-desc" style="margin:3px 0 0;" id="qr-cur-period"></div>
+      </div>
+      <span style="font-size:11px;padding:3px 9px;background:rgba(217,75,107,.1);color:#D94B6B;border-radius:10px;letter-spacing:.5px;font-weight:600;" id="qr-cur-quarter-label">Q—</span>
+    </div>
+    <div class="row" style="display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:14px;">
+      <div style="padding:12px 14px;background:rgba(217,75,107,.06);border-left:3px solid #D94B6B;border-radius:4px;">
+        <div style="font-size:10px;letter-spacing:1.5px;color:#D94B6B;text-transform:uppercase;margin-bottom:6px;font-weight:700;">🔴 本季至今</div>
+        <div id="qr-cur-rev" style="font-family:'DM Mono',monospace;font-size:24px;font-weight:700;color:#D94B6B;line-height:1;"></div>
+        <div id="qr-cur-orders" style="font-size:11px;color:var(--sub);margin-top:4px;"></div>
+      </div>
+      <div style="padding:12px 14px;background:rgba(59,125,216,.05);border-left:3px solid #3B7DD8;border-radius:4px;">
+        <div style="font-size:10px;letter-spacing:1.5px;color:#3B7DD8;text-transform:uppercase;margin-bottom:6px;font-weight:700;">🔵 去年同期同日</div>
+        <div id="qr-ly-same-rev" style="font-family:'DM Mono',monospace;font-size:20px;font-weight:700;color:#3B7DD8;line-height:1;"></div>
+        <div id="qr-ly-same-period" style="font-size:10px;color:var(--sub);margin-top:2px;"></div>
+        <div id="qr-yoy" style="font-size:12px;margin-top:5px;font-weight:600;"></div>
+      </div>
+      <div style="padding:12px 14px;background:rgba(100,116,139,.06);border-left:3px solid var(--sub);border-radius:4px;">
+        <div style="font-size:10px;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase;margin-bottom:6px;font-weight:700;">⚫ 去年全季</div>
+        <div id="qr-ly-full-rev" style="font-family:'DM Mono',monospace;font-size:20px;font-weight:700;color:var(--ink);line-height:1;"></div>
+        <div id="qr-ly-full-period" style="font-size:10px;color:var(--sub);margin-top:2px;"></div>
+        <div id="qr-progress" style="font-size:12px;margin-top:5px;font-weight:600;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 下區：上季完整回顧 -->
+  <div class="panel" style="padding:14px 18px;flex:1;overflow:auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+      <div>
+        <div class="pl" style="margin:0;">🏆 <span id="qr-prev-label">上季</span> 完整回顧</div>
+        <div class="sec-desc" style="margin:3px 0 0;" id="qr-prev-period"></div>
+      </div>
+      <span style="font-size:11px;padding:3px 9px;background:rgba(184,144,42,.1);color:#B8902A;border-radius:10px;letter-spacing:.5px;font-weight:600;">已結束</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;padding-bottom:12px;border-bottom:1px dashed var(--line);margin-bottom:12px;">
+      <div style="text-align:center;">
+        <div style="font-size:10px;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase;margin-bottom:4px;">總營收</div>
+        <div id="qr-rev" style="font-family:'DM Mono',monospace;font-size:22px;font-weight:700;color:#3B7DD8;line-height:1;"></div>
+      </div>
+      <div style="text-align:center;border-left:1px solid var(--line);">
+        <div style="font-size:10px;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase;margin-bottom:4px;">總訂單</div>
+        <div id="qr-orders" style="font-family:'DM Mono',monospace;font-size:22px;font-weight:700;color:#0F8F85;line-height:1;"></div>
+        <div id="qr-orders-sub" style="font-size:10px;color:var(--sub);margin-top:3px;"></div>
+      </div>
+      <div style="text-align:center;border-left:1px solid var(--line);">
+        <div style="font-size:10px;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase;margin-bottom:4px;">新客／回購</div>
+        <div id="qr-custs" style="font-family:'DM Mono',monospace;font-size:20px;font-weight:700;line-height:1;"></div>
+        <div id="qr-custs-sub" style="font-size:10px;color:var(--sub);margin-top:3px;"></div>
+      </div>
+      <div style="text-align:center;border-left:1px solid var(--line);">
+        <div style="font-size:10px;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase;margin-bottom:4px;">接單王</div>
+        <div id="qr-topname" style="font-size:14px;font-weight:700;color:#B8902A;line-height:1.2;"></div>
+        <div id="qr-toprev" style="font-size:10px;color:var(--sub);margin-top:3px;"></div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+      <div>
+        <div style="font-size:11px;letter-spacing:1px;color:var(--sub);margin-bottom:6px;">📈 月度趨勢</div>
+        <div id="qr-monthly"></div>
+      </div>
+      <div>
+        <div style="font-size:11px;letter-spacing:1px;color:var(--sub);margin-bottom:6px;">🏆 接單王 Top 5</div>
+        <div id="qr-top-agents" style="display:flex;flex-direction:column;gap:5px;"></div>
+      </div>
+    </div>
+    <div style="margin-top:12px;padding:8px 12px;background:rgba(184,144,42,.06);border-left:3px solid #B8902A;border-radius:4px;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:14px;">✨</span>
+        <div id="qr-summary" style="font-size:12px;line-height:1.5;color:var(--ink);"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ============ Page 8: 目標設定（純顯示） ============ -->
 <div class="page" id="p8">
   <div class="page-head">
@@ -458,6 +545,7 @@ td.num{font-family:'DM Mono',monospace;}
 <script>
 const ALL_DATA={};
 const ORIGINAL_PLAN={};
+const QUARTER_REVIEW={};
 const TARGET_LS_KEY='tzg_target_overrides_v1';
 
 const fN=v=>'NT$ '+(v||0).toLocaleString();
@@ -1088,11 +1176,91 @@ function initSettings(){
   renderMonthlyTargetTable();
 }
 
+// ============ 季度策略回顧 ============
+function renderQuarterReview(){
+  const qr=QUARTER_REVIEW;
+  if(!qr||!qr.previous){
+    const el=document.getElementById('qr-rev'); if(el)el.textContent='—';
+    return;
+  }
+  const cur=qr.current, lys=qr.ly_same_day, lyf=qr.ly_full;
+  document.getElementById('qr-cur-quarter-label').textContent=cur.quarter_label;
+  document.getElementById('qr-cur-period').textContent=`${cur.period_label} · Day ${cur.days_into}/${cur.days_total}`;
+  document.getElementById('qr-cur-rev').textContent=fF(cur.rev);
+  document.getElementById('qr-cur-orders').textContent=`${cur.orders.toLocaleString()} 筆訂單`;
+  document.getElementById('qr-ly-same-rev').textContent=fF(lys.rev);
+  document.getElementById('qr-ly-same-period').textContent=lys.quarter_label+' · 同期至同日';
+  if(lys.yoy_pct!==null && lys.yoy_pct!==undefined){
+    const col=lys.yoy_pct>=0?'var(--up)':'var(--dn)';
+    const arr=lys.yoy_pct>=0?'↑':'↓';
+    document.getElementById('qr-yoy').innerHTML=`<span style="color:${col};">${arr} ${Math.abs(lys.yoy_pct)}%</span> <span style="color:var(--sub);font-weight:400;">vs 去年同日</span>`;
+  }else{ document.getElementById('qr-yoy').textContent=''; }
+  document.getElementById('qr-ly-full-rev').textContent=fF(lyf.rev);
+  document.getElementById('qr-ly-full-period').textContent=lyf.quarter_label+' · 完整季度';
+  if(lyf.progress_pct!==null && lyf.progress_pct!==undefined){
+    const col=lyf.progress_pct>=50?'var(--up)':(lyf.progress_pct>=25?'#B8902A':'var(--sub)');
+    document.getElementById('qr-progress').innerHTML=`<span style="color:${col};">達 ${lyf.progress_pct}%</span> <span style="color:var(--sub);font-weight:400;">（本季至今／去年全季）</span>`;
+  }else{ document.getElementById('qr-progress').textContent=''; }
+
+  const prev=qr.previous;
+  document.getElementById('qr-prev-label').textContent=prev.quarter_label;
+  document.getElementById('qr-prev-period').textContent=prev.period_label;
+  document.getElementById('qr-rev').textContent=fF(prev.total_rev);
+  document.getElementById('qr-orders').textContent=prev.total_orders.toLocaleString();
+  document.getElementById('qr-orders-sub').textContent=prev.total_orders>0?`平均 ${fF(Math.round(prev.total_rev/prev.total_orders))}/筆`:'';
+  document.getElementById('qr-custs').innerHTML=
+    `<span style="color:var(--up);">${prev.new_customers||0}</span><span style="color:var(--sub);font-size:16px;">/</span><span style="color:#3B7DD8;">${prev.returning||0}</span>`;
+  document.getElementById('qr-custs-sub').textContent=`新客佔 ${prev.new_pct||0}%`;
+
+  const agents=prev.top_agents||[];
+  if(agents[0]){
+    document.getElementById('qr-topname').textContent=agents[0].name.length>10?agents[0].name.slice(0,10)+'…':agents[0].name;
+    document.getElementById('qr-toprev').textContent=fF(agents[0].rev);
+  }else{
+    document.getElementById('qr-topname').textContent='—';
+    document.getElementById('qr-toprev').textContent='';
+  }
+
+  const mt=prev.monthly||[];
+  if(mt.length>0){
+    const maxV=Math.max(...mt.map(m=>m.rev),1);
+    document.getElementById('qr-monthly').innerHTML=mt.map(m=>{
+      const w=Math.round(m.rev/maxV*100);
+      return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+        <div style="min-width:42px;font-size:12px;font-weight:500;color:var(--ink);">${m.label}</div>
+        <div style="height:14px;flex:1;background:var(--bg2);border-radius:2px;overflow:hidden;"><div style="background:#3B7DD8;height:100%;width:${w}%;border-radius:2px;"></div></div>
+        <div style="min-width:72px;font-family:'DM Mono',monospace;font-size:11px;text-align:right;">${fF(m.rev)}</div>
+      </div>`;
+    }).join('');
+  }else{
+    document.getElementById('qr-monthly').innerHTML='<div style="padding:12px;text-align:center;color:var(--sub);font-size:11px;">無資料</div>';
+  }
+
+  const top5=agents.slice(0,5);
+  const rI=i=>i<3?['🥇','🥈','🥉'][i]:`<span style="font-family:'DM Mono',monospace;font-size:11px;font-weight:700;">${i+1}</span>`;
+  const rC=i=>i===0?'#B8902A':i===1?'#9CA3AF':i===2?'#CD7F32':'var(--sub)';
+  if(top5.length){
+    document.getElementById('qr-top-agents').innerHTML=top5.map((a,i)=>
+      `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg2);border-radius:4px;border-left:3px solid ${rC(i)};">
+        <div style="width:20px;text-align:center;flex-shrink:0;">${rI(i)}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${a.name}</div>
+        </div>
+        <div style="font-family:'DM Mono',monospace;font-size:12px;font-weight:700;color:${rC(i)};flex-shrink:0;">${fF(a.rev)}</div>
+      </div>`
+    ).join('');
+  }else{
+    document.getElementById('qr-top-agents').innerHTML='<div style="padding:10px;text-align:center;color:var(--sub);font-size:11px;">無業務資料</div>';
+  }
+  document.getElementById('qr-summary').textContent=prev.summary||'上季資料彙整中';
+}
+
 // ============ Init ============
 initTabs();
 const defaultMonth=initSelector();
 if(defaultMonth)renderAll(defaultMonth);
 initSettings();
+renderQuarterReview();
 </script>
 
 </body>
