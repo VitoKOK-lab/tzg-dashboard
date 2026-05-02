@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TZG 月會總結</title>
+<title>月報表</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&family=Cormorant+Garamond:wght@600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
@@ -20,18 +20,18 @@ html,body{height:100vh;overflow:hidden;font-family:'Noto Sans TC','微軟正黑�
 body{display:flex;flex-direction:column;}
 
 /* Header */
-.hdr{flex-shrink:0;background:#000;color:#fff;padding:10px 24px;display:flex;align-items:center;gap:20px;box-shadow:0 2px 8px rgba(0,0,0,.1);}
-.hdr-logo{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:700;}
-.hdr-logo em{color:var(--coral);font-style:normal;}
-.hdr-sub{font-size:10px;letter-spacing:2px;color:rgba(255,255,255,.6);text-transform:uppercase;}
+.hdr{flex-shrink:0;background:#FFB6C1;color:#1E3A5F;padding:10px 24px;display:flex;align-items:center;gap:20px;box-shadow:0 2px 8px rgba(0,0,0,.1);}
+.hdr-logo{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:700;color:#1E3A5F;}
+.hdr-logo em{color:#D94B6B;font-style:normal;}
+.hdr-sub{font-size:10px;letter-spacing:2px;color:rgba(30,58,95,.6);text-transform:uppercase;}
 .hdr-spacer{flex:1;}
 .hdr-month{display:flex;align-items:center;gap:8px;}
-.hdr-month label{font-size:11px;color:rgba(255,255,255,.6);letter-spacing:1px;}
-#month-select{font-family:'DM Mono',monospace;font-size:13px;font-weight:600;padding:5px 12px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:4px;cursor:pointer;outline:none;}
-#month-select option{background:#222;color:#fff;}
+.hdr-month label{font-size:11px;color:rgba(30,58,95,.6);letter-spacing:1px;}
+#month-select{font-family:'DM Mono',monospace;font-size:13px;font-weight:600;padding:5px 12px;background:rgba(255,255,255,.5);border:1px solid rgba(30,58,95,.25);color:#1E3A5F;border-radius:4px;cursor:pointer;outline:none;}
+#month-select option{background:#fff;color:#1E3A5F;}
 
 /* Tabs */
-.tabs{flex-shrink:0;background:#fff;border-bottom:1px solid var(--line);padding:0 24px;display:flex;overflow-x:auto;}
+.tabs{flex-shrink:0;background:#fff;border-bottom:1px solid var(--line);padding:0 24px;display:flex;overflow-x:auto;position:sticky;top:0;z-index:100;}
 .tab{padding:10px 16px;font-size:13px;font-weight:500;cursor:pointer;color:var(--sub);border-bottom:3px solid transparent;white-space:nowrap;transition:all .15s;}
 .tab:hover{color:var(--ink);}
 .tab.on{color:var(--ink);border-bottom-color:var(--gold);font-weight:700;}
@@ -174,7 +174,7 @@ td.num{font-family:'DM Mono',monospace;}
 
 <div class="hdr">
   <div>
-    <div class="hdr-logo">TZG <em>·</em> 月會總結</div>
+    <div class="hdr-logo">月報表</div>
     <div class="hdr-sub">Monthly Review Dashboard</div>
   </div>
   <div class="hdr-spacer"></div>
