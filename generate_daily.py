@@ -385,6 +385,7 @@ def compute_month_review(vd, ccol, yr, mo, target=None):
 
     # 業務排名（含 orders, rev, new_clients, avg）
     pm_agents = []
+    pm_agents_time = {}  # 🆕 每位業務的工作時間分布（dow + hour）
     if '推薦活動' in pm_lines.columns:
         ag_b = pm_lines[pm_lines['推薦活動'].notna() & pm_lines['推薦活動'].apply(is_real_agent)]
         if len(ag_b):
@@ -395,11 +396,12 @@ def compute_month_review(vd, ccol, yr, mo, target=None):
                 customers=(ccol, 'nunique'),
             ).sort_values('rev', ascending=False).reset_index()
             for i, r in ag_g.iterrows():
+                ag_name = str(r['推薦活動'])
                 # 計算這位業務本月的新客數
                 ag_custs = set(ag_o[ag_o['推薦活動'] == r['推薦活動']][ccol].dropna().unique())
                 new_for_ag = sum(1 for c in ag_custs if c in first_ord_all.index and first_ord_all[c] >= pm_s)
                 pm_agents.append({
-                    'name': str(r['推薦活動']),
+                    'name': ag_name,
                     'orders': int(r['orders']),
                     'rev': int(r['rev']),
                     'customers': int(r['customers']),
@@ -407,6 +409,17 @@ def compute_month_review(vd, ccol, yr, mo, target=None):
                     'avg_order': int(r['rev'] / r['orders']) if r['orders'] else 0,
                     'rank': i + 1,
                 })
+                # 🆕 工作時間分布（取前 12 名業務，避免資料過大）
+                if i < 12:
+                    a_orders = ag_o[ag_o['推薦活動'] == r['推薦活動']]
+                    dow_counts = a_orders.groupby(a_orders['訂單日期'].dt.dayofweek).size()
+                    hr_counts = a_orders.groupby(a_orders['訂單日期'].dt.hour).size()
+                    pm_agents_time[ag_name] = {
+                        'dow': [int(dow_counts.get(d, 0)) for d in range(7)],
+                        'hour': [int(hr_counts.get(h, 0)) for h in range(24)],
+                        'peak_dow': int(dow_counts.idxmax()) if len(dow_counts) else None,
+                        'peak_hour': int(hr_counts.idxmax()) if len(hr_counts) else None,
+                    }
 
     # 商品（依營收 / 依數量）
     pm_prod_rev = pm_lines.groupby('商品名稱').agg(
@@ -450,8 +463,9 @@ def compute_month_review(vd, ccol, yr, mo, target=None):
             'new_pct': round(new_in_src / r['customers'] * 100, 1) if r['customers'] else 0,
         })
 
-    # 城市（全部，不止 Top 8）
+    # 城市（全部，不止 Top 8）+ 鄉鎮市區下鑽
     pm_cities = []
+    pm_towns_by_city = {}  # 🆕 每個城市底下的鄉鎮市區分布
     if '城市' in pm_ord.columns:
         city_g = pm_ord[
             pm_ord['城市'].notna() & (pm_ord['城市'].astype(str).str.strip() != '')
@@ -460,14 +474,40 @@ def compute_month_review(vd, ccol, yr, mo, target=None):
             rev=('訂單合計', 'sum'),
             customers=(ccol, 'nunique'),
         ).sort_values('rev', ascending=False).reset_index()
+        # 抽取每筆訂單的鄉鎮（從 完整地址 / 地址 1）
+        addr_col = '完整地址' if '完整地址' in pm_ord.columns else ('地址 1' if '地址 1' in pm_ord.columns else None)
+        if addr_col:
+            tmp = pm_ord[pm_ord['城市'].notna()].copy()
+            tmp['_town'] = tmp[addr_col].apply(extract_town)
+            tmp = tmp[tmp['_town'].notna()]
+        else:
+            tmp = pm_ord.iloc[0:0]
         for _, r in city_g.iterrows():
+            city_name = str(r['城市'])
             pm_cities.append({
-                'city': str(r['城市']),
+                'city': city_name,
                 'orders': int(r['orders']),
                 'customers': int(r['customers']),
                 'rev': int(r['rev']),
                 'aov': int(r['rev'] / r['orders']) if r['orders'] else 0,
             })
+            # 該城市的鄉鎮明細
+            if len(tmp) > 0:
+                ct = tmp[tmp['城市'] == city_name]
+                if len(ct) > 0:
+                    tg = ct.groupby('_town').agg(
+                        orders=('訂單號碼', 'count'),
+                        rev=('訂單合計', 'sum'),
+                        customers=(ccol, 'nunique'),
+                    ).sort_values('rev', ascending=False).reset_index()
+                    pm_towns_by_city[city_name] = [
+                        {'town': str(tr['_town']),
+                         'orders': int(tr['orders']),
+                         'rev': int(tr['rev']),
+                         'customers': int(tr['customers']),
+                         'aov': int(tr['rev']/tr['orders']) if tr['orders'] else 0}
+                        for _, tr in tg.iterrows()
+                    ]
 
     # 首購 vs 回購 AOV
     if pm_new + pm_ret > 0:
@@ -608,6 +648,8 @@ def compute_month_review(vd, ccol, yr, mo, target=None):
         'mom_pct':      mom_pct,
         'daily':        pm_daily,
         'agents':       pm_agents,
+        'agents_time':  pm_agents_time,
+        'towns_by_city': pm_towns_by_city,
         'top_prod_rev': pm_top_prod_rev,
         'top_prod_qty': pm_top_prod_qty,
         'sources':      pm_sources,
@@ -644,11 +686,17 @@ def clean_city(c):
 def extract_town(addr):
     if pd.isna(addr): return None
     s = str(addr).strip().replace('台', '臺')
-    s2 = re.sub(r'^[\s\d]*(?:臺北市|新北市|桃園市|臺中市|臺南市|高雄市|基隆市|新竹市|嘉義市|新竹縣|苗栗縣|彰化縣|南投縣|雲林縣|嘉義縣|屏東縣|宜蘭縣|花蓮縣|臺東縣|澎湖縣|金門縣|連江縣)', '', s)
-    m = re.search(r'([^\s\d]{1,4}?(?:區|鄉|鎮|市))', s2)
+    # 找城市後的下一段「XX區/鄉/鎮/市」，城市前可以有任何前綴
+    m = re.search(r'(?:臺北市|新北市|桃園市|臺中市|臺南市|高雄市|基隆市|新竹市|嘉義市|新竹縣|苗栗縣|彰化縣|南投縣|雲林縣|嘉義縣|屏東縣|宜蘭縣|花蓮縣|臺東縣|澎湖縣|金門縣|連江縣)\s*([^\s\d]{1,4}(?:區|鄉|鎮|市))', s)
     if m:
         town = m.group(1)
         if len(town) < 2: return None
+        if town in ['臺北', '新北', '桃園', '臺中', '臺南', '高雄']: return None
+        return town
+    # 後備：直接抓 「XX區/鄉/鎮」（除了城市縮寫）
+    m = re.search(r'([^\s\d]{2,4}?(?:區|鄉|鎮))', s)
+    if m:
+        town = m.group(1)
         if town in ['臺北', '新北', '桃園', '臺中', '臺南', '高雄']: return None
         return town
     return None
