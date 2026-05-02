@@ -11,10 +11,10 @@ echo ===================================================
 echo.
 
 REM ============ Step 1: Python check ============
-python --version >nul 2>&1
+"C:\Users\user\AppData\Local\Programs\Python\Python313\python.exe" --version >nul 2>&1
 if errorlevel 1 (
     echo ERROR: Python not found!
-    echo Please install Python from https://www.python.org/downloads/
+    echo Please install Python from https://www."C:\Users\user\AppData\Local\Programs\Python\Python313\python.exe".org/downloads/
     pause
     exit /b 1
 )
@@ -53,7 +53,7 @@ if exist ".env" (
     echo  Downloading from Shopline...
     echo ===================================================
     echo.
-    python auto_shopline.py
+    "C:\Users\user\AppData\Local\Programs\Python\Python313\python.exe" auto_shopline.py
     if errorlevel 1 (
         echo.
         echo WARNING: Shopline download failed. Continuing with existing data...
@@ -77,7 +77,7 @@ if exist ".env" (
         echo  Re-archiving last month ^(safety net, day !_DAYNUM!/7^)...
         echo ===================================================
         echo.
-        python re_archive_month.py
+        "C:\Users\user\AppData\Local\Programs\Python\Python313\python.exe" re_archive_month.py
         if errorlevel 1 (
             echo WARNING: Re-archive failed, continuing...
             echo.
@@ -98,7 +98,7 @@ echo  Generating Dashboard...
 echo ===================================================
 echo.
 
-python generate_daily.py
+"C:\Users\user\AppData\Local\Programs\Python\Python313\python.exe" generate_daily.py
 
 if errorlevel 1 (
     echo.
@@ -117,7 +117,7 @@ echo  Generating Monthly Review...
 echo ===================================================
 echo.
 
-python generate_monthly_review.py
+"C:\Users\user\AppData\Local\Programs\Python\Python313\python.exe" generate_monthly_review.py
 if errorlevel 1 (
     echo WARNING: Monthly review generation failed, continuing...
     echo.
