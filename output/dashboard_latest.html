@@ -74,13 +74,13 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
 .sdot.on{background:#fff;width:28px;}
 #snum{font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:11px;color:rgba(255,255,255,.6);}
 
-#astrip{position:fixed;top:56px;left:0;right:0;height:30px;background:#000;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 22px;gap:14px;z-index:400;}
+#astrip{position:fixed;top:56px;left:0;right:0;height:56px;background:#000;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 28px;gap:16px;z-index:400;}
 #astrip .al{color:rgba(255,255,255,.55);}
 #astrip .av2{color:#fff;}
 #astrip #a-pct{color:#FF8FAB;}
 #astrip .abar{background:rgba(255,255,255,.15);}
-.al{font-size:9px;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase;white-space:nowrap;}
-.av2{font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:14px;color:var(--ink);white-space:nowrap;font-weight:500;}
+.al{font-size:10px;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase;white-space:nowrap;}
+.av2{font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:16px;color:var(--ink);white-space:nowrap;font-weight:500;}
 .abar{flex:1;height:7px;background:rgba(30,58,95,.08);border-radius:4px;overflow:hidden;position:relative;}
 .abar-f{height:100%;border-radius:4px;background:linear-gradient(90deg,#FF8FAB,#FFB6C1);transition:width 2s cubic-bezier(.23,1,.32,1);}
 .abar-t{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--coral);}
@@ -93,8 +93,8 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
 #prog{position:fixed;bottom:0;left:0;right:0;height:2px;background:rgba(30,58,95,.06);z-index:500;}
 #pfill{height:100%;width:0%;background:linear-gradient(90deg,var(--coral),var(--gold));transition:width .12s linear;}
 
-#slides{position:absolute;top:86px;left:0;right:0;bottom:2px;}
-.slide{position:absolute;inset:0;opacity:0;pointer-events:none;transition:opacity .5s ease;padding:14px 22px 12px;display:flex;flex-direction:column;gap:12px;}
+#slides{position:absolute;top:112px;left:0;right:0;bottom:2px;}
+.slide{position:absolute;inset:0;opacity:0;pointer-events:none;transition:opacity .5s ease;padding:24px 28px 22px;display:flex;flex-direction:column;gap:14px;}
 .slide.on{opacity:1;pointer-events:all;}
 
 .sh{display:flex;align-items:baseline;gap:14px;flex-shrink:0;flex-wrap:wrap;}
