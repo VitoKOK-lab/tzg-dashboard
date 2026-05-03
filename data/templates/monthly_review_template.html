@@ -19,15 +19,16 @@
 html,body{height:100vh;overflow:hidden;font-family:'Noto Sans TC','微軟正黑體',sans-serif;color:var(--ink);background:var(--bg);font-size:13px;line-height:1.4;}
 body{display:flex;flex-direction:column;}
 
-/* Header */
-.hdr{flex-shrink:0;background:#FFB6C1;color:#1E3A5F;padding:10px 24px;display:flex;align-items:center;gap:20px;box-shadow:0 2px 8px rgba(0,0,0,.1);}
-.hdr-logo{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:700;color:#1E3A5F;}
+/* Header（與日報表 #topbar 同比例 / 同字型） */
+.hdr{flex-shrink:0;height:56px;background:#FFB6C1;color:#1E3A5F;padding:0;display:flex;align-items:stretch;box-shadow:0 2px 8px rgba(0,0,0,.1);}
+.hdr-logo-box{display:flex;flex-direction:column;justify-content:center;padding:0 22px;border-right:1px solid rgba(30,58,95,.18);white-space:nowrap;}
+.hdr-logo{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:700;color:#1E3A5F;line-height:1.1;}
 .hdr-logo em{color:#D94B6B;font-style:normal;}
-.hdr-sub{font-size:10px;letter-spacing:2px;color:rgba(30,58,95,.6);text-transform:uppercase;}
+.hdr-sub{font-size:9px;letter-spacing:2px;color:rgba(30,58,95,.7);text-transform:uppercase;margin-top:2px;}
 .hdr-spacer{flex:1;}
-.hdr-month{display:flex;align-items:center;gap:8px;}
-.hdr-month label{font-size:11px;color:rgba(30,58,95,.6);letter-spacing:1px;}
-#month-select{font-family:'DM Mono',monospace;font-size:13px;font-weight:600;padding:5px 12px;background:rgba(255,255,255,.5);border:1px solid rgba(30,58,95,.25);color:#1E3A5F;border-radius:4px;cursor:pointer;outline:none;}
+.hdr-month{display:flex;align-items:center;gap:8px;padding:0 22px;}
+.hdr-month label{font-size:11px;color:rgba(30,58,95,.7);letter-spacing:1px;}
+#month-select{font-family:'DM Mono',monospace;font-size:13px;font-weight:600;padding:5px 12px;background:rgba(255,255,255,.55);border:1px solid rgba(30,58,95,.25);color:#1E3A5F;border-radius:4px;cursor:pointer;outline:none;}
 #month-select option{background:#fff;color:#1E3A5F;}
 
 /* Topbar wrapper（hdr + tabs 一起黏在最上方） */
@@ -103,13 +104,14 @@ td.num{font-family:'DM Mono',monospace;}
   /* Topbar wrapper：手機 sticky 黏在最上方，hdr + tabs 一起跟著畫面 */
   .topbar-wrap{position:sticky;top:0;z-index:100;background:#000;}
 
-  /* Header 縮小 + 月份切換移到下一行 */
-  .hdr{padding:10px 14px;gap:8px;flex-wrap:wrap;}
+  /* Header（與日報表手機規格對齊：logo 縮小但保留 sub，月份切換放右邊） */
+  .hdr{height:auto;flex-wrap:wrap;align-items:center;}
+  .hdr-logo-box{padding:8px 14px;border-right:none;}
   .hdr-logo{font-size:17px;}
-  .hdr-sub{display:none;}
+  .hdr-sub{font-size:8.5px;}
   .hdr-spacer{display:none;}
-  .hdr-month{width:100%;justify-content:space-between;padding-top:6px;border-top:1px solid rgba(255,255,255,.12);margin-top:2px;}
-  #month-select{padding:4px 10px;font-size:12px;flex:1;max-width:200px;}
+  .hdr-month{width:100%;justify-content:space-between;padding:6px 14px 8px;border-top:1px solid rgba(30,58,95,.15);}
+  #month-select{padding:4px 10px;font-size:12px;flex:1;max-width:240px;}
 
   /* Tabs 橫向滑動 */
   .tabs{padding:0 6px;background:#000;}
@@ -187,9 +189,9 @@ td.num{font-family:'DM Mono',monospace;}
 
 <div class="topbar-wrap">
 <div class="hdr">
-  <div>
+  <div class="hdr-logo-box">
     <div class="hdr-logo">電商部-月報表</div>
-    <div class="hdr-sub">Monthly Review Dashboard</div>
+    <div class="hdr-sub">TZG Monthly Review</div>
   </div>
   <div class="hdr-spacer"></div>
   <div class="hdr-month">
