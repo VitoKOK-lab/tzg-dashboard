@@ -1083,6 +1083,68 @@ def compute(df):
     D['dormant_45'] = dormant[:10]  # 變數名保留相容性，實際是 60 天 Top 10
     print(f'[沒人買] ≥{DORMANT_THRESHOLD}天：{len(dormant)} 項（取 Top 10）')
     
+    # 客戶趨勢：最近 30 天 vs 之前 90 天（換算成 30 天平均）
+    # 給 s4 地區業績那一頁的「客戶趨勢」用
+    trend_end           = today + timedelta(days=1)
+    recent_30_start     = today - timedelta(days=29)
+    prior_90_end        = recent_30_start
+    prior_90_start      = recent_30_start - timedelta(days=90)
+    recent_lines        = in_range(vd, recent_30_start, trend_end)
+    prior_lines         = in_range(vd, prior_90_start, prior_90_end)
+    recent_orders       = order_level(recent_lines)
+    prior_orders        = order_level(prior_lines)
+    first_ord_global    = vd.groupby(ccol)['訂單日期'].min()
+    def split_new_old(orders_df, window_start):
+        custs = set(orders_df[ccol].dropna().unique())
+        new   = sum(1 for c in custs if c in first_ord_global.index and first_ord_global[c] >= window_start)
+        old   = len(custs) - new
+        return len(custs), new, old
+    r_total, r_new, r_old = split_new_old(recent_orders, recent_30_start)
+    p_total, p_new, p_old = split_new_old(prior_orders,  prior_90_start)
+    # 將 90 天 → 換算成 30 天（除以 3）
+    def per30(x): return round(x / 3)
+    r_rev   = int(recent_orders['訂單合計'].sum()) if len(recent_orders) else 0
+    p_rev   = int(prior_orders['訂單合計'].sum())  if len(prior_orders)  else 0
+    r_aov   = int(r_rev / max(len(recent_orders), 1)) if len(recent_orders) else 0
+    p_aov   = int(p_rev / max(len(prior_orders),  1)) if len(prior_orders)  else 0
+    r_pct_new = round(r_new / max(r_total, 1) * 100, 1)
+    p_pct_new = round(p_new / max(p_total, 1) * 100, 1)
+    # 重複下單率（同一客戶 ≥ 2 單 / 總客戶）
+    def repeat_rate(orders_df):
+        custs = orders_df[ccol].dropna()
+        if len(custs) == 0: return 0
+        cnt = custs.value_counts()
+        repeat = (cnt >= 2).sum()
+        total  = len(cnt)
+        return round(repeat / total * 100, 1) if total else 0
+    r_repeat = repeat_rate(recent_orders)
+    p_repeat = repeat_rate(prior_orders)
+    D['customer_trend'] = {
+        'recent_label': f'最近 30 天 ({recent_30_start:%m/%d}–{today:%m/%d})',
+        'prior_label':  f'之前 90 天 ({prior_90_start:%m/%d}–{(prior_90_end - timedelta(days=1)):%m/%d}) ÷ 3',
+        'recent': {
+            'orders':    int(len(recent_orders)),
+            'customers': r_total,
+            'new':       r_new,
+            'old':       r_old,
+            'new_pct':   r_pct_new,
+            'rev':       r_rev,
+            'aov':       r_aov,
+            'repeat_rate': r_repeat,
+        },
+        'prior_per30': {
+            'orders':    per30(len(prior_orders)),
+            'customers': per30(p_total),
+            'new':       per30(p_new),
+            'old':       per30(p_old),
+            'new_pct':   p_pct_new,
+            'rev':       per30(p_rev),
+            'aov':       p_aov,
+            'repeat_rate': p_repeat,
+        },
+    }
+    print(f'[客戶趨勢] 最近30天 {r_total}人 / 90天平均 {per30(p_total)}人/月')
+
     # Customers TOP 10
     cs = mtd_ord2.groupby(ccol).agg(orders=('訂單號碼','count'), rev=('訂單合計','sum')).reset_index()
     nmap = mtd_lines.drop_duplicates(ccol).set_index(ccol)['顧客'].to_dict() if '顧客' in mtd_lines.columns else {}

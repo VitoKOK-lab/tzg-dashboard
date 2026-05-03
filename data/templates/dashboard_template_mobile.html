@@ -914,7 +914,49 @@ function renderActiveTiers(){
 }
 function renderNew6mChart(){
   const d=D.new_6m;
-  makeChart('new6m-chart',{type:'bar',data:{labels:d.map(m=>m.label),datasets:[{label:'新客',data:d.map(m=>m.new),backgroundColor:'rgba(15,143,133,.75)',borderRadius:3},{label:'舊客',data:d.map(m=>m.old),backgroundColor:'rgba(217,75,107,.72)',borderRadius:3}]},options:{animation:{duration:1000,easing:'easeInOutQuart'},responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{boxWidth:10}}},scales:{x:{grid:{display:false}},y:{grid:{color:'rgba(30,58,95,.05)'}}}}});
+  makeChart('new6m-chart',{
+    type:'bar',
+    data:{
+      labels:d.map(m=>m.label),
+      datasets:[
+        // 堆疊長條（新/舊客數量，左 Y 軸）
+        {type:'bar', label:'新客',  yAxisID:'y',  data:d.map(m=>m.new),    backgroundColor:'rgba(15,143,133,.75)', borderRadius:3, stack:'cust', order:3},
+        {type:'bar', label:'舊客',  yAxisID:'y',  data:d.map(m=>m.old),    backgroundColor:'rgba(217,75,107,.72)', borderRadius:3, stack:'cust', order:3},
+        // 折線圖 — 新客比例與總客數（右 Y 軸）
+        {type:'line', label:'新客比例 %',  yAxisID:'y1', data:d.map(m=>m.new_pct),
+          borderColor:'#3B7DD8', backgroundColor:'#3B7DD8', borderWidth:2,
+          pointRadius:3, pointBackgroundColor:'#fff', pointBorderColor:'#3B7DD8', pointBorderWidth:2,
+          tension:0.3, order:1},
+        {type:'line', label:'總客數', yAxisID:'y', data:d.map(m=>m.new+m.old),
+          borderColor:'#B8902A', backgroundColor:'#B8902A', borderWidth:2, borderDash:[5,3],
+          pointRadius:2.5, pointBackgroundColor:'#B8902A',
+          tension:0.3, order:2},
+      ]
+    },
+    options:{
+      animation:{duration:1000,easing:'easeInOutQuart'},
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{labels:{boxWidth:10,font:{size:9.5}}},
+        tooltip:{
+          callbacks:{
+            afterBody:(items)=>{
+              const i=items[0].dataIndex;
+              const m=d[i];
+              const tot=m.new+m.old;
+              return [`新/舊比：${m.new_pct}% / ${m.old_pct||(100-m.new_pct).toFixed(1)}%`, `合計：${tot} 位`];
+            }
+          }
+        }
+      },
+      scales:{
+        x:{stacked:true, grid:{display:false}},
+        y :{stacked:true, position:'left',  grid:{color:'rgba(30,58,95,.05)'}, title:{display:true,text:'人數',font:{size:9}}},
+        y1:{stacked:false, position:'right', grid:{display:false}, min:0, max:100,
+            ticks:{callback:v=>v+'%'}, title:{display:true,text:'新客%',font:{size:9}}},
+      }
+    }
+  });
 }
 function renderFvrChart(){
   const fvr=D.first_vs_return;
@@ -1005,62 +1047,59 @@ function renderS7WeekdayHour(){
                </div>`;
 }
 
-// 客戶趨勢（s4 區地區業績 · 第三欄下半）：3 個月前 → 現在的純變動列表
+// 客戶趨勢（s4 地區業績 · 第三欄下半）：最近 30 天 vs 之前 90 天平均（同 30 天基準）
 function renderCustomerTrend(){
   const el=document.getElementById('customer-trend');
   if(!el)return;
-  const n6=D.new_6m||[];
-  if(n6.length<4){el.innerHTML='<div style="color:var(--sub);">資料不足，需要至少 4 個月歷史</div>';return;}
-  // 3 個月前 vs 現在
-  const past=n6[n6.length-4]||n6[0];
-  const now =n6[n6.length-1];
-  const k=D.kpi||{};
-  const churn=D.churn||{};
+  const t=D.customer_trend;
+  if(!t||!t.recent||!t.prior_per30){
+    el.innerHTML='<div style="color:var(--sub);">資料不足</div>';
+    return;
+  }
+  const r=t.recent, p=t.prior_per30;
 
-  const fmtDelta=(a,b,unit='')=>{
+  const delta=(a,b,unit='')=>{
     const d=a-b;
-    if(d===0)return `<span style="color:var(--sub);">維持 ${a}${unit}</span>`;
+    if(b===0 && a===0) return `<span style="color:var(--sub);">無資料</span>`;
+    if(d===0) return `<span style="color:var(--sub);">持平 ${a}${unit}</span>`;
     const arr=d>0?'↑':'↓';
     const col=d>0?'var(--up)':'var(--dn)';
     const pct=b!==0?` (${(d/b*100).toFixed(1)}%)`:'';
-    return `<span style="color:${col};font-weight:600;">${arr} ${Math.abs(d)}${unit}${pct}</span>`;
+    return `<span style="color:${col};font-weight:600;">${arr} ${Math.abs(d).toLocaleString()}${unit}${pct}</span>`;
   };
-  const fmtPctDelta=(a,b)=>{
+  const dpp=(a,b)=>{
     const d=a-b;
-    if(Math.abs(d)<0.05)return `<span style="color:var(--sub);">維持 ${a.toFixed(1)}%</span>`;
+    if(Math.abs(d)<0.05) return `<span style="color:var(--sub);">持平 ${a.toFixed(1)}%</span>`;
     const arr=d>0?'↑':'↓';
     const col=d>0?'var(--up)':'var(--dn)';
     return `<span style="color:${col};font-weight:600;">${arr} ${Math.abs(d).toFixed(1)} pp</span>`;
   };
+  const dRev=(a,b)=>{
+    const d=a-b;
+    if(d===0) return `<span style="color:var(--sub);">持平</span>`;
+    const arr=d>0?'↑':'↓';
+    const col=d>0?'var(--up)':'var(--dn)';
+    const pct=b!==0?` (${(d/b*100).toFixed(1)}%)`:'';
+    return `<span style="color:${col};font-weight:600;">${arr} ${fN(Math.abs(d))}${pct}</span>`;
+  };
 
-  const items=[];
-  // 1. 月活躍總人數（new + old）
-  const totalNow=now.new+now.old, totalPast=past.new+past.old;
-  items.push(`📊 <b>月活躍客數</b>：${past.label} ${totalPast} 位 → ${now.label} ${totalNow} 位 ${fmtDelta(totalNow,totalPast,'位')}`);
-  // 2. 新客數
-  items.push(`🌱 <b>新客數</b>：${past.new} → ${now.new} 位 ${fmtDelta(now.new,past.new,'位')}`);
-  // 3. 回購客數
-  items.push(`🔁 <b>回購客數</b>：${past.old} → ${now.old} 位 ${fmtDelta(now.old,past.old,'位')}`);
-  // 4. 新客比例
-  items.push(`📈 <b>新客佔比</b>：${past.new_pct}% → ${now.new_pct}% ${fmtPctDelta(now.new_pct,past.new_pct)}`);
-  // 5. 回購比例
-  const pastOldPct=past.old_pct||(100-past.new_pct);
-  const nowOldPct =now.old_pct ||(100-now.new_pct);
-  items.push(`💼 <b>回購比例</b>：${pastOldPct}% → ${nowOldPct}% ${fmtPctDelta(nowOldPct,pastOldPct)}`);
-  // 6. 流失高風險（90 天）— 若 churn 有資料
-  if(churn.churned_90!==undefined){
-    items.push(`⚠️ <b>近 90 天流失</b>：${churn.churned_90||0} 位（潛在客戶池）`);
-  }
-  // 7. 重複下單率（如果有）
-  const rep=D.repurchase||{};
-  if(rep.repeat_rate!==undefined){
-    items.push(`🔂 <b>重複購買率</b>（全歷史）：${rep.repeat_rate}%`);
-  }
-  // 8. 客單價變動（用 D.kpi.avg_order）
-  if(k.avg_order && k.median_order){
-    items.push(`💰 <b>本月客單</b>：均 ${fN(k.avg_order)} / 中位 ${fN(k.median_order)}`);
-  }
-  el.innerHTML=items.map(t=>`<div style="padding:6px 0;border-bottom:1px dashed var(--line2);">${t}</div>`).join('');
+  const items=[
+    `📊 <b>客戶總數</b>：${p.customers.toLocaleString()} → ${r.customers.toLocaleString()} 位 ${delta(r.customers,p.customers,'位')}`,
+    `🌱 <b>新客數</b>：${p.new.toLocaleString()} → ${r.new.toLocaleString()} 位 ${delta(r.new,p.new,'位')}`,
+    `🔁 <b>回購客數</b>：${p.old.toLocaleString()} → ${r.old.toLocaleString()} 位 ${delta(r.old,p.old,'位')}`,
+    `📈 <b>新客佔比</b>：${p.new_pct}% → ${r.new_pct}% ${dpp(r.new_pct,p.new_pct)}`,
+    `🛒 <b>訂單數</b>：${p.orders.toLocaleString()} → ${r.orders.toLocaleString()} 筆 ${delta(r.orders,p.orders,'筆')}`,
+    `💰 <b>業績</b>：${fN(p.rev)} → ${fN(r.rev)} ${dRev(r.rev,p.rev)}`,
+    `💎 <b>客單價</b>：${fN(p.aov)} → ${fN(r.aov)} ${dRev(r.aov,p.aov)}`,
+    `🔂 <b>重複購買率</b>：${p.repeat_rate}% → ${r.repeat_rate}% ${dpp(r.repeat_rate,p.repeat_rate)}`,
+  ];
+  el.innerHTML=
+    `<div style="font-size:9.5px;color:var(--sub);padding:4px 0 8px;border-bottom:1px solid var(--line);margin-bottom:4px;">
+       <span style="color:var(--up);">▎</span><b>${t.recent_label}</b>
+       <span style="margin:0 6px;">vs</span>
+       <span style="color:var(--blue);">▎</span><b>${t.prior_label}</b>
+     </div>`+
+    items.map(s=>`<div style="padding:5px 0;border-bottom:1px dashed var(--line2);">${s}</div>`).join('');
 }
 
 // 前月總結已移至獨立的月會專用網頁 output/monthly_review.html
