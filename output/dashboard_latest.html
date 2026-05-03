@@ -118,7 +118,7 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
 .r1 .rn{color:var(--gold);font-size:15px;font-weight:700;}.r2 .rn{color:#9CA3AF;}.r3 .rn{color:#CD7F32;}
 .rv{font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:13px;color:var(--ink);text-align:right;flex-shrink:0;font-weight:500;}
 .rs{font-size:10px;color:var(--sub);}
-.rbar-w{flex:0 0 75%;width:75%;height:5px;background:rgba(30,58,95,.06);border-radius:3px;overflow:hidden;}
+.rbar-w{width:60%;height:5px;background:rgba(30,58,95,.06);border-radius:3px;overflow:hidden;}
 .rbar{height:100%;border-radius:3px;width:0%;transition:width 1.3s cubic-bezier(.23,1,.32,1);}
 .av{width:30px;height:30px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;}
 
@@ -440,24 +440,6 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
   </div>
 </div>
 
-<div class="slide" id="s4">
-  <div class="sh"><div class="sh-t">地區業績 · 區域分群</div><div class="stag tt">區域分析</div></div>
-  <div class="body">
-    <div class="panel">
-      <div class="pl">區域分群</div><div class="pt">六大區域營收</div>
-      <div class="sc" id="region-cards" style="display:flex;flex-direction:column;gap:8px;"></div>
-    </div>
-    <div class="panel">
-      <div class="pl" id="city-tbl-title">城市業績明細</div>
-      <div class="pt" id="city-tbl-sub">含客戶數 · 訂單數 · 客單價</div>
-      <div class="sc" id="city-tbl"></div>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:10px;">
-      <div class="panel" style="flex:1;"><div class="pl">地區洞察</div><div id="city-insight" style="margin-top:5px;"></div></div>
-    </div>
-  </div>
-</div>
-
 <div class="slide" id="s6">
   <div class="sh"><div class="sh-t">客戶結構分析</div><div class="stag tn">RFM · 活躍分層 · 首購vs回購</div></div>
   <div class="body">
@@ -484,6 +466,32 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
     <div style="display:flex;flex-direction:column;gap:10px;">
       <div class="panel" style="flex:1;"><div class="pl">首購 vs 回購 金額</div><div class="chart-box"><canvas id="fvr-chart"></canvas></div></div>
       <div class="panel" style="flex:1;"><div class="pl">會員等級漏斗</div><div class="chart-box"><canvas id="member-chart"></canvas></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="slide" id="s4">
+  <div class="sh"><div class="sh-t">地區業績 · 區域分群</div><div class="stag tt">區域分析</div></div>
+  <div class="body">
+    <div class="panel">
+      <div class="pl">區域分群</div><div class="pt">六大區域營收</div>
+      <div class="sc" id="region-cards" style="display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
+    <div class="panel">
+      <div class="pl" id="city-tbl-title">城市業績明細</div>
+      <div class="pt" id="city-tbl-sub">含客戶數 · 訂單數 · 客單價</div>
+      <div class="sc" id="city-tbl"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;min-height:0;">
+      <div class="panel" style="flex:1;min-height:0;overflow:auto;">
+        <div class="pl">地區洞察</div>
+        <div id="city-insight" style="margin-top:5px;"></div>
+      </div>
+      <div class="panel" style="flex:1;min-height:0;overflow:auto;">
+        <div class="pl">客戶趨勢</div>
+        <div class="pt" style="margin-bottom:6px;">3 個月前 → 現在的變動（純列出，不論好壞）</div>
+        <div id="customer-trend" style="font-size:11px;line-height:1.55;"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -889,7 +897,7 @@ function renderCityInsight(){
 function renderProdRows(id,data,bc,useQty){
   const max=useQty?Math.max(...data.map(p=>p.qty),1):Math.max(...data.map(p=>p.rev),1);
   const el=document.getElementById(id);
-  el.innerHTML=data.map((p,i)=>`<div class="rr r${i+1}"><div class="rn">${i+1}</div><div style="flex:0 1 50%;width:50%;min-width:0;"><div style="font-size:10px;font-weight:500;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.name.length>15?p.name.slice(0,15)+'…':p.name}</div><div class="rbar-w"><div class="rbar" data-w="${Math.round((useQty?p.qty:p.rev)/max*100)}" style="background:${bc};opacity:.55;"></div></div></div><div style="display:flex;gap:6px;flex-shrink:0;text-align:right;align-items:center;"><div style="min-width:30px;"><div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:10px;">${p.qty}</div><div style="font-size:7px;color:var(--sub);">件</div></div><div style="min-width:50px;"><div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:10px;">${fN(p.price)}</div><div style="font-size:7px;color:var(--sub);">均</div></div><div style="min-width:60px;"><div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:11px;font-weight:600;color:${bc};">${fN(p.rev)}</div><div style="font-size:7px;color:var(--sub);">收入</div></div></div></div>`).join('');
+  el.innerHTML=data.map((p,i)=>`<div class="rr r${i+1}"><div class="rn">${i+1}</div><div style="flex:1 1 0;min-width:0;"><div style="font-size:10px;font-weight:500;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.name.length>15?p.name.slice(0,15)+'…':p.name}</div><div class="rbar-w"><div class="rbar" data-w="${Math.round((useQty?p.qty:p.rev)/max*100)}" style="background:${bc};opacity:.55;"></div></div></div><div style="display:flex;gap:5px;flex-shrink:0;text-align:right;align-items:center;"><div style="min-width:26px;"><div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:10px;">${p.qty}</div><div style="font-size:7px;color:var(--sub);">件</div></div><div style="min-width:42px;"><div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:10px;">${fN(p.price)}</div><div style="font-size:7px;color:var(--sub);">均</div></div><div style="min-width:54px;"><div style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:11px;font-weight:600;color:${bc};">${fN(p.rev)}</div><div style="font-size:7px;color:var(--sub);">收入</div></div></div></div>`).join('');
   onVis(el,()=>stagger(el));
 }
 function renderZeroList(){
@@ -1016,6 +1024,64 @@ function renderS7WeekdayHour(){
                </div>`;
 }
 
+// 客戶趨勢（s4 區地區業績 · 第三欄下半）：3 個月前 → 現在的純變動列表
+function renderCustomerTrend(){
+  const el=document.getElementById('customer-trend');
+  if(!el)return;
+  const n6=D.new_6m||[];
+  if(n6.length<4){el.innerHTML='<div style="color:var(--sub);">資料不足，需要至少 4 個月歷史</div>';return;}
+  // 3 個月前 vs 現在
+  const past=n6[n6.length-4]||n6[0];
+  const now =n6[n6.length-1];
+  const k=D.kpi||{};
+  const churn=D.churn||{};
+
+  const fmtDelta=(a,b,unit='')=>{
+    const d=a-b;
+    if(d===0)return `<span style="color:var(--sub);">維持 ${a}${unit}</span>`;
+    const arr=d>0?'↑':'↓';
+    const col=d>0?'var(--up)':'var(--dn)';
+    const pct=b!==0?` (${(d/b*100).toFixed(1)}%)`:'';
+    return `<span style="color:${col};font-weight:600;">${arr} ${Math.abs(d)}${unit}${pct}</span>`;
+  };
+  const fmtPctDelta=(a,b)=>{
+    const d=a-b;
+    if(Math.abs(d)<0.05)return `<span style="color:var(--sub);">維持 ${a.toFixed(1)}%</span>`;
+    const arr=d>0?'↑':'↓';
+    const col=d>0?'var(--up)':'var(--dn)';
+    return `<span style="color:${col};font-weight:600;">${arr} ${Math.abs(d).toFixed(1)} pp</span>`;
+  };
+
+  const items=[];
+  // 1. 月活躍總人數（new + old）
+  const totalNow=now.new+now.old, totalPast=past.new+past.old;
+  items.push(`📊 <b>月活躍客數</b>：${past.label} ${totalPast} 位 → ${now.label} ${totalNow} 位 ${fmtDelta(totalNow,totalPast,'位')}`);
+  // 2. 新客數
+  items.push(`🌱 <b>新客數</b>：${past.new} → ${now.new} 位 ${fmtDelta(now.new,past.new,'位')}`);
+  // 3. 回購客數
+  items.push(`🔁 <b>回購客數</b>：${past.old} → ${now.old} 位 ${fmtDelta(now.old,past.old,'位')}`);
+  // 4. 新客比例
+  items.push(`📈 <b>新客佔比</b>：${past.new_pct}% → ${now.new_pct}% ${fmtPctDelta(now.new_pct,past.new_pct)}`);
+  // 5. 回購比例
+  const pastOldPct=past.old_pct||(100-past.new_pct);
+  const nowOldPct =now.old_pct ||(100-now.new_pct);
+  items.push(`💼 <b>回購比例</b>：${pastOldPct}% → ${nowOldPct}% ${fmtPctDelta(nowOldPct,pastOldPct)}`);
+  // 6. 流失高風險（90 天）— 若 churn 有資料
+  if(churn.churned_90!==undefined){
+    items.push(`⚠️ <b>近 90 天流失</b>：${churn.churned_90||0} 位（潛在客戶池）`);
+  }
+  // 7. 重複下單率（如果有）
+  const rep=D.repurchase||{};
+  if(rep.repeat_rate!==undefined){
+    items.push(`🔂 <b>重複購買率</b>（全歷史）：${rep.repeat_rate}%`);
+  }
+  // 8. 客單價變動（用 D.kpi.avg_order）
+  if(k.avg_order && k.median_order){
+    items.push(`💰 <b>本月客單</b>：均 ${fN(k.avg_order)} / 中位 ${fN(k.median_order)}`);
+  }
+  el.innerHTML=items.map(t=>`<div style="padding:6px 0;border-bottom:1px dashed var(--line2);">${t}</div>`).join('');
+}
+
 // 前月總結已移至獨立的月會專用網頁 output/monthly_review.html
 
 const DUR=20000;  // 每頁停留時間（毫秒）
@@ -1023,7 +1089,7 @@ const IDLE_MS=5*60*1000;  // 5 分鐘閒置後啟動自動播放
 const slides=document.querySelectorAll('.slide');
 let cur=0, timer, idleTimer, autoPlaying=false;
 
-const inits={4:[renderRepurchaseChart],6:[renderNew6mChart,renderFvrChart,renderMemberChart,renderRfmGrid,renderActiveTiers]};
+const inits={4:[renderRepurchaseChart],5:[renderNew6mChart,renderFvrChart,renderMemberChart,renderRfmGrid,renderActiveTiers],6:[renderCustomerTrend]};
 function buildNav(){const el=document.getElementById('snav');el.innerHTML=Array.from({length:slides.length},(_,i)=>`<div class="sdot${i===0?' on':''}" data-i="${i}"></div>`).join('');el.querySelectorAll('.sdot').forEach(d=>d.addEventListener('click',()=>{goTo(+d.dataset.i);userAction();}));}
 function goTo(n){slides[cur].classList.remove('on');document.querySelectorAll('.sdot')[cur].classList.remove('on');cur=((n%slides.length)+slides.length)%slides.length;slides[cur].classList.add('on');document.querySelectorAll('.sdot')[cur].classList.add('on');document.getElementById('snum').textContent=`${cur+1}/${slides.length}`;if(autoPlaying)startProg();else stopProg();trigAnim(slides[cur]);if(inits[cur])inits[cur].forEach(fn=>setTimeout(fn,200));}
 
@@ -1099,7 +1165,7 @@ renderNew6mChart();renderFvrChart();renderMemberChart();
 renderRfmGrid();renderActiveTiers();
 renderCombosList();renderPaySpeed();
 renderRepurchaseChart();renderTimeInsight();
-renderS7WeekdayHour();
+renderS7WeekdayHour();renderCustomerTrend();
 
 if(IS_MOBILE){
   document.querySelectorAll('.slide').forEach(s=>s.classList.add('on'));
