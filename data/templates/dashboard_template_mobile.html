@@ -259,11 +259,11 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
       </div>
     </div>
     <div style="display:flex;flex-direction:column;gap:10px;">
-      <!-- 區塊 2：昨天接單王 TOP10 -->
+      <!-- 區塊 2：近 24 小時接單王 TOP10 -->
       <div class="panel" style="flex:1;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-          <div class="pl" style="margin:0;">🏆 昨天接單王 TOP10</div>
-          <span style="font-size:9px;padding:2px 7px;background:rgba(59,125,216,.1);color:var(--blue);border-radius:10px;letter-spacing:.5px;">昨天</span>
+          <div class="pl" style="margin:0;">🏆 近 24 小時接單王 TOP10</div>
+          <span style="font-size:9px;padding:2px 7px;background:rgba(59,125,216,.1);color:var(--blue);border-radius:10px;letter-spacing:.5px;">近 24 小時</span>
         </div>
         <div id="s1-quarter-agents" style="display:flex;flex-direction:column;gap:5px;"></div>
       </div>
@@ -574,7 +574,7 @@ function renderS1Quarter(){
   const rI=i=>i<3?['🥇','🥈','🥉'][i]:`<span style="font-family:'DM Mono',monospace;font-size:13px;font-weight:700;">${i+1}</span>`;
   const rC=i=>i===0?'var(--gold)':i===1?'#9CA3AF':i===2?'#CD7F32':'var(--dim)';
   if(!list.length){
-    document.getElementById('s1-quarter-agents').innerHTML='<div style="padding:20px;text-align:center;color:var(--sub);font-size:11px;">尚無昨天業績資料</div>';
+    document.getElementById('s1-quarter-agents').innerHTML='<div style="padding:20px;text-align:center;color:var(--sub);font-size:11px;">近 24 小時無業績資料</div>';
     return;
   }
   document.getElementById('s1-quarter-agents').innerHTML=list.map((a,i)=>{

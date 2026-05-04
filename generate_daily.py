@@ -945,9 +945,9 @@ def compute(df):
         'ly_orders': int(len(lyw)),
     }
     
-    # Yesterday
-    ys = today.replace(hour=0, minute=0, second=0, microsecond=0)
-    ye = ys + timedelta(days=1)
+    # 過去 24 小時（從資料中最後一筆訂單往前推 24 小時的滾動視窗）
+    ye = df['訂單日期'].max().to_pydatetime()
+    ys = ye - timedelta(hours=24)
     y   = order_level(in_range(vd, ys, ye))
     lyy = order_level(in_range(vd, ys.replace(year=yr-1), ye.replace(year=yr-1)))
     D['yesterday'] = {
