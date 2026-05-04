@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  TZG Dashboard 每日自動下載 + 部署 + 睡眠
+  安裝步驟：
+    1. 編輯下方 WorkingDirectory 路徑（改成你電腦上專案的絕對路徑）
+    2. cp com.tzg.dashboard.daily.plist ~/Library/LaunchAgents/
+    3. launchctl load ~/Library/LaunchAgents/com.tzg.dashboard.daily.plist
+    4. 第一次手動測試：launchctl start com.tzg.dashboard.daily
+
+  停用：launchctl unload ~/Library/LaunchAgents/com.tzg.dashboard.daily.plist
+  查 log：tail -f /tmp/tzg_dashboard.log /tmp/tzg_dashboard.err
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.tzg.dashboard.daily</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-lc</string>
+        <string>./generate_and_deploy.sh --shutdown</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/vito/Documents/AIcode-claude/tzg-dashboard</string>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>23</integer>
+        <key>Minute</key>
+        <integer>59</integer>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/tzg_dashboard.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/tmp/tzg_dashboard.err</string>
+
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>

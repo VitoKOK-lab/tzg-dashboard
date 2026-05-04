@@ -32,7 +32,8 @@ DATA_DIR     = Path('./data')
 SESSION_FILE = Path('./shopline_session.json')   # 儲存登入 Session
 
 # 第一次測試用 False（看得見）；確認OK後改 True（背景執行）
-HEADLESS = False
+# 排程模式可用環境變數 TZG_HEADLESS=1 強制 headless（launchd 半夜自動跑用）
+HEADLESS = os.getenv('TZG_HEADLESS', '0') == '1'
 
 def log(msg):
     print(f'[{datetime.now():%H:%M:%S}] {msg}')
