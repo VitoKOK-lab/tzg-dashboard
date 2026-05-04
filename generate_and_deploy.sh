@@ -2,7 +2,8 @@
 # TZG Dashboard Generator + Auto Deploy (macOS)
 # 用法：
 #   ./generate_and_deploy.sh             手動：只抓當月，瀏覽器看得見
-#   ./generate_and_deploy.sh --shutdown  排程：抓上月 1 號~今天，headless，跑完睡眠
+#   ./generate_and_deploy.sh --auto      排程白天：抓上月 1 號~今天，headless，不睡眠
+#   ./generate_and_deploy.sh --shutdown  排程晚上：抓上月 1 號~今天，headless，跑完睡眠
 set -u
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -53,7 +54,7 @@ if [ -f ".env" ]; then
     LASTMONTH_START="$(date -v-1m -v1d +%Y-%m-%d)"
     LASTMONTH="$(date -v-1m +%Y-%m)"
 
-    if [ "$MODE" = "--shutdown" ]; then
+    if [ "$MODE" = "--shutdown" ] || [ "$MODE" = "--auto" ]; then
         echo "==================================================="
         echo " Downloading from Shopline (rolling window, headless)"
         echo " Range: $LASTMONTH_START ~ $TODAY"
@@ -164,13 +165,13 @@ echo "Your dashboard is now live on GitHub Pages."
 echo "It may take 1-2 minutes for the new version to appear."
 echo
 
-# 手動模式：開啟本機 preview
-if [ "$MODE" != "--shutdown" ] && [ -f "output/dashboard_latest.html" ]; then
+# 手動模式：開啟本機 preview（排程模式不開）
+if [ -z "$MODE" ] && [ -f "output/dashboard_latest.html" ]; then
     echo "Opening local preview..."
     open "output/dashboard_latest.html"
 fi
 
-# 排程模式：跳出睡眠提示（不需 sudo）
+# 晚上排程模式：跳出睡眠提示（不需 sudo）
 if [ "$MODE" = "--shutdown" ]; then
     "$SCRIPT_DIR/sleep_prompt.sh" &
 fi

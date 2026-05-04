@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  TZG Dashboard 下午自動跑（15:00）
+  抓上月 1 號~今天，headless，跑完不睡眠（你還在用電腦）
+
+  安裝步驟：
+    cp com.tzg.dashboard.afternoon.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.tzg.dashboard.afternoon.plist
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.tzg.dashboard.afternoon</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-lc</string>
+        <string>./generate_and_deploy.sh --auto</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/vito/Documents/AIcode-claude/tzg-dashboard</string>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>15</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/tzg_dashboard_afternoon.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/tmp/tzg_dashboard_afternoon.err</string>
+
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>
