@@ -47,6 +47,24 @@ fi
 echo "[4/6] Git OK"
 echo
 
+# ============ Step 4b: 排程模式醒來後等網路恢復 ============
+if [ "$MODE" = "--shutdown" ] || [ "$MODE" = "--auto" ]; then
+    WIFI_DEV=$(networksetup -listallhardwareports | awk '/Wi-Fi|AirPort/{getline; print $2}' | head -1)
+    if [ -n "$WIFI_DEV" ]; then
+        networksetup -setairportpower "$WIFI_DEV" on 2>/dev/null
+    fi
+
+    echo "等待網路連線..."
+    for i in $(seq 1 30); do
+        if ping -c 1 -W 2000 1.1.1.1 >/dev/null 2>&1; then
+            echo "[4b] 網路 OK（嘗試 $i 次）"
+            echo
+            break
+        fi
+        sleep 2
+    done
+fi
+
 # ============ Step 5a: Auto Download from Shopline ============
 if [ -f ".env" ]; then
     TODAY="$(date +%Y-%m-%d)"
