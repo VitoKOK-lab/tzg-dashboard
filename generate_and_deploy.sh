@@ -47,24 +47,6 @@ fi
 echo "[4/6] Git OK"
 echo
 
-# ============ Step 4b: 排程模式醒來後等網路恢復 ============
-if [ "$MODE" = "--shutdown" ] || [ "$MODE" = "--auto" ]; then
-    WIFI_DEV=$(networksetup -listallhardwareports | awk '/Wi-Fi|AirPort/{getline; print $2}' | head -1)
-    if [ -n "$WIFI_DEV" ]; then
-        networksetup -setairportpower "$WIFI_DEV" on 2>/dev/null
-    fi
-
-    echo "等待網路連線..."
-    for i in $(seq 1 30); do
-        if ping -c 1 -W 2000 1.1.1.1 >/dev/null 2>&1; then
-            echo "[4b] 網路 OK（嘗試 $i 次）"
-            echo
-            break
-        fi
-        sleep 2
-    done
-fi
-
 # ============ Step 5a: Auto Download from Shopline ============
 if [ -f ".env" ]; then
     TODAY="$(date +%Y-%m-%d)"
@@ -188,8 +170,4 @@ if [ -z "$MODE" ] && [ -f "output/dashboard_latest.html" ]; then
     echo "Opening local preview..."
     open "output/dashboard_latest.html"
 fi
-
-# 晚上排程模式：跳出睡眠提示（不需 sudo）
-if [ "$MODE" = "--shutdown" ]; then
-    "$SCRIPT_DIR/sleep_prompt.sh" &
-fi
+# 註：23:59 排程跑完後的關機由 pmset repeat shutdown 排定（00:10），不在此腳本處理
