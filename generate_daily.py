@@ -1736,6 +1736,19 @@ def main():
     try:
         new_html = patch_html(html, D)
         new_html = patch_fonts(new_html)  # 🔤 自動修復字體
+
+        # 替換硬編碼的月份和日期標籤（用本月最後一天表示完整月份）
+        report_month = D['meta']['report_month']
+        days_total = D['meta']['days_total']
+        new_html = new_html.replace(
+            'id="s1-month-tag">2026年4月</div>',
+            f'id="s1-month-tag">{report_month}</div>'
+        )
+        new_html = new_html.replace(
+            'id="s1-day-tag">Day 22/30</div>',
+            f'id="s1-day-tag">Day {days_total}/{days_total}</div>'
+        )
+
         print(f'[✓] 數據注入完成：{len(new_html):,} 字元')
     except Exception as e:
         print(f'[✗] 數據注入失敗：{e}')
