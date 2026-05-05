@@ -32,4 +32,4 @@ for i in $(seq 1 30); do
 done
 
 echo "[catchup] 開始補跑..."
-exec ./generate_and_deploy.sh --auto
+exec ./主流程.sh --auto

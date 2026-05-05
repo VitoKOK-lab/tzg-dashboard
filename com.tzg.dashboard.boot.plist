@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
   TZG Dashboard 開機/登入後補跑
-  RunAtLoad=true → 每次登入時觸發 catchup.sh
-  catchup.sh 會檢查今天是否已執行，沒有才跑。
+  RunAtLoad=true → 每次登入時觸發 開機補跑.sh
+  開機補跑.sh 會檢查今天是否已執行，沒有才跑。
 
   安裝：
     cp com.tzg.dashboard.boot.plist ~/Library/LaunchAgents/
@@ -18,7 +18,7 @@
     <array>
         <string>/bin/bash</string>
         <string>-lc</string>
-        <string>./catchup.sh</string>
+        <string>./開機補跑.sh</string>
     </array>
 
     <key>WorkingDirectory</key>

@@ -20,7 +20,7 @@
     <array>
         <string>/bin/bash</string>
         <string>-lc</string>
-        <string>./generate_and_deploy.sh --shutdown</string>
+        <string>./主流程.sh --shutdown</string>
     </array>
 
     <key>WorkingDirectory</key>

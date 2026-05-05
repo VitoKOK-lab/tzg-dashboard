@@ -17,7 +17,7 @@
     <array>
         <string>/bin/bash</string>
         <string>-lc</string>
-        <string>./generate_and_deploy.sh --auto</string>
+        <string>./主流程.sh --auto</string>
     </array>
 
     <key>WorkingDirectory</key>
