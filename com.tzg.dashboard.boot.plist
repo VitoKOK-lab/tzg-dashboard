@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  TZG Dashboard 開機/登入後補跑
+  RunAtLoad=true → 每次登入時觸發 catchup.sh
+  catchup.sh 會檢查今天是否已執行，沒有才跑。
+
+  安裝：
+    cp com.tzg.dashboard.boot.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.tzg.dashboard.boot.plist
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.tzg.dashboard.boot</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-lc</string>
+        <string>./catchup.sh</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/vito/AIcode-claude/tzg-dashboard</string>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/tzg_dashboard_boot.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/tmp/tzg_dashboard_boot.err</string>
+</dict>
+</plist>
