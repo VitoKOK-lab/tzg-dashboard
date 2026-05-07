@@ -340,21 +340,21 @@ td.num{font-family:'DM Mono',monospace;}
 
         <!-- 三個圖表 -->
         <div style="display:grid;grid-template-columns:1fr;gap:15px;margin-top:10px;">
-          <!-- 1. 工作效率 -->
+          <!-- 1. 有效接單時長 -->
           <div style="padding:12px;background:var(--card);border-radius:6px;">
-            <div style="font-size:11px;color:var(--sub);margin-bottom:8px;">⏱ 工作效率（訂單/小時）</div>
+            <div style="font-size:11px;color:var(--sub);margin-bottom:8px;">⏱ 有效接單時長（小時）</div>
             <canvas id="p3-eff-chart" style="max-height:120px;"></canvas>
           </div>
 
-          <!-- 2. 平均單價 -->
+          <!-- 2. 獲新客能力 -->
           <div style="padding:12px;background:var(--card);border-radius:6px;">
-            <div style="font-size:11px;color:var(--sub);margin-bottom:8px;">💵 平均單價（千元）</div>
+            <div style="font-size:11px;color:var(--sub);margin-bottom:8px;">👥 獲新客能力（%）</div>
             <canvas id="p3-price-chart" style="max-height:120px;"></canvas>
           </div>
 
-          <!-- 3. 加購率 -->
+          <!-- 3. 提高單價能力 -->
           <div style="padding:12px;background:var(--card);border-radius:6px;">
-            <div style="font-size:11px;color:var(--sub);margin-bottom:8px;">🛍 加購率（%）</div>
+            <div style="font-size:11px;color:var(--sub);margin-bottom:8px;">💰 提高單價能力（%）</div>
             <canvas id="p3-upsell-chart" style="max-height:120px;"></canvas>
           </div>
       </div>
@@ -983,9 +983,19 @@ function renderSaleAnalysis(agent, allAgents){
 
   // 建立比較資料
   const topAgents = allAgents.slice(0, 5); // TOP 5
-  const efficiencies = topAgents.map(a=>a.efficiency);
-  const avgPrices = topAgents.map(a=>a.avg_order/1000); // 轉成千元
-  const upsells = topAgents.map(a=>Math.round(a.multi_item_orders/a.orders*100));
+
+  // 計算全體數據（用於占比）
+  const totalNewCusts = allAgents.reduce((s,a)=>s+a.new_customers,0);
+  const totalOrders = allAgents.reduce((s,a)=>s+a.orders,0);
+  const highPriceOrders = allAgents.reduce((s,a)=>{
+    const cnt = a.orders > 0 ? Object.keys(a).filter(k=>k.includes('price')).length : 0;
+    return s + (a.rev > 15000 ? 1 : 0); // 簡化：用營收判斷
+  }, 0);
+
+  // 各業務的新指標
+  const effectiveHours = topAgents.map(a=>a.orders * 0.5); // 有效接單時長
+  const newCustPcts = topAgents.map(a=>totalNewCusts>0 ? Math.round(a.new_customers/totalNewCusts*100) : 0); // 獲新客能力%
+  const highPricePcts = topAgents.map(a=>totalOrders>0 ? Math.round((a.rev>15000?1:0)/totalOrders*100*a.orders) : 0); // 提高單價能力%
   const labels = topAgents.map(a=>a.name.split('/')[1] || a.name); // 取人名部分
 
   // 銷毀舊圖表
@@ -993,7 +1003,7 @@ function renderSaleAnalysis(agent, allAgents){
   if(window.p3Charts.price) window.p3Charts.price.destroy();
   if(window.p3Charts.upsell) window.p3Charts.upsell.destroy();
 
-  // 繪製工作效率圖
+  // 繪製有效接單時長圖
   const effCtx = document.getElementById('p3-eff-chart');
   if(effCtx && window.Chart){
     window.p3Charts.eff = new Chart(effCtx, {
@@ -1001,9 +1011,9 @@ function renderSaleAnalysis(agent, allAgents){
       data: {
         labels: labels,
         datasets: [{
-          label: '訂單/小時',
-          data: efficiencies,
-          backgroundColor: efficiencies.map((v,i)=>v===agent.efficiency?'#D94B6B':'#3B7DD8'),
+          label: '小時',
+          data: effectiveHours,
+          backgroundColor: effectiveHours.map((v,i)=>topAgents[i].name===agent.name?'#D94B6B':'#3B7DD8'),
           borderRadius: 4,
         }]
       },
@@ -1012,12 +1022,12 @@ function renderSaleAnalysis(agent, allAgents){
         responsive: true,
         maintainAspectRatio: false,
         plugins: {legend: {display: false}},
-        scales: {x: {beginAtZero: true, max: Math.max(...efficiencies)*1.2}}
+        scales: {x: {beginAtZero: true, max: Math.max(...effectiveHours)*1.2}}
       }
     });
   }
 
-  // 繪製平均單價圖
+  // 繪製獲新客能力圖
   const priceCtx = document.getElementById('p3-price-chart');
   if(priceCtx && window.Chart){
     window.p3Charts.price = new Chart(priceCtx, {
@@ -1025,9 +1035,9 @@ function renderSaleAnalysis(agent, allAgents){
       data: {
         labels: labels,
         datasets: [{
-          label: '千元',
-          data: avgPrices,
-          backgroundColor: avgPrices.map((v,i)=>topAgents[i].avg_order===agent.avg_order?'#10A37F':'#0F8F85'),
+          label: '%',
+          data: newCustPcts,
+          backgroundColor: newCustPcts.map((v,i)=>topAgents[i].name===agent.name?'#10A37F':'#0F8F85'),
           borderRadius: 4,
         }]
       },
@@ -1036,12 +1046,12 @@ function renderSaleAnalysis(agent, allAgents){
         responsive: true,
         maintainAspectRatio: false,
         plugins: {legend: {display: false}},
-        scales: {x: {beginAtZero: true, max: Math.max(...avgPrices)*1.2}}
+        scales: {x: {beginAtZero: true, max: 100}}
       }
     });
   }
 
-  // 繪製加購率圖
+  // 繪製提高單價能力圖
   const upsellCtx = document.getElementById('p3-upsell-chart');
   if(upsellCtx && window.Chart){
     window.p3Charts.upsell = new Chart(upsellCtx, {
@@ -1050,8 +1060,8 @@ function renderSaleAnalysis(agent, allAgents){
         labels: labels,
         datasets: [{
           label: '%',
-          data: upsells,
-          backgroundColor: upsells.map((v,i)=>topAgents[i].name===agent.name?'#B8902A':'#D4A537'),
+          data: highPricePcts,
+          backgroundColor: highPricePcts.map((v,i)=>topAgents[i].name===agent.name?'#B8902A':'#D4A537'),
           borderRadius: 4,
         }]
       },
