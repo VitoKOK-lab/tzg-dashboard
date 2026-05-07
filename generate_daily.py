@@ -411,8 +411,8 @@ def compute_month_review(vd, ccol, yr, mo, target=None):
                     price_min = agent_orders['訂單合計'].min()
                     price_median = agent_orders['訂單合計'].median()
                     price_avg = agent_orders['訂單合計'].mean()
-                    high_threshold = price_avg * 1.5
-                    high_order_count = (agent_orders['訂單合計'] > high_threshold).sum()
+                    # 高價訂單：訂單金額 >= 15000
+                    high_order_count = (agent_orders['訂單合計'] >= 15000).sum()
                     high_order_pct = round(high_order_count / len(agent_orders) * 100, 1)
                 else:
                     price_max = price_min = price_median = 0

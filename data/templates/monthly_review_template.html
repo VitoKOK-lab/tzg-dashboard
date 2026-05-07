@@ -987,10 +987,7 @@ function renderSaleAnalysis(agent, allAgents){
   // 計算全體數據（用於占比）
   const totalNewCusts = allAgents.reduce((s,a)=>s+a.new_customers,0);
   const totalOrders = allAgents.reduce((s,a)=>s+a.orders,0);
-  const highPriceOrders = allAgents.reduce((s,a)=>{
-    const cnt = a.orders > 0 ? Object.keys(a).filter(k=>k.includes('price')).length : 0;
-    return s + (a.rev > 15000 ? 1 : 0); // 簡化：用營收判斷
-  }, 0);
+  const totalHighPriceOrders = allAgents.reduce((s,a)=>s+a.high_order_count,0);
 
   // 各業務的新指標
   const effectiveHours = topAgents.map(a=>a.orders * 0.5); // 有效接單時長
@@ -1027,50 +1024,54 @@ function renderSaleAnalysis(agent, allAgents){
     });
   }
 
-  // 繪製獲新客能力圖
+  // 計算該業務新客占比
+  const agentNewCusts = topAgents.find(a=>a.name===agent.name)?.new_customers || 0;
+  const otherNewCusts = totalNewCusts - agentNewCusts;
+
+  // 計算該業務高價訂單占比（訂單金額 >= 15000）
+  const agentHighPrice = topAgents.find(a=>a.name===agent.name)?.high_order_count || 0;
+  const otherHighPrice = totalHighPriceOrders - agentHighPrice;
+
+  // 繪製獲新客能力圖（甜甜圈）
   const priceCtx = document.getElementById('p3-price-chart');
   if(priceCtx && window.Chart){
     window.p3Charts.price = new Chart(priceCtx, {
-      type: 'bar',
+      type: 'doughnut',
       data: {
-        labels: labels,
+        labels: [agent.name.split('/')[1], '其他'],
         datasets: [{
-          label: '%',
-          data: newCustPcts,
-          backgroundColor: newCustPcts.map((v,i)=>topAgents[i].name===agent.name?'#10A37F':'#0F8F85'),
-          borderRadius: 4,
+          data: [agentNewCusts, otherNewCusts],
+          backgroundColor: ['#10A37F', '#E8E8E8'],
+          borderColor: ['#0F8F85', '#F5F5F5'],
+          borderWidth: 2,
         }]
       },
       options: {
-        indexAxis: 'y',
         responsive: true,
         maintainAspectRatio: false,
-        plugins: {legend: {display: false}},
-        scales: {x: {beginAtZero: true, max: 100}}
+        plugins: {legend: {display: true, position: 'bottom'}, tooltip: {callbacks: {label: (ctx)=>ctx.label + ': ' + ctx.parsed + ' 人'}}}
       }
     });
   }
 
-  // 繪製提高單價能力圖
+  // 繪製提高單價能力圖（甜甜圈）
   const upsellCtx = document.getElementById('p3-upsell-chart');
   if(upsellCtx && window.Chart){
     window.p3Charts.upsell = new Chart(upsellCtx, {
-      type: 'bar',
+      type: 'doughnut',
       data: {
-        labels: labels,
+        labels: [agent.name.split('/')[1], '其他'],
         datasets: [{
-          label: '%',
-          data: highPricePcts,
-          backgroundColor: highPricePcts.map((v,i)=>topAgents[i].name===agent.name?'#B8902A':'#D4A537'),
-          borderRadius: 4,
+          data: [agentHighPrice, otherHighPrice],
+          backgroundColor: ['#B8902A', '#E8E8E8'],
+          borderColor: ['#8B6E1F', '#F5F5F5'],
+          borderWidth: 2,
         }]
       },
       options: {
-        indexAxis: 'y',
         responsive: true,
         maintainAspectRatio: false,
-        plugins: {legend: {display: false}},
-        scales: {x: {beginAtZero: true, max: 100}}
+        plugins: {legend: {display: true, position: 'bottom'}, tooltip: {callbacks: {label: (ctx)=>ctx.label + ': ' + ctx.parsed + ' 訂'}}}
       }
     });
   }
