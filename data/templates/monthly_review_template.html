@@ -327,13 +327,15 @@ td.num{font-family:'DM Mono',monospace;}
         </table>
       </div>
     </div>
-    <div class="panel" style="overflow:auto;">
-      <div class="pl"><span id="p3-time-name">工作時間分布</span></div>
-      <div id="p3-time-content" style="flex:1;display:flex;flex-direction:column;gap:10px;"></div>
-    </div>
+    <!-- 右側容器：工作時間 + 成交能力 -->
+    <div style="display:flex;flex-direction:column;gap:10px;min-height:0;flex:1;overflow:auto;">
+      <div class="panel" style="overflow:auto;">
+        <div class="pl"><span id="p3-time-name">工作時間分布</span></div>
+        <div id="p3-time-content" style="flex:1;display:flex;flex-direction:column;gap:10px;"></div>
+      </div>
 
-    <!-- 成交能力分析卡片 -->
-    <div class="panel" id="p3-sale-analysis" style="display: none; margin-top: 0;">
+      <!-- 成交能力分析卡片 -->
+      <div class="panel" id="p3-sale-analysis" style="display: none;">
       <div class="pl" style="display:flex;justify-content:space-between;align-items:center;">
         <span>💰 成交能力分析</span>
       </div>
