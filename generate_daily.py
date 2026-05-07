@@ -383,7 +383,7 @@ def compute_month_review(vd, ccol, yr, mo, target=None):
             'dow': d_s.weekday(),  # 0=週一 .. 6=週日
         })
 
-    # 業務排名（含 orders, rev, new_clients, avg）
+    # 業務排名（含 orders, rev, new_clients, avg, 成交能力分析資料）
     pm_agents = []
     pm_agents_time = {}  # 🆕 每位業務的工作時間分布（dow + hour）
     if '推薦活動' in pm_lines.columns:
@@ -400,6 +400,42 @@ def compute_month_review(vd, ccol, yr, mo, target=None):
                 # 計算這位業務本月的新客數
                 ag_custs = set(ag_o[ag_o['推薦活動'] == r['推薦活動']][ccol].dropna().unique())
                 new_for_ag = sum(1 for c in ag_custs if c in first_ord_all.index and first_ord_all[c] >= pm_s)
+
+                # 🆕 成交能力分析資料
+                agent_orders = ag_o[ag_o['推薦活動'] == r['推薦活動']]
+                agent_lines = ag_b[ag_b['推薦活動'] == r['推薦活動']]
+
+                # 1. 訂單價格分布
+                if len(agent_orders) > 0:
+                    price_max = agent_orders['訂單合計'].max()
+                    price_min = agent_orders['訂單合計'].min()
+                    price_median = agent_orders['訂單合計'].median()
+                    price_avg = agent_orders['訂單合計'].mean()
+                    high_threshold = price_avg * 1.5
+                    high_order_count = (agent_orders['訂單合計'] > high_threshold).sum()
+                    high_order_pct = round(high_order_count / len(agent_orders) * 100, 1)
+                else:
+                    price_max = price_min = price_median = 0
+                    high_order_count = high_order_pct = 0
+
+                # 2. 加購能力（基於行級資料計算商品數）
+                if len(agent_lines) > 0:
+                    items_per_order = agent_lines.groupby('訂單號碼')['商品名稱'].count()
+                    avg_items = items_per_order.mean()
+                    single_item_orders = (items_per_order == 1).sum()
+                    multi_item_orders = (items_per_order > 1).sum()
+                else:
+                    avg_items = single_item_orders = multi_item_orders = 0
+
+                # 3. 工作效率（預估時長）
+                if len(agent_lines) > 0:
+                    min_hour = agent_lines['訂單日期'].dt.hour.min()
+                    max_hour = agent_lines['訂單日期'].dt.hour.max()
+                    est_hours = max_hour - min_hour + 1
+                    efficiency = len(agent_orders) / est_hours if est_hours > 0 else 0
+                else:
+                    est_hours = efficiency = 0
+
                 pm_agents.append({
                     'name': ag_name,
                     'orders': int(r['orders']),
@@ -408,6 +444,16 @@ def compute_month_review(vd, ccol, yr, mo, target=None):
                     'new_customers': new_for_ag,
                     'avg_order': int(r['rev'] / r['orders']) if r['orders'] else 0,
                     'rank': i + 1,
+                    # 成交能力分析欄位
+                    'price_max': int(price_max),
+                    'price_min': int(price_min),
+                    'price_median': int(price_median),
+                    'high_order_count': int(high_order_count),
+                    'high_order_pct': high_order_pct,
+                    'avg_items_per_order': round(avg_items, 2),
+                    'single_item_orders': int(single_item_orders),
+                    'multi_item_orders': int(multi_item_orders),
+                    'efficiency': round(efficiency, 2) if efficiency > 0 else 0,
                 })
                 # 🆕 工作時間分布（取前 12 名業務，避免資料過大）
                 if i < 12:
@@ -1020,67 +1066,6 @@ def compute(df):
         else:
             lw_rank = pd.DataFrame(columns=['推薦活動','訂單合計'])
         lw_map  = {r['推薦活動']: i+1 for i, r in lw_rank.iterrows()}
-
-        # 計算業務的成交能力分析資料
-        agents_list = []
-        for i, r in agg.head(10).iterrows():
-            agent_name = str(r['推薦活動'])
-            agent_orders_idx = mtd_ag[mtd_ag['推薦活動'] == agent_name]
-            agent_lines_idx = mtd_lines[mtd_lines['推薦活動'] == agent_name]
-
-            # 1. 訂單價格分布
-            if len(agent_orders_idx) > 0:
-                price_max = agent_orders_idx['訂單合計'].max()
-                price_min = agent_orders_idx['訂單合計'].min()
-                price_median = agent_orders_idx['訂單合計'].median()
-                price_avg = agent_orders_idx['訂單合計'].mean()
-                high_threshold = price_avg * 1.5
-                high_order_count = (agent_orders_idx['訂單合計'] > high_threshold).sum()
-                high_order_pct = round(high_order_count / len(agent_orders_idx) * 100, 1)
-            else:
-                price_max = price_min = price_median = price_avg = 0
-                high_order_count = high_order_pct = 0
-
-            # 2. 加購能力（基於行級資料計算商品數）
-            if len(agent_lines_idx) > 0:
-                items_per_order = agent_lines_idx.groupby('訂單號碼')['商品名稱'].count()
-                avg_items = items_per_order.mean()
-                single_item_orders = (items_per_order == 1).sum()
-                multi_item_orders = (items_per_order > 1).sum()
-            else:
-                avg_items = single_item_orders = multi_item_orders = 0
-
-            # 3. 工作效率（預估時長）
-            if len(agent_lines_idx) > 0:
-                min_hour = agent_lines_idx['訂單日期'].dt.hour.min()
-                max_hour = agent_lines_idx['訂單日期'].dt.hour.max()
-                est_hours = max_hour - min_hour + 1
-                efficiency = len(agent_orders_idx) / est_hours if est_hours > 0 else 0
-            else:
-                est_hours = efficiency = 0
-
-            agent_dict = {
-                'name': agent_name,
-                'orders': int(r['orders']),
-                'rev': int(r['rev']),
-                'rank': i+1,
-                'prev_rank': lw_map.get(agent_name),
-                # 成交能力分析欄位
-                'price_max': int(price_max),
-                'price_min': int(price_min),
-                'price_median': int(price_median),
-                'high_order_count': int(high_order_count),
-                'high_order_pct': high_order_pct,
-                'avg_items_per_order': round(avg_items, 2),
-                'single_item_orders': int(single_item_orders),
-                'multi_item_orders': int(multi_item_orders),
-                'efficiency': round(efficiency, 2) if efficiency > 0 else 0,
-            }
-            agents_list.append(agent_dict)
-
-        D['agents'] = agents_list
-    else:
-        D['agents'] = []
 
     # Yesterday Agents（昨天業績王 TOP10）
     if '推薦活動' in vd.columns:
