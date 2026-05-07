@@ -986,7 +986,7 @@ function renderSaleAnalysis(agent, allAgents){
   const efficiencies = topAgents.map(a=>a.efficiency);
   const avgPrices = topAgents.map(a=>a.avg_order/1000); // 轉成千元
   const upsells = topAgents.map(a=>Math.round(a.multi_item_orders/a.orders*100));
-  const labels = topAgents.map(a=>a.name.split('/')[0].substring(0,4)); // 簡化名稱
+  const labels = topAgents.map(a=>a.name.split('/')[1] || a.name); // 取人名部分
 
   // 銷毀舊圖表
   if(window.p3Charts.eff) window.p3Charts.eff.destroy();
