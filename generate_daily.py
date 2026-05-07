@@ -1360,7 +1360,28 @@ def compute(df):
         'first_med': int(np.median(first_amts)) if first_amts else 0,
         'return_med': int(np.median(ret_amts)) if ret_amts else 0,
     }
-    
+
+    # Agents - 計算本月業務排行
+    D['agents'] = []
+    if '推薦活動' in mtd_lines.columns:
+        ag_b = mtd_lines[mtd_lines['推薦活動'].notna() & mtd_lines['推薦活動'].apply(is_real_agent)]
+        if len(ag_b):
+            ag_o = order_level(ag_b)
+            ag_g = ag_o.groupby('推薦活動').agg(
+                orders=('訂單號碼', 'count'),
+                rev=('訂單合計', 'sum'),
+                customers=(ccol, 'nunique'),
+            ).sort_values('rev', ascending=False).reset_index()
+            for i, r in ag_g.iterrows():
+                D['agents'].append({
+                    'name': str(r['推薦活動']),
+                    'orders': int(r['orders']),
+                    'rev': int(r['rev']),
+                    'customers': int(r['customers']),
+                    'avg_order': int(r['rev'] / r['orders']) if r['orders'] else 0,
+                    'rank': i + 1,
+                })
+
     # Strategy
     D['strategy'] = {
         'keep': [p['name'] for p in D['prod_rev'][:6]],
