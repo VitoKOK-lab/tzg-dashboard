@@ -331,6 +331,71 @@ td.num{font-family:'DM Mono',monospace;}
       <div class="pl"><span id="p3-time-name">工作時間分布</span></div>
       <div id="p3-time-content" style="flex:1;display:flex;flex-direction:column;gap:10px;"></div>
     </div>
+
+    <!-- 成交能力分析卡片 -->
+    <div class="panel" id="p3-sale-analysis" style="display: none; margin-top: 0;">
+      <div class="pl" style="display:flex;justify-content:space-between;align-items:center;">
+        <span>💰 成交能力分析</span>
+      </div>
+
+      <!-- 三列佈局 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:15px;margin-top:10px;">
+        <!-- 1. 大單能力 -->
+        <div style="padding:12px;background:var(--card);border-radius:6px;border-left:3px solid var(--yellow);">
+          <div style="font-size:11px;color:var(--sub);margin-bottom:8px;">📊 訂單價格分布</div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+            <span style="font-size:10px;">最高</span>
+            <span id="p3-price-max" style="font-family:'DM Mono',monospace;font-weight:600;color:var(--gold);">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+            <span style="font-size:10px;">中位</span>
+            <span id="p3-price-median" style="font-family:'DM Mono',monospace;font-weight:600;color:var(--blue);">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+            <span style="font-size:10px;">最低</span>
+            <span id="p3-price-min" style="font-family:'DM Mono',monospace;font-weight:600;color:var(--sub);">—</span>
+          </div>
+          <div style="border-top:1px solid var(--line);padding-top:8px;display:flex;justify-content:space-between;">
+            <span style="font-size:10px;">高單價訂單</span>
+            <span id="p3-high-order" style="font-family:'DM Mono',monospace;font-weight:600;color:var(--pur);">— <span style="color:var(--sub);font-weight:400;">/ —</span></span>
+          </div>
+        </div>
+
+        <!-- 2. 加購能力 -->
+        <div style="padding:12px;background:var(--card);border-radius:6px;border-left:3px solid var(--teal);">
+          <div style="font-size:11px;color:var(--sub);margin-bottom:8px;">🛍 加購能力</div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+            <span style="font-size:10px;">平均商品數</span>
+            <span id="p3-avg-items" style="font-family:'DM Mono',monospace;font-weight:600;color:var(--teal);">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+            <span style="font-size:10px;">單件訂單</span>
+            <span id="p3-single-items" style="font-family:'DM Mono',monospace;font-weight:600;color:var(--sub);">—</span>
+          </div>
+          <div style="border-top:1px solid var(--line);padding-top:8px;display:flex;justify-content:space-between;">
+            <span style="font-size:10px;">多件訂單</span>
+            <span id="p3-multi-items" style="font-family:'DM Mono',monospace;font-weight:600;color:var(--blue);">—</span>
+          </div>
+        </div>
+
+        <!-- 3. 工作效率 -->
+        <div style="padding:12px;background:var(--card);border-radius:6px;border-left:3px solid var(--coral);">
+          <div style="font-size:11px;color:var(--sub);margin-bottom:8px;">⏱ 工作效率</div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+            <span style="font-size:10px;">訂單/小時</span>
+            <span id="p3-efficiency" style="font-family:'DM Mono',monospace;font-weight:600;color:var(--coral);">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+            <span style="font-size:10px;">總訂單數</span>
+            <span id="p3-total-orders" style="font-family:'DM Mono',monospace;font-weight:600;color:var(--ink);">—</span>
+          </div>
+          <div style="border-top:1px solid var(--line);padding-top:8px;display:flex;justify-content:space-between;">
+            <span style="font-size:10px;">預估時長</span>
+            <span id="p3-est-hours" style="font-family:'DM Mono',monospace;font-weight:600;color:var(--sub);">— 小時</span>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -934,6 +999,45 @@ function renderP2(m, prev){
 }
 
 // ============ Page 3: 業務 ============
+
+// 渲染成交能力分析
+function renderSaleAnalysis(agent){
+  const el=document.getElementById('p3-sale-analysis');
+  if(!agent||!agent.price_max){
+    el.style.display='none';
+    return;
+  }
+
+  el.style.display='block';
+  document.getElementById('p3-price-max').textContent=fN(agent.price_max);
+  document.getElementById('p3-price-median').textContent=fN(agent.price_median);
+  document.getElementById('p3-price-min').textContent=fN(agent.price_min);
+
+  document.getElementById('p3-high-order').innerHTML=
+    `${agent.high_order_count} <span style="color:var(--sub);font-weight:400;">/ ${agent.orders}</span>`;
+
+  document.getElementById('p3-avg-items').textContent=
+    agent.avg_items_per_order.toFixed(2)+' 件';
+
+  const single_pct=agent.orders>0?Math.round(agent.single_item_orders/agent.orders*100):0;
+  const multi_pct=agent.orders>0?Math.round(agent.multi_item_orders/agent.orders*100):0;
+  document.getElementById('p3-single-items').textContent=
+    agent.single_item_orders+` (${single_pct}%)`;
+
+  document.getElementById('p3-multi-items').textContent=
+    agent.multi_item_orders+` (${multi_pct}%)`;
+
+  document.getElementById('p3-efficiency').textContent=
+    agent.efficiency.toFixed(2);
+
+  document.getElementById('p3-total-orders').textContent=
+    agent.orders;
+
+  const est_hours=agent.efficiency>0?Math.round(agent.orders/agent.efficiency):0;
+  document.getElementById('p3-est-hours').textContent=
+    est_hours+' 小時';
+}
+
 function renderP3(m){
   const tb=document.querySelector('#p3-tbl tbody');
   if(!m.agents||!m.agents.length){tb.innerHTML='<tr><td colspan="9" class="empty">本月無業務訂單</td></tr>';return;}
@@ -995,6 +1099,10 @@ function renderP3(m){
         <div style="display:grid;grid-template-columns:repeat(12,1fr);gap:2px;">${hrCells}</div>
         <div style="display:flex;justify-content:space-between;font-size:8px;color:var(--sub);margin-top:2px;"><span>0</span><span>6</span><span>12</span><span>18</span><span>23</span></div>
       </div>`;
+
+    // 渲染成交能力分析
+    const agent=m.agents.find(a=>a.name===name);
+    renderSaleAnalysis(agent);
   };
   document.querySelectorAll('#p3-tbl tbody tr').forEach(tr=>{
     tr.addEventListener('click',()=>renderAgentTime(tr.dataset.agent));
