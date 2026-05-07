@@ -964,6 +964,9 @@ function renderP2(m, prev){
 // ============ Page 3: 業務 ============
 
 // 渲染成交能力分析
+// 全局 Chart 實例儲存
+window.p3Charts = window.p3Charts || {};
+
 function renderSaleAnalysis(agent, allAgents){
   const el=document.getElementById('p3-sale-analysis');
   if(!agent||!agent.efficiency){
@@ -985,10 +988,15 @@ function renderSaleAnalysis(agent, allAgents){
   const upsells = topAgents.map(a=>Math.round(a.multi_item_orders/a.orders*100));
   const labels = topAgents.map(a=>a.name.split('/')[0].substring(0,4)); // 簡化名稱
 
+  // 銷毀舊圖表
+  if(window.p3Charts.eff) window.p3Charts.eff.destroy();
+  if(window.p3Charts.price) window.p3Charts.price.destroy();
+  if(window.p3Charts.upsell) window.p3Charts.upsell.destroy();
+
   // 繪製工作效率圖
   const effCtx = document.getElementById('p3-eff-chart');
   if(effCtx && window.Chart){
-    new Chart(effCtx, {
+    window.p3Charts.eff = new Chart(effCtx, {
       type: 'bar',
       data: {
         labels: labels,
@@ -1012,7 +1020,7 @@ function renderSaleAnalysis(agent, allAgents){
   // 繪製平均單價圖
   const priceCtx = document.getElementById('p3-price-chart');
   if(priceCtx && window.Chart){
-    new Chart(priceCtx, {
+    window.p3Charts.price = new Chart(priceCtx, {
       type: 'bar',
       data: {
         labels: labels,
@@ -1036,7 +1044,7 @@ function renderSaleAnalysis(agent, allAgents){
   // 繪製加購率圖
   const upsellCtx = document.getElementById('p3-upsell-chart');
   if(upsellCtx && window.Chart){
-    new Chart(upsellCtx, {
+    window.p3Charts.upsell = new Chart(upsellCtx, {
       type: 'bar',
       data: {
         labels: labels,
