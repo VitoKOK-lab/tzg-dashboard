@@ -16,13 +16,11 @@
 
     <key>ProgramArguments</key>
     <array>
-        <string>/bin/bash</string>
-        <string>-lc</string>
-        <string>./開機補跑.sh</string>
+        <string>/Users/vito/Documents/AIcode-claude/tzg-dashboard/開機補跑.sh</string>
     </array>
 
     <key>WorkingDirectory</key>
-    <string>/Users/vito/AIcode-claude/tzg-dashboard</string>
+    <string>/Users/vito/Documents/AIcode-claude/tzg-dashboard</string>
 
     <key>RunAtLoad</key>
     <true/>

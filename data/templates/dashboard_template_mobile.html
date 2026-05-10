@@ -333,7 +333,7 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
   <div class="sh"><div class="sh-t">客服接單 · 客戶排行 · 未付款提醒</div><div class="stag tp" id="s3-month">2026年4月</div></div>
   <div class="body">
     <div class="panel"><div class="pl">接單排行</div><div class="pt">本月排名 VS 上週</div><div class="sc" id="agent-list"></div></div>
-    <div class="panel"><div class="pl">客戶消費排行</div><div class="pt">TOP 10 · 已隱藏個資</div><div class="sc" id="cust-list"></div></div>
+    <div class="panel"><div class="pl">24小時內的訂單</div><div class="pt">最新優先 · 已隱藏個資</div><div class="sc" id="cust-list"></div></div>
     <div style="display:flex;flex-direction:column;gap:8px;">
       <div style="padding:10px 14px;background:rgba(217,75,107,.06);border:1px solid rgba(217,75,107,.3);border-radius:7px;display:flex;align-items:center;gap:12px;flex-shrink:0;">
         <div style="font-size:28px;">⚠️</div>
@@ -539,7 +539,7 @@ function renderS1Kpi(){
       <div>
         <div style="font-size:9px;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase;margin-bottom:4px;">本月營收</div>
         <div style="font-family:'DM Mono',monospace;font-size:26px;font-weight:700;color:var(--blue);line-height:1;">${fF(k.rev_mtd)}</div>
-        <div style="font-size:10px;color:var(--sub);margin-top:4px;">目標 ${fF(D.target)} · Day ${meta.days_elapsed||0}/${meta.days_total||30}</div>
+        <div style="font-size:10px;color:var(--sub);margin-top:4px;">目標 ${fF(D.target)}</div>
       </div>
       <div>
         <div style="font-size:9px;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase;margin-bottom:4px;">月底預估</div>
@@ -839,8 +839,30 @@ function renderAgents(){
   onVis(el,()=>stagger(el));
 }
 function renderCustomers(){
-  const max=D.customers[0]?.rev||1;const el=document.getElementById('cust-list');
-  el.innerHTML=D.customers.map((c,i)=>`<div class="rr r${i+1}"><div class="rn">${i+1}</div><div class="av" style="background:var(--blue);font-size:9px;">${c.name.slice(-1)||'客'}</div><div style="flex:1;min-width:0;"><div style="display:flex;align-items:center;margin-bottom:2px;"><span style="font-size:12px;font-weight:500;">${c.name}</span>${c.orders>1?`<span class="badge bup" style="font-size:9px;">回購×${c.orders}</span>`:''}</div><div class="rbar-w"><div class="rbar" data-w="${Math.round(c.rev/max*100)}" style="background:var(--blue);opacity:.4;"></div></div></div><div class="rv" style="font-size:13px;">${fN(c.rev)}</div></div>`).join('');
+  const el=document.getElementById('cust-list');
+  if(!D.customers || D.customers.length===0){
+    el.innerHTML='<div style="padding:14px;text-align:center;color:var(--sub);font-size:12px;">最近24小時無訂單</div>';
+    return;
+  }
+
+  // 表格列標題
+  const header=`<div style="display:grid;grid-template-columns:2fr 80px 60px 60px;gap:8px;padding:8px 2px;border-bottom:1px solid var(--line);font-size:9px;color:var(--sub);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">
+    <span>商品</span>
+    <span>客人</span>
+    <span style="text-align:right;">金額</span>
+    <span>來源</span>
+  </div>`;
+
+  const rows=D.customers.map((c,i)=>{
+    return `<div style="display:grid;grid-template-columns:2fr 80px 60px 60px;gap:8px;padding:8px 2px;border-bottom:1px solid var(--line2);align-items:center;font-size:11px;">
+      <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink);">${c.products}</div>
+      <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink);font-size:10px;">${c.customer}</div>
+      <div style="text-align:right;font-family:'DM Mono',monospace;font-weight:600;color:var(--blue);">${fN(c.amount)}</div>
+      <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;color:var(--sub);">${c.agent}</div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML=header+rows;
   onVis(el,()=>stagger(el));
 }
 function renderUnpaid(){

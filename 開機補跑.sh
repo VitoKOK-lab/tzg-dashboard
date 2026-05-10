@@ -14,7 +14,8 @@ else
     LAST_DAY="1970-01-01"
 fi
 
-echo "[catchup] 今日：$TODAY / 上次更新：$LAST_DAY"
+echo "[catchup] 今日：$TODAY / 
+上次更新：$LAST_DAY"
 
 if [ "$LAST_DAY" = "$TODAY" ]; then
     echo "[catchup] 今天已執行過，略過。"

@@ -1187,11 +1187,62 @@ def compute(df):
     }
     print(f'[客戶趨勢] 最近30天 {r_total}人 / 90天平均 {per30(p_total)}人/月')
 
-    # Customers TOP 10
-    cs = mtd_ord2.groupby(ccol).agg(orders=('訂單號碼','count'), rev=('訂單合計','sum')).reset_index()
-    nmap = mtd_lines.drop_duplicates(ccol).set_index(ccol)['顧客'].to_dict() if '顧客' in mtd_lines.columns else {}
-    D['customers'] = [{'name':mask_name(nmap.get(r[ccol], '')), 'orders':int(r['orders']), 'rev':int(r['rev'])}
-                      for _, r in cs.sort_values('rev', ascending=False).head(10).iterrows()]
+    # 24小時內訂單
+    hour24_start = today - timedelta(days=1)
+    last24_lines = mtd_lines[(mtd_lines['訂單日期'] >= hour24_start) & (mtd_lines['訂單日期'] <= today)]
+
+    # 按訂單號碼聚合 —— 每筆訂單的資訊
+    last24_orders = []
+    if len(last24_lines) > 0:
+        order_groups = last24_lines.groupby('訂單號碼')
+        for order_id, group in order_groups:
+            order_row = group.iloc[0]  # 訂單級資訊（會重複，但欄位一樣）
+
+            # 蒐集該訂單的商品清單
+            products = group['商品名稱'].tolist()
+            product_str = ' / '.join(products) if products else '—'
+
+            # 客人名字（加密中間字元）
+            cust_name = order_row.get('顧客', '')
+            cust_masked = mask_name(cust_name) if cust_name else '—'
+
+            # 誰服務 —— 提取友好的名稱
+            agent = order_row.get('推薦活動', '')
+            agent_str = str(agent).strip() if agent and str(agent) != 'nan' else ''
+
+            # 提取服務人員或來源名稱
+            if not agent_str:
+                agent_name = '—'
+            elif '/' in agent_str:
+                # 格式：業務/名字/地點 或 客服跟單/名字/地點
+                parts = agent_str.split('/')
+                # 優先取中間部分（名字），否則取第一部分
+                if len(parts) >= 2 and parts[1].strip():
+                    agent_name = parts[1].strip()
+                else:
+                    agent_name = parts[0].strip()
+            elif 'FB' in agent_str or '推流' in agent_str:
+                # 來源類信息
+                agent_name = 'FB' if 'FB' in agent_str else '來源'
+            elif len(agent_str) > 10 and agent_str[0] in '0123456789':
+                # 代碼格式（業務ID）
+                agent_name = '業務'
+            else:
+                # 其他（如「闆娘」）
+                agent_name = agent_str
+
+            last24_orders.append({
+                'order_id': str(order_id),
+                'products': product_str,
+                'amount': int(order_row['訂單合計']),
+                'customer': cust_masked,
+                'agent': agent_name,
+                'time': order_row['訂單日期']
+            })
+
+    # 按商品名稱排序（相同商品名稱排在一起）
+    last24_orders.sort(key=lambda x: x['products'])
+    D['customers'] = last24_orders
     
     # Interval
     def interval_dist(ordf):
@@ -1802,6 +1853,7 @@ def main():
 
         # 替換硬編碼的月份和日期標籤（用本月最後一天表示完整月份）
         report_month = D['meta']['report_month']
+        days_elapsed = D['meta']['days_elapsed']
         days_total = D['meta']['days_total']
         new_html = new_html.replace(
             'id="s1-month-tag">2026年4月</div>',
@@ -1809,7 +1861,7 @@ def main():
         )
         new_html = new_html.replace(
             'id="s1-day-tag">Day 22/30</div>',
-            f'id="s1-day-tag">Day {days_total}/{days_total}</div>'
+            f'id="s1-day-tag">Day {days_elapsed}/{days_total}</div>'
         )
 
         print(f'[✓] 數據注入完成：{len(new_html):,} 字元')

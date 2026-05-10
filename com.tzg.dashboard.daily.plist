@@ -18,13 +18,12 @@
 
     <key>ProgramArguments</key>
     <array>
-        <string>/bin/bash</string>
-        <string>-lc</string>
-        <string>./主流程.sh --shutdown</string>
+        <string>/Users/vito/Documents/AIcode-claude/tzg-dashboard/主流程.sh</string>
+        <string>--shutdown</string>
     </array>
 
     <key>WorkingDirectory</key>
-    <string>/Users/vito/AIcode-claude/tzg-dashboard</string>
+    <string>/Users/vito/Documents/AIcode-claude/tzg-dashboard</string>
 
     <key>StartCalendarInterval</key>
     <dict>
