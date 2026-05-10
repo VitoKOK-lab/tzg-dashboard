@@ -2,12 +2,12 @@
 # TZG Dashboard Generator + Auto Deploy (macOS)
 # 用法：
 #   ./generate_and_deploy.sh             手動：只抓當月，瀏覽器看得見
-#   ./generate_and_deploy.sh --auto      排程白天：抓當月 1 號~今天，headless，不睡眠
-#   ./generate_and_deploy.sh --shutdown  排程晚上：抓當月 1 號~今天，headless，跑完睡眠
+#   ./generate_and_deploy.sh --auto      排程白天：抓上月 1 號~今天，headless，不睡眠
+#   ./generate_and_deploy.sh --shutdown  排程晚上：抓上月 1 號~今天，headless，跑完睡眠
 set -u
 
-SCRIPT_DIR="/Users/vito/Documents/AIcode-claude/tzg-dashboard"
-cd "$SCRIPT_DIR" || { echo "[ERROR] Cannot cd to $SCRIPT_DIR"; exit 1; }
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR"
 
 PYTHON="${TZG_PYTHON:-python3}"
 MODE="${1:-}"
@@ -50,17 +50,17 @@ echo
 # ============ Step 5a: Auto Download from Shopline ============
 if [ -f ".env" ]; then
     TODAY="$(date +%Y-%m-%d)"
-    # 算「當月 1 號」與「上月 YYYY-MM」（macOS BSD date）
-    THISMONTH_START="$(date -v1d +%Y-%m-%d)"
+    # 算「上月 1 號」與「上月 YYYY-MM」（macOS BSD date）
+    LASTMONTH_START="$(date -v-1m -v1d +%Y-%m-%d)"
     LASTMONTH="$(date -v-1m +%Y-%m)"
 
     if [ "$MODE" = "--shutdown" ] || [ "$MODE" = "--auto" ]; then
         echo "==================================================="
-        echo " Downloading from Shopline (current month, headless)"
-        echo " Range: $THISMONTH_START ~ $TODAY"
+        echo " Downloading from Shopline (rolling window, headless)"
+        echo " Range: $LASTMONTH_START ~ $TODAY"
         echo "==================================================="
         echo
-        TZG_HEADLESS=1 "$PYTHON" auto_shopline.py --start "$THISMONTH_START" --end "$TODAY"
+        TZG_HEADLESS=1 "$PYTHON" auto_shopline.py --start "$LASTMONTH_START" --end "$TODAY"
         rc=$?
         if [ $rc -ne 0 ]; then
             echo "WARNING: Shopline download failed. Continuing with existing data..."
