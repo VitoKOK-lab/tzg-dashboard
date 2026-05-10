@@ -865,19 +865,17 @@ function renderCustomers(){
   }
 
   // 表格列標題
-  const header=`<div style="display:grid;grid-template-columns:2fr 80px 60px 60px;gap:8px;padding:8px 2px;border-bottom:1px solid var(--line);font-size:9px;color:var(--sub);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">
+  const header=`<div style="display:grid;grid-template-columns:2fr 80px 60px;gap:8px;padding:8px 2px;border-bottom:1px solid var(--line);font-size:9px;color:var(--sub);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">
     <span>商品</span>
     <span>客人</span>
     <span style="text-align:right;">金額</span>
-    <span>來源</span>
   </div>`;
 
   const rows=D.customers.map((c,i)=>{
-    return `<div style="display:grid;grid-template-columns:2fr 80px 60px 60px;gap:8px;padding:8px 2px;border-bottom:1px solid var(--line2);align-items:center;font-size:11px;">
+    return `<div style="display:grid;grid-template-columns:2fr 80px 60px;gap:8px;padding:8px 2px;border-bottom:1px solid var(--line2);align-items:center;font-size:11px;">
       <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink);">${c.products}</div>
       <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink);font-size:10px;">${c.customer}</div>
       <div style="text-align:right;font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-weight:600;color:var(--blue);">${fN(c.amount)}</div>
-      <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;color:var(--sub);">${c.agent}</div>
     </div>`;
   }).join('');
 
