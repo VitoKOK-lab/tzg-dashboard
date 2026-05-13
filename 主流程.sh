@@ -47,6 +47,17 @@ fi
 echo "[4/6] Git OK"
 echo
 
+# 自動拉取最新版本（讓本機端的開發改動先同步進來，避免之後 push 衝突）
+echo "==================================================="
+echo " Pulling latest from GitHub..."
+echo "==================================================="
+if git pull --rebase --autostash origin main; then
+    echo "[4b/6] Git pull OK"
+else
+    echo "WARNING: git pull 失敗，繼續用本地版本跑（之後 push 可能衝突）"
+fi
+echo
+
 # ============ Step 5a: Auto Download from Shopline ============
 if [ -f ".env" ]; then
     TODAY="$(date +%Y-%m-%d)"
