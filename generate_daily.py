@@ -136,6 +136,7 @@ COMBO_EXCLUDE_KEYWORDS = [
     '珍珠耳釘', '紫水晶小樹',
     '補貼', '客製化', '加工', '維修', '保養',
     '鑑定', '證書', '放大鏡',
+    '1元下單', '下單專區',  # 金額代用品：客戶買 N 件 ×$1 來付 $N，不是真實商品
 ]
 
 REGIONS = [
@@ -467,18 +468,27 @@ def compute_month_review(vd, ccol, yr, mo, target=None):
                         'peak_hour': int(hr_counts.idxmax()) if len(hr_counts) else None,
                     }
 
-    # 商品（依營收 / 依數量）
+    # 商品（依營收 / 依數量）— 數量破千 = 金額代用品，qty 改用訂單數
+    PSEUDO_QTY_THRESHOLD = 1000
     pm_prod_rev = pm_lines.groupby('商品名稱').agg(
-        qty=('數量', 'sum'), rev=('商品結帳價', 'sum'), orders=('訂單號碼', 'nunique')
-    ).sort_values('rev', ascending=False).head(15).reset_index()
+        qty=('數量', 'sum'), rev=('商品結帳價', 'sum'),
+        orders=('訂單號碼', 'nunique')
+    ).reset_index()
+    pm_prod_rev.loc[pm_prod_rev['qty'] > PSEUDO_QTY_THRESHOLD, 'qty'] = \
+        pm_prod_rev.loc[pm_prod_rev['qty'] > PSEUDO_QTY_THRESHOLD, 'orders']
+    pm_prod_rev = pm_prod_rev.sort_values('rev', ascending=False).head(15)
     pm_top_prod_rev = [
         {'name': str(r['商品名稱'])[:35], 'qty': int(r['qty']), 'rev': int(r['rev']),
          'orders': int(r['orders']), 'avg': int(r['rev'] / r['qty']) if r['qty'] else 0}
         for _, r in pm_prod_rev.iterrows()
     ]
     pm_prod_qty = pm_lines.groupby('商品名稱').agg(
-        qty=('數量', 'sum'), rev=('商品結帳價', 'sum')
-    ).sort_values('qty', ascending=False).head(15).reset_index()
+        qty=('數量', 'sum'), rev=('商品結帳價', 'sum'),
+        orders=('訂單號碼', 'nunique')
+    ).reset_index()
+    pm_prod_qty.loc[pm_prod_qty['qty'] > PSEUDO_QTY_THRESHOLD, 'qty'] = \
+        pm_prod_qty.loc[pm_prod_qty['qty'] > PSEUDO_QTY_THRESHOLD, 'orders']
+    pm_prod_qty = pm_prod_qty.sort_values('qty', ascending=False).head(15)
     pm_top_prod_qty = [
         {'name': str(r['商品名稱'])[:35], 'qty': int(r['qty']), 'rev': int(r['rev'])}
         for _, r in pm_prod_qty.iterrows()
@@ -1109,8 +1119,17 @@ def compute(df):
     # Products
     ml = mtd_lines.copy()
     ml['_rev'] = ml['商品結帳價'] * ml['數量']
-    pg = ml.groupby('商品名稱').agg(qty=('數量','sum'), rev=('_rev','sum')).reset_index()
+    pg = ml.groupby('商品名稱').agg(
+        qty=('數量','sum'),
+        rev=('_rev','sum'),
+        orders=('訂單號碼','nunique'),
+    ).reset_index()
+    # 數量破千 = 金額代用品（如「1元下單專區」客戶買 N 件×$1 來付 $N），qty 改用訂單數
+    PSEUDO_QTY_THRESHOLD = 1000
+    pseudo_mask = pg['qty'] > PSEUDO_QTY_THRESHOLD
+    pg.loc[pseudo_mask, 'qty'] = pg.loc[pseudo_mask, 'orders']
     pg['price'] = pg['rev'] / pg['qty'].replace(0, 1)
+    pg = pg.drop(columns=['orders'])
     D['prod_rev'] = [{'name':r['商品名稱'], 'qty':int(r['qty']), 'price':int(r['price']), 'rev':int(r['rev'])}
                      for _, r in pg.sort_values('rev', ascending=False).head(10).iterrows()]
     D['prod_qty'] = [{'name':r['商品名稱'], 'qty':int(r['qty']), 'price':int(r['price']), 'rev':int(r['rev'])}
