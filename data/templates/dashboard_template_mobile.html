@@ -46,6 +46,9 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
 .tbk-v{font-family:'DM Mono',monospace;font-size:17px;font-weight:500;color:#fff;white-space:nowrap;}
 .tbk-c{font-size:11px;margin-top:1px;}
 .u{color:var(--up);}.d{color:var(--dn);}.f{color:var(--flat);}
+.tb-update{display:flex;flex-direction:column;justify-content:center;padding:0 14px;border-right:1px solid rgba(255,255,255,.15);white-space:nowrap;flex-shrink:0;}
+.tb-update-l{font-size:9px;letter-spacing:1.5px;color:rgba(255,255,255,.6);text-transform:uppercase;margin-bottom:2px;}
+.tb-update-v{font-family:'DM Mono',monospace;font-size:13px;color:#fff;font-weight:500;}
 .tb-right{display:flex;align-items:center;gap:14px;padding:0 18px;border-left:1px solid rgba(255,255,255,.15);margin-left:auto;}
 .live-dot{width:7px;height:7px;border-radius:50%;background:#fff;box-shadow:0 0 6px rgba(255,255,255,.5);animation:pulse 2s infinite;}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
@@ -160,6 +163,8 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
   #topbar{position:static;height:auto;padding:8px 12px;flex-wrap:wrap;}
   .tb-logo{padding:0;border-right:none;}
   .tb-logo-n{font-size:15px;}
+  .tb-update{padding:0;border-right:none;margin-left:10px;}
+  .tb-update-v{font-size:11px;}
   .tb-kpis{display:none;}
   .tb-right{padding:0;margin-left:auto;border-left:none;gap:8px;}
   #clock{font-size:13px;}
@@ -219,6 +224,7 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
 
 <div id="topbar">
   <div class="tb-logo"><div class="tb-logo-n">電商部-日報表</div><div class="tb-logo-s">TZG Daily Brief</div></div>
+  <div class="tb-update"><div class="tb-update-l">最後更新</div><div class="tb-update-v" id="last-update">__LAST_UPDATE__</div></div>
   <div class="tb-kpis" id="tb-kpis"></div>
   <div class="tb-right">
     <div style="display:flex;align-items:center;gap:4px;"><div class="live-dot"></div><span style="font-size:8px;letter-spacing:2px;color:var(--up);font-weight:600;">LIVE</span></div>

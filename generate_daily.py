@@ -1883,6 +1883,10 @@ def main():
             f'id="s1-day-tag">Day {days_elapsed}/{days_total}</div>'
         )
 
+        # 最後更新時間（topbar 顯示用）
+        last_update_str = datetime.now().strftime('%Y-%m-%d %H:%M')
+        new_html = new_html.replace('__LAST_UPDATE__', last_update_str)
+
         print(f'[✓] 數據注入完成：{len(new_html):,} 字元')
     except Exception as e:
         print(f'[✗] 數據注入失敗：{e}')
