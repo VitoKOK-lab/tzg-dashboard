@@ -182,6 +182,8 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
 @media (max-width:768px){
   #topbar{position:static;height:auto;padding:8px 12px;flex-wrap:wrap;}
   .m-banner{display:block;width:100%;height:auto;}
+  /* s1 第一行 KPI（本月營收 / 月底預估）改單欄堆疊，避免大金額溢出 */
+  #s1-kpi-block > div:first-child{grid-template-columns:1fr !important;}
   .tb-logo{padding:0;border-right:none;}
   .tb-logo-n{font-size:15px;}
   .tb-update{padding:0;border-right:none;margin-left:10px;}
@@ -247,7 +249,7 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
 
 <div id="topbar">
   <div class="tb-logo"><div class="tb-logo-n">電商部-日報表</div><div class="tb-logo-s">TZG Daily Brief</div></div>
-  <div class="tb-update"><div class="tb-update-l">最後更新</div><div class="tb-update-v" id="last-update">2026-05-21 17:43</div></div>
+  <div class="tb-update"><div class="tb-update-l">最後更新</div><div class="tb-update-v" id="last-update">2026-05-21 17:53</div></div>
   <div class="tb-kpis" id="tb-kpis"></div>
   <div class="tb-right">
     <div style="display:flex;align-items:center;gap:4px;"><div class="live-dot"></div><span style="font-size:8px;letter-spacing:2px;color:var(--up);font-weight:600;">LIVE</span></div>
