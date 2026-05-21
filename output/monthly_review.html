@@ -95,11 +95,17 @@ td.num{font-family:'DM Mono',monospace;}
 
 .empty{padding:40px;text-align:center;color:var(--sub);font-size:12px;}
 
+/* 手機版 banner（桌面隱藏） */
+.m-banner{display:none;}
+
 /* ═══════════ Mobile / RWD ═══════════ */
 @media (max-width:768px){
   /* 解除桌面的 viewport 鎖，讓手機可以正常往下捲動 */
   html,body{height:auto;min-height:100vh;overflow:visible;font-size:13px;}
   body{display:block;}
+
+  /* 手機版 banner 顯示，依比例自適應寬度 */
+  .m-banner{display:block;width:100%;height:auto;}
 
   /* Topbar wrapper：手機 sticky 黏在最上方，hdr + tabs 一起跟著畫面 */
   .topbar-wrap{position:sticky;top:0;z-index:100;background:#000;}
@@ -186,6 +192,8 @@ td.num{font-family:'DM Mono',monospace;}
 </style>
 </head>
 <body>
+
+<img class="m-banner" src="banner_monthly.png" alt="ZANNA Jewellery">
 
 <div class="topbar-wrap">
 <div class="hdr">
