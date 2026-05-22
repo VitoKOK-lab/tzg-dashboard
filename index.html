@@ -1,11 +1,143 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-TW">
 <head>
-  <meta charset="utf-8">
-  <meta http-equiv="refresh" content="0; url=output/dashboard_latest.html">
-  <link rel="canonical" href="output/dashboard_latest.html">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TZG 泰熙爾札娜珠寶</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body { font-family: 'Montserrat', 'PingFang TC', sans-serif; background: #f7f5f0; display: flex; flex-direction: column; }
+
+/* ── TAB BAR ── */
+.tabbar {
+  height: 44px;
+  background: #fff;
+  border-bottom: 1px solid rgba(0,0,0,.08);
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+  padding: 0 16px;
+  gap: 2px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: .2em;
+  color: #B8892A;
+  padding-right: 20px;
+  border-right: 1px solid rgba(0,0,0,.07);
+  margin-right: 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #999;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color .14s, border-color .14s;
+  white-space: nowrap;
+  user-select: none;
+}
+.tab:hover { color: #555; }
+.tab.active { color: #B8892A; border-bottom-color: #B8892A; }
+
+/* ── CONTENT ── */
+.content { flex: 1; position: relative; overflow: hidden; }
+
+iframe {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  border: none;
+  opacity: 0;
+  transition: opacity .2s;
+  pointer-events: none;
+}
+iframe.active { opacity: 1; pointer-events: all; }
+
+/* Loading */
+.loader {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: #f7f5f0;
+  z-index: 10;
+  transition: opacity .25s;
+}
+.loader.hidden { opacity: 0; pointer-events: none; }
+.spinner {
+  width: 28px; height: 28px;
+  border: 2px solid #e8e4dc;
+  border-top-color: #C9A961;
+  border-radius: 50%;
+  animation: spin .6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
 </head>
 <body>
-  <script>window.location.replace("output/dashboard_latest.html")</script>
+
+<div class="tabbar">
+  <div class="brand">TZG</div>
+  <div class="tab active" onclick="show(0)">每日業績</div>
+  <div class="tab" onclick="show(1)">月度回顧</div>
+  <div class="tab" onclick="show(2)">短影音分析</div>
+  <div class="tab" onclick="show(3)">代理獎金</div>
+</div>
+
+<div class="content">
+  <div class="loader" id="loader"><div class="spinner"></div></div>
+  <iframe id="f0" class="active" src="https://vitokok-lab.github.io/tzg-dashboard/output/dashboard_latest.html"></iframe>
+  <iframe id="f1" src=""></iframe>
+  <iframe id="f2" src=""></iframe>
+  <iframe id="f3" src=""></iframe>
+</div>
+
+<script>
+const urls = [
+  'https://vitokok-lab.github.io/tzg-dashboard/output/dashboard_latest.html',
+  'https://vitokok-lab.github.io/tzg-dashboard/output/monthly_review.html',
+  'https://vitokok-lab.github.io/meta-dashboard/',
+  'https://tzg-commission.fly.dev/review/2026-04?t=a301e31bce1565a771691b7ad3167e05',
+];
+
+const loaded = [false, false, false, false];
+let cur = 0;
+
+const tabs   = document.querySelectorAll('.tab');
+const frames = [0,1,2,3].map(i => document.getElementById('f'+i));
+const loader = document.getElementById('loader');
+
+// 第一個 iframe 監聽 load
+frames[0].onload = () => { loaded[0] = true; if(cur===0) loader.classList.add('hidden'); };
+
+function show(i) {
+  if (i === cur) return;
+  tabs[cur].classList.remove('active');
+  frames[cur].classList.remove('active');
+  cur = i;
+  tabs[i].classList.add('active');
+
+  if (!loaded[i]) {
+    loader.classList.remove('hidden');
+    frames[i].src = urls[i] + (urls[i].includes('?') ? '&' : '?') + '_t=' + Date.now();
+    frames[i].onload = () => { loaded[i] = true; loader.classList.add('hidden'); };
+  } else {
+    loader.classList.add('hidden');
+  }
+
+  frames[i].classList.add('active');
+}
+</script>
 </body>
 </html>
