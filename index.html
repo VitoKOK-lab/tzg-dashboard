@@ -8,17 +8,17 @@
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; overflow: hidden; }
-body { font-family: 'Montserrat', 'PingFang TC', sans-serif; background: #FAF8F3; display: flex; flex-direction: column; }
+body { font-family: 'Montserrat', 'PingFang TC', sans-serif; background: #fff; display: flex; flex-direction: column; }
 
 /* ── TAB BAR ── */
 .tabbar {
-  height: 46px;
-  background: #FFFFFF;
-  border-bottom: 1px solid rgba(43,43,43,.09);
+  height: 44px;
+  background: #fff;
+  border-bottom: 1px solid rgba(0,0,0,.08);
   display: flex;
   align-items: stretch;
   flex-shrink: 0;
-  padding: 0 18px;
+  padding: 0 16px;
   gap: 2px;
 }
 
@@ -26,7 +26,7 @@ body { font-family: 'Montserrat', 'PingFang TC', sans-serif; background: #FAF8F3
   display: flex;
   align-items: center;
   padding-right: 16px;
-  border-right: 1px solid rgba(43,43,43,.08);
+  border-right: 1px solid rgba(0,0,0,.07);
   margin-right: 6px;
   flex-shrink: 0;
 }
@@ -41,18 +41,17 @@ body { font-family: 'Montserrat', 'PingFang TC', sans-serif; background: #FAF8F3
   display: flex;
   align-items: center;
   padding: 0 14px;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: .5px;
-  color: #9A938A;
+  color: #e8a0b0;
   cursor: pointer;
   border-bottom: 2px solid transparent;
   transition: color .14s, border-color .14s;
   white-space: nowrap;
   user-select: none;
 }
-.tab:hover { color: #2B2B2B; }
-.tab.active { color: #B8902A; border-bottom-color: #B8902A; }
+.tab:hover { color: #D4456A; }
+.tab.active { color: #D4456A; border-bottom-color: #D4456A; font-weight: 700; }
 
 /* ── CONTENT ── */
 .content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
@@ -68,7 +67,7 @@ iframe.active { display: block; }
 .loader {
   position: fixed; inset: 0; top: 44px;
   display: flex; align-items: center; justify-content: center;
-  background: #f7f5f0;
+  background: #fff;
   z-index: 10;
   transition: opacity .2s;
 }
@@ -95,7 +94,7 @@ iframe.active { display: block; }
 
 <div class="content">
   <div class="loader" id="loader"><div class="spinner"></div></div>
-  <iframe id="f0" class="active" src=""></iframe>
+  <iframe id="f0" class="active" src="https://vitokok-lab.github.io/tzg-dashboard/output/dashboard_latest.html"></iframe>
   <iframe id="f1" src=""></iframe>
   <iframe id="f2" src=""></iframe>
   <iframe id="f3" src=""></iframe>
@@ -116,9 +115,8 @@ const tabs   = document.querySelectorAll('.tab');
 const frames = [0,1,2,3].map(i => document.getElementById('f'+i));
 const loader = document.getElementById('loader');
 
-// 第一個 iframe 監聽 load，並帶 cache-buster 確保每次載入最新版（手機常被快取卡住）
+// 第一個 iframe 監聽 load
 frames[0].onload = () => { loaded[0] = true; if(cur===0) loader.classList.add('hidden'); };
-frames[0].src = urls[0] + (urls[0].includes('?') ? '&' : '?') + '_t=' + Date.now();
 
 function show(i) {
   if (i === cur) return;
