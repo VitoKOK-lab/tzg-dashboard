@@ -13,8 +13,8 @@ body { font-family: 'Montserrat', 'PingFang TC', sans-serif; background: #f7f5f0
 /* ── TAB BAR ── */
 .tabbar {
   height: 44px;
-  background: #fff;
-  border-bottom: 1px solid rgba(0,0,0,.08);
+  background: #E6328C;
+  border-bottom: 1px solid rgba(255,255,255,.2);
   display: flex;
   align-items: stretch;
   flex-shrink: 0;
@@ -26,7 +26,7 @@ body { font-family: 'Montserrat', 'PingFang TC', sans-serif; background: #f7f5f0
   display: flex;
   align-items: center;
   padding-right: 16px;
-  border-right: 1px solid rgba(0,0,0,.07);
+  border-right: 1px solid rgba(255,255,255,.25);
   margin-right: 6px;
   flex-shrink: 0;
 }
@@ -43,15 +43,15 @@ body { font-family: 'Montserrat', 'PingFang TC', sans-serif; background: #f7f5f0
   padding: 0 14px;
   font-size: 12px;
   font-weight: 600;
-  color: #999;
+  color: rgba(255,255,255,.7);
   cursor: pointer;
   border-bottom: 2px solid transparent;
   transition: color .14s, border-color .14s;
   white-space: nowrap;
   user-select: none;
 }
-.tab:hover { color: #D4456A; }
-.tab.active { color: #D4456A; border-bottom-color: #D4456A; font-weight: 700; }
+.tab:hover { color: #fff; }
+.tab.active { color: #fff; border-bottom-color: #fff; }
 
 /* ── CONTENT ── */
 .content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
