@@ -94,7 +94,7 @@ iframe.active { display: block; }
 
 <div class="content">
   <div class="loader" id="loader"><div class="spinner"></div></div>
-  <iframe id="f0" class="active" src="https://vitokok-lab.github.io/tzg-dashboard/output/dashboard_latest.html"></iframe>
+  <iframe id="f0" class="active" src=""></iframe>
   <iframe id="f1" src=""></iframe>
   <iframe id="f2" src=""></iframe>
   <iframe id="f3" src=""></iframe>
@@ -115,8 +115,9 @@ const tabs   = document.querySelectorAll('.tab');
 const frames = [0,1,2,3].map(i => document.getElementById('f'+i));
 const loader = document.getElementById('loader');
 
-// 第一個 iframe 監聽 load
+// 第一個 iframe 監聽 load，並帶 cache-buster 確保每次載入最新版（手機常被快取卡住）
 frames[0].onload = () => { loaded[0] = true; if(cur===0) loader.classList.add('hidden'); };
+frames[0].src = urls[0] + (urls[0].includes('?') ? '&' : '?') + '_t=' + Date.now();
 
 function show(i) {
   if (i === cur) return;
