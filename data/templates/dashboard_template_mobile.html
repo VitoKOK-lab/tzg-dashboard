@@ -55,9 +55,6 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 #clock{font-family:'DM Mono',monospace;font-size:17px;color:#fff;}
 #dlbl{font-size:10px;color:rgba(255,255,255,.6);margin-top:2px;}
-.sdot{width:20px;height:4px;border-radius:2px;background:rgba(255,255,255,.25);cursor:pointer;transition:all .2s;}
-.sdot.on{background:#fff;width:28px;}
-#snum{font-family:'DM Mono',monospace;font-size:11px;color:rgba(255,255,255,.6);}
 
 #astrip{position:fixed;top:56px;left:0;right:0;height:40px;background:#000;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 28px;gap:16px;z-index:400;}
 #astrip .al{color:rgba(255,255,255,.55);}
@@ -75,10 +72,12 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
 .cdn{background:rgba(16,163,127,.12);color:var(--dn);}
 .cflat{background:rgba(158,158,158,.12);color:var(--flat);}
 
-#prog{position:fixed;bottom:0;left:0;right:0;height:2px;background:rgba(30,58,95,.06);z-index:500;}
-#pfill{height:100%;width:0%;background:linear-gradient(90deg,var(--coral),var(--gold));transition:width .12s linear;}
+#dtabs{position:fixed;top:96px;left:0;right:0;background:#000;display:flex;overflow-x:auto;padding:0 24px;z-index:400;}
+.dtab{padding:10px 16px;font-size:13px;font-weight:500;cursor:pointer;color:rgba(255,255,255,.65);border-bottom:3px solid transparent;white-space:nowrap;transition:all .15s;flex-shrink:0;}
+.dtab:hover{color:#fff;}
+.dtab.on{color:#fff;border-bottom-color:#1FBFB8;font-weight:700;}
 
-#slides{position:absolute;top:96px;left:0;right:0;bottom:2px;}
+#slides{position:absolute;top:137px;left:0;right:0;bottom:0;}
 .slide{position:absolute;inset:0;opacity:0;pointer-events:none;transition:opacity .5s ease;padding:20px 28px 10px;display:flex;flex-direction:column;gap:10px;}
 .slide.on{opacity:1;pointer-events:all;}
 
@@ -161,23 +160,22 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
 #s7 .body{display:grid;grid-template-columns:1fr 1fr 1.3fr;gap:10px;flex:1;min-height:0;}
 
 @media (max-width:768px){
-  #topbar{position:static;height:auto;padding:8px 12px;flex-wrap:wrap;}
+  #topbar{position:static;height:auto;padding:8px 12px;flex-wrap:wrap;align-items:flex-start;}
   .m-banner{display:block;width:100%;height:auto;}
   /* s1 第一行 KPI（本月營收 / 月底預估）改單欄堆疊，避免大金額溢出 */
   #s1-kpi-block > div:first-child{grid-template-columns:1fr !important;}
-  .tb-logo{padding:0;border-right:none;}
+  .tb-logo{padding:0;border-right:none;justify-content:flex-start;}
   .tb-logo-n{font-size:15px;}
-  .tb-update{padding:0;border-right:none;margin-left:10px;}
+  .tb-update{padding:0;border-right:none;margin-left:10px;justify-content:flex-start;}
   .tb-update-v{font-size:11px;}
   .tb-kpis{display:none;}
   .tb-right{padding:0;margin-left:auto;border-left:none;gap:8px;}
   #clock{font-size:13px;}
-  #snav,#snum{display:none;}
+  #dtabs{display:none;}
   #astrip{position:static;height:auto;flex-wrap:wrap;padding:10px 12px;gap:6px 10px;}
   #astrip .abar{flex-basis:100%;order:-1;height:8px;margin-bottom:4px;}
   #astrip .adiv{display:none;}
   #astrip #a-pct{font-size:14px;}
-  #prog{display:none;}
   #slides{position:static;top:auto;bottom:auto;padding:0;}
   .slide{position:static;opacity:1!important;pointer-events:all!important;inset:auto;padding:12px;gap:10px;transition:none;}
   .slide + .slide{border-top:1px solid var(--line);margin-top:4px;}
@@ -217,7 +215,8 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
 @media print{
   @page{size:A3 landscape;margin:5mm;}
   html,body{width:auto;height:auto;overflow:visible;background:#fff;}
-  #topbar,#astrip,#prog,#snav,#snum{position:static;}
+  #topbar,#astrip{position:static;}
+  #dtabs{display:none;}
   .slide{position:static!important;opacity:1!important;pointer-events:all!important;page-break-after:always;padding:8mm;}
   .slide:last-child{page-break-after:auto;}
   .panel{box-shadow:none;border:1px solid #ddd;}
@@ -236,13 +235,6 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
     <div style="display:flex;align-items:center;gap:4px;"><div class="live-dot"></div><span style="font-size:8px;letter-spacing:2px;color:var(--up);font-weight:600;">LIVE</span></div>
     <div style="width:1px;height:20px;background:var(--line);"></div>
     <div><div id="clock"></div><div id="dlbl"></div></div>
-    <div style="width:1px;height:20px;background:var(--line);"></div>
-    <div style="display:flex;gap:4px;" id="snav"></div>
-    <div id="snum">1/8</div>
-    <div style="width:1px;height:20px;background:var(--line);"></div>
-    <div id="mode-indicator" style="font-size:10px;letter-spacing:1px;font-weight:600;min-width:84px;text-align:right;">⏸ 手動模式</div>
-    <div style="width:1px;height:20px;background:var(--line);"></div>
-    <a href="./monthly_review.html" target="_blank" style="padding:4px 8px;background:var(--line);border-radius:3px;font-size:10px;color:var(--ink);text-decoration:none;font-weight:500;transition:background 0.2s;cursor:pointer;" onmouseover="this.style.background='var(--card)'" onmouseout="this.style.background='var(--line)'">📊 月報表</a>
   </div>
 </div>
 
@@ -254,7 +246,7 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
   <div class="adiv"></div><div class="al">昨日</div><div id="a-yday" class="av2"></div>
   <div class="adiv"></div><div class="al">均價 / 中位</div><div id="a-aov" class="av2"></div>
 </div>
-<div id="prog"><div id="pfill"></div></div>
+<div id="dtabs"></div>
 
 <div id="slides">
 
@@ -1141,65 +1133,26 @@ function renderCustomerTrend(){
 
 // 前月總結已移至獨立的月會專用網頁 output/monthly_review.html
 
-const DUR=20000;  // 每頁停留時間（毫秒）
-const IDLE_MS=5*60*1000;  // 5 分鐘閒置後啟動自動播放
 const slides=document.querySelectorAll('.slide');
-let cur=0, timer, idleTimer, autoPlaying=false;
+let cur=0;
 
+const SLIDE_LABELS={s1:'📊 本月總覽',s2:'📈 業績來源',s3:'🏆 客服客戶',s5:'🛍 商品銷售',s7:'🛒 購物習慣',s6:'👥 客戶結構',s4:'📍 地區業績'};
 const inits={4:[renderRepurchaseChart],5:[renderNew6mChart,renderFvrChart,renderMemberChart,renderRfmGrid,renderActiveTiers],6:[renderCustomerTrend]};
-function buildNav(){const el=document.getElementById('snav');el.innerHTML=Array.from({length:slides.length},(_,i)=>`<div class="sdot${i===0?' on':''}" data-i="${i}"></div>`).join('');el.querySelectorAll('.sdot').forEach(d=>d.addEventListener('click',()=>{goTo(+d.dataset.i);userAction();}));}
-function goTo(n){slides[cur].classList.remove('on');document.querySelectorAll('.sdot')[cur].classList.remove('on');cur=((n%slides.length)+slides.length)%slides.length;slides[cur].classList.add('on');document.querySelectorAll('.sdot')[cur].classList.add('on');document.getElementById('snum').textContent=`${cur+1}/${slides.length}`;if(autoPlaying)startProg();else stopProg();trigAnim(slides[cur]);if(inits[cur])inits[cur].forEach(fn=>setTimeout(fn,200));}
 
-function startProg(){
-  clearTimeout(timer);
-  const fill=document.getElementById('pfill');
-  fill.style.transition='none';fill.style.width='0%';
-  requestAnimationFrame(()=>{fill.style.transition=`width ${DUR}ms linear`;fill.style.width='100%';});
-  timer=setTimeout(()=>goTo(cur+1),DUR);
+function buildNav(){
+  const el=document.getElementById('dtabs');
+  el.innerHTML=Array.from(slides,(s,i)=>`<div class="dtab${i===0?' on':''}" data-i="${i}">${SLIDE_LABELS[s.id]||s.id}</div>`).join('');
+  el.querySelectorAll('.dtab').forEach(d=>d.addEventListener('click',()=>goTo(+d.dataset.i)));
 }
 
-function stopProg(){
-  clearTimeout(timer);
-  const fill=document.getElementById('pfill');
-  if(fill){fill.style.transition='none';fill.style.width='0%';}
+function goTo(n){
+  const tabs=document.querySelectorAll('.dtab');
+  slides[cur].classList.remove('on');if(tabs[cur])tabs[cur].classList.remove('on');
+  cur=((n%slides.length)+slides.length)%slides.length;
+  slides[cur].classList.add('on');if(tabs[cur])tabs[cur].classList.add('on');
+  trigAnim(slides[cur]);
+  if(inits[cur])inits[cur].forEach(fn=>setTimeout(fn,200));
 }
-
-function startAutoPlay(){
-  if(autoPlaying)return;
-  autoPlaying=true;
-  updateModeIndicator();
-  startProg();
-}
-
-function stopAutoPlay(){
-  autoPlaying=false;
-  updateModeIndicator();
-  stopProg();
-}
-
-function updateModeIndicator(){
-  const el=document.getElementById('mode-indicator');
-  if(!el)return;
-  if(autoPlaying){
-    el.textContent='▶ 自動播放中';
-    el.style.color='var(--up)';
-  }else{
-    el.textContent='⏸ 手動模式';
-    el.style.color='var(--sub)';
-  }
-}
-
-function userAction(){
-  // 任何互動都算使用者操作 → 停止自動播放 + 重置閒置計時器
-  stopAutoPlay();
-  clearTimeout(idleTimer);
-  idleTimer=setTimeout(startAutoPlay, IDLE_MS);
-}
-
-// 監聽所有互動：滑鼠移動、點擊、按鍵、觸控
-['mousemove','mousedown','keydown','touchstart','scroll'].forEach(ev=>{
-  document.addEventListener(ev,userAction,{passive:true});
-});
 
 document.addEventListener('keydown',e=>{
   if(e.key==='ArrowRight')goTo(cur+1);
@@ -1231,9 +1184,6 @@ if(IS_MOBILE){
 }else{
   buildNav();
   setTimeout(()=>trigAnim(slides[0]),350);
-  updateModeIndicator();
-  // 初始是手動模式，不自動播放；等使用者 5 分鐘沒動作才啟動
-  idleTimer=setTimeout(startAutoPlay, IDLE_MS);
 }
 </script>
 </body>
