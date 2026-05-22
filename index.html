@@ -25,16 +25,16 @@ body { font-family: 'Montserrat', 'PingFang TC', sans-serif; background: #f7f5f0
 .brand {
   display: flex;
   align-items: center;
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: .2em;
-  color: #B8892A;
-  padding-right: 20px;
+  padding-right: 16px;
   border-right: 1px solid rgba(0,0,0,.07);
   margin-right: 6px;
-  white-space: nowrap;
   flex-shrink: 0;
+}
+.brand img {
+  height: 28px;
+  width: auto;
+  display: block;
+  mix-blend-mode: multiply;
 }
 
 .tab {
@@ -85,7 +85,7 @@ iframe.active { display: block; }
 <body>
 
 <div class="tabbar">
-  <div class="brand">TZG</div>
+  <div class="brand"><img src="logo.png" alt="TZG"></div>
   <div class="tab active" onclick="show(0)">每日業績</div>
   <div class="tab" onclick="show(1)">月度回顧</div>
   <div class="tab" onclick="show(2)">短影音分析</div>
