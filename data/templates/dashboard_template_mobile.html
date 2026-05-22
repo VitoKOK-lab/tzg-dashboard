@@ -30,7 +30,7 @@
   --fs-tag:9px;      /* 角標 */
 }
 *{margin:0;padding:0;box-sizing:border-box;}
-html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-family:'Noto Sans TC',sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;font-size:var(--fs-body);}
+html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-family:'Noto Sans TC','思源黑體','Source Han Sans TC','微軟正黑體','Microsoft JhengHei',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;font-size:var(--fs-body);}
 @media (max-width:768px){
   html,body{width:100%;height:auto;min-height:100vh;overflow-x:hidden;overflow-y:auto;}
 }
@@ -162,13 +162,14 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
   /* s1 第一行 KPI（本月營收 / 月底預估）改單欄堆疊，避免大金額溢出 */
   #s1-kpi-block > div:first-child{grid-template-columns:1fr !important;}
   .tb-logo{padding:0;border-right:none;justify-content:flex-start;}
-  .tb-logo-n{font-size:15px;}
+  .tb-logo-n{font-size:16px;}
   .tb-update{padding:0;border-right:none;margin-left:10px;justify-content:flex-start;}
   .tb-update-v{font-size:11px;}
   .tb-kpis{display:none;}
   .tb-right{padding:0;margin-left:auto;border-left:none;gap:8px;}
   #clock{font-size:13px;}
   #dtabs{position:sticky;top:0;z-index:450;}
+  .dtab{font-size:12px;}
   #astrip{position:static;height:auto;flex-wrap:wrap;padding:10px 12px;gap:6px 10px;}
   #astrip .abar{flex-basis:100%;order:-1;height:8px;margin-bottom:4px;}
   #astrip .adiv{display:none;}
@@ -178,7 +179,7 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
   .slide{display:none;position:static;opacity:1!important;pointer-events:all!important;inset:auto;padding:12px;gap:10px;transition:none;}
   .slide.on{display:flex;}
   .sh{flex-wrap:wrap;gap:6px;}
-  .sh-t{font-size:15px;}
+  .sh-t{font-size:16px;}
   .stag{font-size:8px;padding:1px 6px;}
   #s1 .body,#s2 .body,#s3 .body,#s5 .body,#s7 .body{display:flex;flex-direction:column;gap:10px;}
   #s4 .body,#s6 .body{grid-template-columns:1fr!important;}
