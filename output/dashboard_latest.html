@@ -75,11 +75,8 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
 #clock{font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:17px;color:#fff;}
 #dlbl{font-size:10px;color:rgba(255,255,255,.6);margin-top:2px;}
 
-#astrip{position:fixed;top:56px;left:0;right:0;height:40px;background:#1E3A5F;border-bottom:1px solid rgba(255,255,255,.12);display:flex;align-items:center;padding:0 28px;gap:16px;z-index:400;}
-#astrip .al{color:rgba(255,255,255,.55);}
-#astrip .av2{color:#fff;}
-#astrip #a-pct{color:#FF8FAB;}
-#astrip .abar{background:rgba(255,255,255,.15);}
+#astrip{position:fixed;top:56px;left:0;right:0;height:40px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 28px;gap:16px;z-index:400;}
+#astrip #a-pct{color:var(--coral);}
 .al{font-size:10px;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase;white-space:nowrap;}
 .av2{font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:14px;color:var(--ink);white-space:nowrap;font-weight:500;}
 .abar{flex:1;height:7px;background:rgba(30,58,95,.08);border-radius:4px;overflow:hidden;position:relative;}
@@ -195,6 +192,7 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
   #astrip .abar{flex-basis:100%;order:-1;height:8px;margin-bottom:4px;}
   #astrip .adiv{display:none;}
   #astrip #a-pct{font-size:14px;}
+  .a-wk,.a-aov{display:none!important;}
   #slides{position:static;top:auto;bottom:auto;padding:0;}
   .slide{display:none;position:static;opacity:1!important;pointer-events:all!important;inset:auto;padding:12px;gap:10px;transition:none;}
   .slide.on{display:flex;}
@@ -250,20 +248,15 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
   <div class="tb-logo"><div class="tb-logo-n">電商部-日報表</div><div class="tb-logo-s">TZG Daily Brief</div></div>
   <div class="tb-update"><div class="tb-update-l">最後更新</div><div class="tb-update-v" id="last-update">2026-05-22 00:00</div></div>
   <div class="tb-kpis" id="tb-kpis"></div>
-  <div class="tb-right">
-    <div style="display:flex;align-items:center;gap:4px;"><div class="live-dot"></div><span style="font-size:8px;letter-spacing:2px;color:var(--up);font-weight:600;">LIVE</span></div>
-    <div style="width:1px;height:20px;background:var(--line);"></div>
-    <div><div id="clock"></div><div id="dlbl"></div></div>
-  </div>
 </div>
 
 <div id="astrip">
   <div class="al">目標</div><div class="av2" id="a-rev"></div>
   <div class="abar"><div class="abar-f" id="a-fill" style="width:0%"></div><div class="abar-t" id="a-tgt"></div></div>
   <div id="a-pct" style="font-family:'DM Mono','Menlo','Monaco','Courier New',monospace;font-size:15px;font-weight:700;"></div>
-  <div class="adiv"></div><div class="al">本週至今</div><div id="a-week" class="av2"></div>
+  <div class="adiv a-wk"></div><div class="al a-wk">本週至今</div><div id="a-week" class="av2 a-wk"></div>
   <div class="adiv"></div><div class="al">昨日</div><div id="a-yday" class="av2"></div>
-  <div class="adiv"></div><div class="al">均價 / 中位</div><div id="a-aov" class="av2"></div>
+  <div class="adiv a-aov"></div><div class="al a-aov">均價 / 中位</div><div id="a-aov" class="av2 a-aov"></div>
 </div>
 <div id="dtabs"></div>
 
@@ -1181,8 +1174,6 @@ document.addEventListener('keydown',e=>{
   if(e.key==='ArrowLeft')goTo(cur-1);
 });
 
-function tick(){const n=new Date();document.getElementById('clock').textContent=n.toLocaleTimeString('zh-TW',{hour12:false});document.getElementById('dlbl').textContent=n.toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit',weekday:'short'});}
-setInterval(tick,1000);tick();
 
 renderTopBar();renderAchStrip();
 renderS1Kpi();renderS1Quarter();renderS1Action();renderS1Health();
