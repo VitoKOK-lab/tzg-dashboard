@@ -8,17 +8,17 @@
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; overflow: hidden; }
-body { font-family: 'Montserrat', 'PingFang TC', sans-serif; background: #f7f5f0; display: flex; flex-direction: column; }
+body { font-family: 'Montserrat', 'PingFang TC', sans-serif; background: #FAF8F3; display: flex; flex-direction: column; }
 
 /* ── TAB BAR ── */
 .tabbar {
-  height: 44px;
-  background: #E6328C;
-  border-bottom: 1px solid rgba(255,255,255,.2);
+  height: 46px;
+  background: #FFFFFF;
+  border-bottom: 1px solid rgba(43,43,43,.09);
   display: flex;
   align-items: stretch;
   flex-shrink: 0;
-  padding: 0 16px;
+  padding: 0 18px;
   gap: 2px;
 }
 
@@ -26,7 +26,7 @@ body { font-family: 'Montserrat', 'PingFang TC', sans-serif; background: #f7f5f0
   display: flex;
   align-items: center;
   padding-right: 16px;
-  border-right: 1px solid rgba(255,255,255,.25);
+  border-right: 1px solid rgba(43,43,43,.08);
   margin-right: 6px;
   flex-shrink: 0;
 }
@@ -41,17 +41,18 @@ body { font-family: 'Montserrat', 'PingFang TC', sans-serif; background: #f7f5f0
   display: flex;
   align-items: center;
   padding: 0 14px;
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 600;
-  color: rgba(255,255,255,.7);
+  letter-spacing: .5px;
+  color: #9A938A;
   cursor: pointer;
   border-bottom: 2px solid transparent;
   transition: color .14s, border-color .14s;
   white-space: nowrap;
   user-select: none;
 }
-.tab:hover { color: #fff; }
-.tab.active { color: #fff; border-bottom-color: #fff; }
+.tab:hover { color: #2B2B2B; }
+.tab.active { color: #B8902A; border-bottom-color: #B8902A; }
 
 /* ── CONTENT ── */
 .content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }

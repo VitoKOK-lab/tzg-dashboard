@@ -8,10 +8,10 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
 :root{
-  --bg:#FAFAF7;--bg2:#F4F2EC;--card:#FFFFFF;
-  --line:rgba(30,58,95,.12);--line2:rgba(30,58,95,.06);
-  --coral:#D94B6B;--gold:#B8902A;--teal:#0F8F85;--blue:#3B7DD8;--pur:#7B5FC7;
-  --ink:#1E3A5F;--sub:rgba(30,58,95,.62);--dim:rgba(30,58,95,.35);
+  --bg:#FAF8F3;--bg2:#F4F0E8;--card:#FFFFFF;
+  --line:rgba(43,43,43,.12);--line2:rgba(43,43,43,.055);
+  --coral:#D94B6B;--gold:#B8902A;--gold2:#C9A961;--teal:#0F8F85;--blue:#3B7DD8;--pur:#7B5FC7;
+  --ink:#2B2B2B;--sub:rgba(43,43,43,.6);--dim:rgba(43,43,43,.34);
   --up:#E53935;--dn:#10A37F;--flat:#9E9E9E;
   --yellow:#FFB800;
 }
@@ -20,25 +20,25 @@ html,body{height:100vh;overflow:hidden;font-family:'Noto Sans TC','微軟正黑�
 body{display:flex;flex-direction:column;}
 
 /* Header（與日報表 #topbar 同比例 / 同字型） */
-.hdr{flex-shrink:0;height:56px;background:#FFB6C1;color:#1E3A5F;padding:0;display:flex;align-items:stretch;box-shadow:0 2px 8px rgba(0,0,0,.1);}
-.hdr-logo-box{display:flex;flex-direction:column;justify-content:center;padding:0 22px;border-right:1px solid rgba(30,58,95,.18);white-space:nowrap;}
-.hdr-logo{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:700;color:#1E3A5F;line-height:1.1;}
-.hdr-logo em{color:#D94B6B;font-style:normal;}
-.hdr-sub{font-size:9px;letter-spacing:2px;color:rgba(30,58,95,.7);text-transform:uppercase;margin-top:2px;}
+.hdr{flex-shrink:0;height:56px;background:#262626;color:#fff;padding:0;display:flex;align-items:stretch;box-shadow:0 2px 8px rgba(0,0,0,.1);}
+.hdr-logo-box{display:flex;flex-direction:column;justify-content:center;padding:0 22px;border-right:1px solid rgba(255,255,255,.18);white-space:nowrap;}
+.hdr-logo{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:700;color:#fff;line-height:1.1;}
+.hdr-logo em{color:var(--gold2);font-style:normal;}
+.hdr-sub{font-size:9px;letter-spacing:2px;color:var(--gold2);text-transform:uppercase;margin-top:2px;}
 .hdr-spacer{flex:1;}
 .hdr-month{display:flex;align-items:center;gap:8px;padding:0 22px;}
-.hdr-month label{font-size:11px;color:rgba(30,58,95,.7);letter-spacing:1px;}
-#month-select{font-family:'DM Mono',monospace;font-size:13px;font-weight:600;padding:5px 12px;background:rgba(255,255,255,.55);border:1px solid rgba(30,58,95,.25);color:#1E3A5F;border-radius:4px;cursor:pointer;outline:none;}
+.hdr-month label{font-size:11px;color:rgba(255,255,255,.7);letter-spacing:1px;}
+#month-select{font-family:'DM Mono',monospace;font-size:13px;font-weight:600;padding:5px 12px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:4px;cursor:pointer;outline:none;}
 #month-select option{background:#fff;color:#1E3A5F;}
 
 /* Topbar wrapper（hdr + tabs 一起黏在最上方） */
 .topbar-wrap{flex-shrink:0;}
 
 /* Tabs */
-.tabs{flex-shrink:0;background:#000;border-bottom:1px solid #000;padding:0 24px;display:flex;overflow-x:auto;}
-.tab{padding:10px 16px;font-size:13px;font-weight:500;cursor:pointer;color:rgba(255,255,255,.65);border-bottom:3px solid transparent;white-space:nowrap;transition:all .15s;}
-.tab:hover{color:#fff;}
-.tab.on{color:#fff;border-bottom-color:#FFB6C1;font-weight:700;}
+.tabs{flex-shrink:0;background:#fff;border-bottom:1px solid var(--line);padding:0 24px;display:flex;overflow-x:auto;}
+.tab{padding:10px 16px;font-size:13px;font-weight:500;cursor:pointer;color:var(--sub);border-bottom:3px solid transparent;white-space:nowrap;transition:all .15s;}
+.tab:hover{color:var(--ink);}
+.tab.on{color:var(--gold);border-bottom-color:var(--gold);font-weight:700;}
 
 /* Pages — 全部單頁滿版，不向下滾動 */
 .page{display:none;flex:1;flex-direction:column;padding:24px 28px;overflow:hidden;max-width:1600px;margin:0 auto;width:100%;min-height:0;}
@@ -108,7 +108,7 @@ td.num{font-family:'DM Mono',monospace;}
   .m-banner{display:block;width:100%;height:auto;}
 
   /* Topbar wrapper：手機 sticky 黏在最上方，hdr + tabs 一起跟著畫面 */
-  .topbar-wrap{position:sticky;top:0;z-index:100;background:#000;}
+  .topbar-wrap{position:sticky;top:0;z-index:100;background:#fff;}
 
   /* Header（與日報表手機規格對齊：logo 縮小但保留 sub，月份切換放右邊） */
   .hdr{height:auto;flex-wrap:wrap;align-items:center;}
@@ -116,11 +116,11 @@ td.num{font-family:'DM Mono',monospace;}
   .hdr-logo{font-size:17px;}
   .hdr-sub{font-size:8.5px;}
   .hdr-spacer{display:none;}
-  .hdr-month{width:100%;justify-content:space-between;padding:6px 14px 8px;border-top:1px solid rgba(30,58,95,.15);}
+  .hdr-month{width:100%;justify-content:space-between;padding:6px 14px 8px;border-top:1px solid rgba(43,43,43,.15);}
   #month-select{padding:4px 10px;font-size:12px;flex:1;max-width:240px;}
 
   /* Tabs 橫向滑動 */
-  .tabs{padding:0 6px;background:#000;}
+  .tabs{padding:0 6px;background:#fff;}
   .tab{padding:10px 12px;font-size:12px;}
 
   /* p9 季度策略回顧手機 RWD */
