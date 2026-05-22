@@ -171,14 +171,14 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
   .tb-kpis{display:none;}
   .tb-right{padding:0;margin-left:auto;border-left:none;gap:8px;}
   #clock{font-size:13px;}
-  #dtabs{display:none;}
+  #dtabs{position:sticky;top:0;z-index:450;}
   #astrip{position:static;height:auto;flex-wrap:wrap;padding:10px 12px;gap:6px 10px;}
   #astrip .abar{flex-basis:100%;order:-1;height:8px;margin-bottom:4px;}
   #astrip .adiv{display:none;}
   #astrip #a-pct{font-size:14px;}
   #slides{position:static;top:auto;bottom:auto;padding:0;}
-  .slide{position:static;opacity:1!important;pointer-events:all!important;inset:auto;padding:12px;gap:10px;transition:none;}
-  .slide + .slide{border-top:1px solid var(--line);margin-top:4px;}
+  .slide{display:none;position:static;opacity:1!important;pointer-events:all!important;inset:auto;padding:12px;gap:10px;transition:none;}
+  .slide.on{display:flex;}
   .sh{flex-wrap:wrap;gap:6px;}
   .sh-t{font-size:15px;}
   .stag{font-size:8px;padding:1px 6px;}
@@ -217,7 +217,7 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
   html,body{width:auto;height:auto;overflow:visible;background:#fff;}
   #topbar,#astrip{position:static;}
   #dtabs{display:none;}
-  .slide{position:static!important;opacity:1!important;pointer-events:all!important;page-break-after:always;padding:8mm;}
+  .slide{display:flex!important;position:static!important;opacity:1!important;pointer-events:all!important;page-break-after:always;padding:8mm;}
   .slide:last-child{page-break-after:auto;}
   .panel{box-shadow:none;border:1px solid #ddd;}
 }
@@ -1150,8 +1150,11 @@ function goTo(n){
   slides[cur].classList.remove('on');if(tabs[cur])tabs[cur].classList.remove('on');
   cur=((n%slides.length)+slides.length)%slides.length;
   slides[cur].classList.add('on');if(tabs[cur])tabs[cur].classList.add('on');
+  window.scrollTo(0,0);
   trigAnim(slides[cur]);
   if(inits[cur])inits[cur].forEach(fn=>setTimeout(fn,200));
+  // 切換後重算圖表尺寸（隱藏分頁的 canvas 在顯示後才有正確寬高）
+  setTimeout(()=>Object.values(CHARTS).forEach(c=>{try{c.resize();}catch(e){}}),60);
 }
 
 document.addEventListener('keydown',e=>{
@@ -1162,7 +1165,6 @@ document.addEventListener('keydown',e=>{
 function tick(){const n=new Date();document.getElementById('clock').textContent=n.toLocaleTimeString('zh-TW',{hour12:false});document.getElementById('dlbl').textContent=n.toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit',weekday:'short'});}
 setInterval(tick,1000);tick();
 
-const IS_MOBILE=window.matchMedia('(max-width:768px)').matches;
 renderTopBar();renderAchStrip();
 renderS1Kpi();renderS1Quarter();renderS1Action();renderS1Health();
 renderMonthlyTbl();renderSrcChart();renderLast7Days();
@@ -1177,14 +1179,11 @@ renderCombosList();renderPaySpeed();
 renderRepurchaseChart();renderTimeInsight();
 renderS7WeekdayHour();renderCustomerTrend();
 
-if(IS_MOBILE){
-  document.querySelectorAll('.slide').forEach(s=>s.classList.add('on'));
-  Object.values(inits).forEach(arr=>arr.forEach(fn=>setTimeout(fn,100)));
-  document.querySelectorAll('.rr,.hrow').forEach(el=>el.classList.add('vis'));
-}else{
-  buildNav();
-  setTimeout(()=>trigAnim(slides[0]),350);
-}
+buildNav();
+setTimeout(()=>{
+  trigAnim(slides[0]);
+  Object.values(CHARTS).forEach(c=>{try{c.resize();}catch(e){}});
+},350);
 </script>
 </body>
 </html>
