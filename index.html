@@ -60,11 +60,11 @@ iframe {
   position: absolute; inset: 0;
   width: 100%; height: 100%;
   border: none;
-  opacity: 0;
+  transform: translateX(100%);
+  transition: transform .4s cubic-bezier(.4,0,.2,1);
   pointer-events: none;
-  transition: opacity .35s ease;
 }
-iframe.active { opacity: 1; pointer-events: auto; z-index: 1; }
+iframe.active { pointer-events: auto; z-index: 1; }
 
 /* Loading */
 .loader {
@@ -120,24 +120,36 @@ const loader = document.getElementById('loader');
 
 // 第一個 iframe 監聽 load，並帶 cache-buster 確保每次載入最新版（手機常被快取卡住）
 frames[0].onload = () => { loaded[0] = true; if(cur===0) loader.classList.add('hidden'); };
+frames[0].style.transform = 'translateX(0)';
 frames[0].src = urls[0] + (urls[0].includes('?') ? '&' : '?') + '_t=' + Date.now();
 
 function show(i) {
   if (i === cur) return;
+  const dir = i > cur ? 1 : -1;          // 1：新頁從右滑入；-1：從左滑入
+  const oldF = frames[cur], newF = frames[i];
+
   tabs[cur].classList.remove('active');
-  frames[cur].classList.remove('active');
-  cur = i;
   tabs[i].classList.add('active');
 
   if (!loaded[i]) {
     loader.classList.remove('hidden');
-    frames[i].src = urls[i] + (urls[i].includes('?') ? '&' : '?') + '_t=' + Date.now();
-    frames[i].onload = () => { loaded[i] = true; loader.classList.add('hidden'); };
+    newF.src = urls[i] + (urls[i].includes('?') ? '&' : '?') + '_t=' + Date.now();
+    newF.onload = () => { loaded[i] = true; loader.classList.add('hidden'); };
   } else {
     loader.classList.add('hidden');
   }
 
-  frames[i].classList.add('active');
+  // 新頁先瞬移到進場側，再一起滑動
+  newF.style.transition = 'none';
+  newF.style.transform = `translateX(${dir * 100}%)`;
+  newF.classList.add('active');
+  requestAnimationFrame(() => {
+    newF.style.transition = '';
+    newF.style.transform = 'translateX(0)';
+    oldF.style.transform = `translateX(${-dir * 100}%)`;
+  });
+  oldF.classList.remove('active');
+  cur = i;
 }
 </script>
 </body>
