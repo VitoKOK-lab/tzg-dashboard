@@ -56,25 +56,17 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
 #clock{font-family:'DM Mono',monospace;font-size:17px;color:#fff;}
 #dlbl{font-size:10px;color:rgba(255,255,255,.6);margin-top:2px;}
 
-#astrip{position:fixed;top:56px;left:0;right:0;height:40px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 28px;gap:16px;z-index:400;}
-#astrip #a-pct{color:var(--gold);}
-.al{font-size:10px;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase;white-space:nowrap;}
-.av2{font-family:'DM Mono',monospace;font-size:14px;color:var(--ink);white-space:nowrap;font-weight:500;}
-.abar{flex:1;height:7px;background:rgba(43,43,43,.08);border-radius:4px;overflow:hidden;position:relative;}
-.abar-f{height:100%;border-radius:4px;background:linear-gradient(90deg,#C9A961,#B8902A);transition:width 2s cubic-bezier(.23,1,.32,1);}
-.abar-t{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--coral);}
-.adiv{width:1px;height:14px;background:var(--line);}
 .cmp{display:inline-flex;align-items:center;gap:2px;font-family:'DM Mono',monospace;font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600;letter-spacing:.3px;}
 .cup{background:rgba(229,57,53,.12);color:var(--up);}
 .cdn{background:rgba(16,163,127,.12);color:var(--dn);}
 .cflat{background:rgba(158,158,158,.12);color:var(--flat);}
 
-#dtabs{position:fixed;top:96px;left:0;right:0;background:#fff;display:flex;overflow-x:auto;padding:0 24px;z-index:400;border-bottom:1px solid var(--line);box-shadow:var(--shadow-sm);}
+#dtabs{position:fixed;top:56px;left:0;right:0;background:#fff;display:flex;overflow-x:auto;padding:0 24px;z-index:400;border-bottom:1px solid var(--line);box-shadow:var(--shadow-sm);}
 .dtab{padding:10px 16px;font-size:13px;font-weight:500;cursor:pointer;color:var(--sub);border-bottom:3px solid transparent;white-space:nowrap;transition:all .15s;flex-shrink:0;}
 .dtab:hover{color:var(--ink);}
 .dtab.on{color:var(--gold);border-bottom-color:var(--gold);font-weight:700;}
 
-#slides{position:absolute;top:137px;left:0;right:0;bottom:0;}
+#slides{position:absolute;top:97px;left:0;right:0;bottom:0;}
 .slide{position:absolute;inset:0;opacity:0;pointer-events:none;transition:opacity .5s ease;padding:20px 28px 10px;display:flex;flex-direction:column;gap:10px;}
 .slide.on{opacity:1;pointer-events:all;}
 
@@ -170,11 +162,6 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
   #clock{font-size:13px;}
   #dtabs{position:sticky;top:0;z-index:450;}
   .dtab{font-size:12px;}
-  #astrip{position:static;height:auto;flex-wrap:wrap;padding:10px 12px;gap:6px 10px;}
-  #astrip .abar{flex-basis:100%;order:-1;height:8px;margin-bottom:4px;}
-  #astrip .adiv{display:none;}
-  #astrip #a-pct{font-size:14px;}
-  .a-wk,.a-aov{display:none!important;}
   #slides{position:static;top:auto;bottom:auto;padding:0;}
   .slide{display:none;position:static;opacity:1!important;pointer-events:all!important;inset:auto;padding:12px;gap:10px;transition:none;}
   .slide.on{display:flex;}
@@ -214,7 +201,7 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
 @media print{
   @page{size:A3 landscape;margin:5mm;}
   html,body{width:auto;height:auto;overflow:visible;background:#fff;}
-  #topbar,#astrip{position:static;}
+  #topbar{position:static;}
   #dtabs{display:none;}
   .slide{display:flex!important;position:static!important;opacity:1!important;pointer-events:all!important;page-break-after:always;padding:8mm;}
   .slide:last-child{page-break-after:auto;}
@@ -232,14 +219,6 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
   <div class="tb-kpis" id="tb-kpis"></div>
 </div>
 
-<div id="astrip">
-  <div class="al">目標</div><div class="av2" id="a-rev"></div>
-  <div class="abar"><div class="abar-f" id="a-fill" style="width:0%"></div><div class="abar-t" id="a-tgt"></div></div>
-  <div id="a-pct" style="font-family:'DM Mono',monospace;font-size:15px;font-weight:700;"></div>
-  <div class="adiv a-wk"></div><div class="al a-wk">本週至今</div><div id="a-week" class="av2 a-wk"></div>
-  <div class="adiv"></div><div class="al">昨日</div><div id="a-yday" class="av2"></div>
-  <div class="adiv a-aov"></div><div class="al a-aov">均價 / 中位</div><div id="a-aov" class="av2 a-aov"></div>
-</div>
 <div id="dtabs"></div>
 
 <div id="slides">
@@ -514,17 +493,6 @@ function renderTopBar(){
   ].map(i=>`<div class="tbk"><div class="tbk-l">${i.l}</div><div class="tbk-v">${i.v}</div>${i.c?`<div class="tbk-c ${i.d==='up'?'u':i.d==='flat'?'f':'d'}">${ar(i.d)} ${i.c}</div>`:''}</div>`).join('');
 }
 
-function renderAchStrip(){
-  const k=D.kpi,w=D.week,y=D.yesterday;
-  document.getElementById('a-rev').textContent=fF(D.target);
-  setTimeout(()=>{document.getElementById('a-fill').style.width=Math.min(k.achievement_pct/120*100,100)+'%';},300);
-  document.getElementById('a-tgt').style.left=(100/120*100)+'%';
-  document.getElementById('a-pct').innerHTML=`<span style="color:#FF8FAB;">${k.achievement_pct>=100?'達標':k.achievement_pct+'%'}</span>`;
-  const wd=dr(w.this_rev,w.last_rev);
-  document.getElementById('a-week').innerHTML=`${fN(w.this_rev)} <span class="cmp c${wd}">${ar(wd)} ${pc(w.this_rev,w.last_rev)}</span>`;
-  document.getElementById('a-yday').textContent=fF(y.rev);
-  document.getElementById('a-aov').textContent=fN(k.avg_order)+' / '+fN(k.median_order);
-}
 
 function renderS1Kpi(){
   const k=D.kpi, w=D.week, y=D.yesterday, proj=D.projection||{}, meta=D.meta||{};
@@ -1157,7 +1125,7 @@ document.addEventListener('keydown',e=>{
 });
 
 
-renderTopBar();renderAchStrip();
+renderTopBar();
 renderS1Kpi();renderS1Quarter();renderS1Action();renderS1Health();
 renderMonthlyTbl();renderSrcChart();renderLast7Days();
 renderAgents();renderCustomers();renderUnpaid();
