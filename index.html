@@ -54,14 +54,17 @@ body { font-family: 'Montserrat', 'PingFang TC', sans-serif; background: #fff; d
 .tab.active { color: #D4456A; border-bottom-color: #D4456A; font-weight: 700; }
 
 /* ── CONTENT ── */
-.content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.content { flex: 1; position: relative; overflow: hidden; }
 
 iframe {
+  position: absolute; inset: 0;
   width: 100%; height: 100%;
   border: none;
-  display: none;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .35s ease;
 }
-iframe.active { display: block; }
+iframe.active { opacity: 1; pointer-events: auto; z-index: 1; }
 
 /* Loading */
 .loader {
