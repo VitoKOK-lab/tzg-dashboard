@@ -500,6 +500,10 @@ function renderS1Kpi(){
   const ydr=dr(y.rev,y.rev_ly_same), wdr=dr(w.this_rev,w.last_rev||0);
   const confColor=proj.confidence==='high'?'var(--up)':proj.confidence==='medium'?'var(--gold)':'var(--dn)';
   const confText=proj.confidence==='high'?'達標無虞':proj.confidence==='medium'?'進度稍緩':'需要加把勁';
+  // 月份結算（最後一天）：預估會等於 MTD，改用「本月實績／已結算」標籤避免誤解
+  const monthEnded=(meta.days_elapsed||0)>=(meta.days_total||0);
+  const projLabel=monthEnded?'本月實績':'月底預估';
+  const projFoot=monthEnded?`本月達成 ${ach}% · 已結算`:`預估達成 ${pAch}% · ${confText}`;
   document.getElementById('s1-kpi-block').innerHTML=`
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
       <div>
@@ -508,9 +512,9 @@ function renderS1Kpi(){
         <div style="font-size:10px;color:var(--sub);margin-top:4px;">目標 ${fF(D.target)}</div>
       </div>
       <div>
-        <div style="font-size:9px;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase;margin-bottom:4px;">月底預估</div>
+        <div style="font-size:9px;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase;margin-bottom:4px;">${projLabel}</div>
         <div style="font-family:'DM Mono',monospace;font-size:26px;font-weight:700;color:${confColor};line-height:1;">${fF(k.rev_projected)}</div>
-        <div style="font-size:10px;color:${confColor};margin-top:4px;">預估達成 ${pAch}% · ${confText}</div>
+        <div style="font-size:10px;color:${confColor};margin-top:4px;">${projFoot}</div>
       </div>
     </div>
     <div style="margin-bottom:12px;">
