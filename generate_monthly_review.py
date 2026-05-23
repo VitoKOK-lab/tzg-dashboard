@@ -19,6 +19,7 @@ from datetime import datetime
 # 從 generate_daily 引入共用函數
 from generate_daily import (
     load_data, paid_orders, compute_month_review, compute_quarter_review,
+    compute_csr_adjustment, attach_agent_revenue,
     DATA_DIR, MONTHLY_TARGET,
 )
 
@@ -85,6 +86,16 @@ def main():
     df = load_data()
     vd = paid_orders(df)
     ccol = '顧客 ID'
+
+    # 銷售客服真實貢獻調整（裸石部分歸內容，客服只算金工加工差價）
+    csr_adjustments = compute_csr_adjustment(df)
+    vd = attach_agent_revenue(vd, csr_adjustments)
+    if csr_adjustments:
+        print(f'  [CSR 真實貢獻] 調整 {len(csr_adjustments)} 張訂單，'
+              f'共扣除 NT$ {sum(csr_adjustments.values()):,}')
+    else:
+        print('  [CSR 真實貢獻] 本批無備註含舊取消單號 → 客服貢獻 = 訂單合計')
+
     print(f'  有效訂單 {vd["訂單號碼"].nunique():,} 張，'
           f'日期 {vd["訂單日期"].min():%Y-%m-%d} ~ {vd["訂單日期"].max():%Y-%m-%d}')
 

@@ -172,6 +172,135 @@ def is_real_agent(s):
     if any(k in s for k in AGENT_KEYWORDS): return True
     return False
 
+# ═══════════════════════════════════════════════════════════
+# 銷售客服真實貢獻調整
+#
+# 業務背景：
+#   客人原本買裸石（成立訂單後改為「已取消」），銷售客服協助客人重新下單，
+#   把同款裸石加進來再附加金工項目並收取差價。原本舊邏輯把整張新單都算
+#   給該客服，但裸石部分是客人自己決定要買的、不應計入客服貢獻。
+#
+# 規則：
+#   - 新單的「推薦活動」含 客服/跟單/銷售/行銷 之一
+#   - 「訂單備註」或「管理員備註」內含舊訂單號 (#?\d{17})
+#   - 舊單存在、訂單狀態 = 已取消、日期在新單前 30 天內
+#   - 新舊單共同商品（by 商品貨號 SKU）視為「裸石」
+#   - 該客服貢獻 = 訂單合計 − 共同商品金額
+#
+# 注意：如果沒有任何備註含舊單號（目前資料現況），等同 0 扣除，
+#       行為與舊邏輯一致。等客服流程建立後自動生效。
+# ═══════════════════════════════════════════════════════════
+CSR_KEYWORDS = ['客服', '跟單', '銷售', '行銷']
+CSR_LOOKBACK_DAYS = 30
+_REF_ORDER_RE = re.compile(r'#?(\d{17})')
+
+def is_csr_agent(s):
+    """推薦活動含 客服/跟單/銷售/行銷 之一"""
+    if pd.isna(s):
+        return False
+    return any(k in str(s) for k in CSR_KEYWORDS)
+
+def _extract_referenced_orders(*notes):
+    """從備註抽出舊訂單號（回傳 list of '#YYYYMMDDhhmmssXXX'）"""
+    out = []
+    for n in notes:
+        if pd.isna(n):
+            continue
+        out.extend('#' + m for m in _REF_ORDER_RE.findall(str(n)))
+    return out
+
+def compute_csr_adjustment(df):
+    """
+    計算銷售客服貢獻調整 dict。
+
+    輸入：完整 df（含已取消單，必須是 load_data 出來的、未經 paid_orders 過濾）
+    回傳：dict {新訂單號: 扣除金額}
+    """
+    if df is None or len(df) == 0 or '推薦活動' not in df.columns:
+        return {}
+
+    # CSR 候選新單（不含已取消，因為已取消單不能算貢獻）
+    csr_mask = df['推薦活動'].apply(is_csr_agent)
+    ord_str = df['訂單狀態'].fillna('').astype(str).str.strip() if '訂單狀態' in df.columns else pd.Series([''] * len(df), index=df.index)
+    new_mask = csr_mask & ~ord_str.isin(CANCELLED_STATUSES)
+    if not new_mask.any():
+        return {}
+
+    csr_orders = df[new_mask].drop_duplicates('訂單號碼')
+
+    # 已取消單的 line-level（要看商品 SKU）+ 日期 lookup
+    cancelled_lines = df[ord_str.isin(CANCELLED_STATUSES)]
+    if len(cancelled_lines) == 0:
+        return {}
+    cancelled_dates = cancelled_lines.drop_duplicates('訂單號碼').set_index('訂單號碼')['訂單日期']
+
+    note_cols = [c for c in ['訂單備註', '管理員備註'] if c in df.columns]
+    adjustments = {}
+
+    for _, new_row in csr_orders.iterrows():
+        new_ord_no = new_row['訂單號碼']
+        new_ord_date = new_row.get('訂單日期')
+        if pd.isna(new_ord_date):
+            continue
+
+        # 抽舊單號（兩個備註欄位合併讀）
+        notes = [new_row.get(c, '') for c in note_cols]
+        refs = _extract_referenced_orders(*notes)
+        if not refs:
+            continue
+
+        # 新單裡的商品 SKU
+        new_lines = df[df['訂單號碼'] == new_ord_no]
+        new_skus = set(new_lines['商品貨號'].dropna().astype(str)) if '商品貨號' in df.columns else set()
+        if not new_skus:
+            continue
+
+        total_deduction = 0
+        for old_no in refs:
+            if old_no == new_ord_no:
+                continue
+            if old_no not in cancelled_dates.index:
+                continue
+            old_date = cancelled_dates[old_no]
+            if pd.isna(old_date):
+                continue
+            day_diff = (new_ord_date - old_date).days
+            if day_diff < 0 or day_diff > CSR_LOOKBACK_DAYS:
+                continue
+
+            # 共同商品（SKU 精確比對）
+            old_skus = set(cancelled_lines[cancelled_lines['訂單號碼'] == old_no]['商品貨號'].dropna().astype(str))
+            common = new_skus & old_skus
+            if not common:
+                continue
+
+            # 扣除新單共同商品的金額
+            common_lines = new_lines[new_lines['商品貨號'].astype(str).isin(common)]
+            total_deduction += int(common_lines['商品結帳價'].fillna(0).sum())
+
+        if total_deduction > 0:
+            adjustments[new_ord_no] = total_deduction
+
+    return adjustments
+
+def attach_agent_revenue(vd, adjustments):
+    """
+    給 vd（line 或 order level）加「客服貢獻金額」欄位。
+    預設等於訂單合計，符合 CSR 調整規則的訂單則扣除裸石金額。
+    後續業務排行 groupby('推薦活動')['客服貢獻金額'].sum() 即為真實貢獻。
+    """
+    if vd is None or len(vd) == 0:
+        return vd
+    vd = vd.copy()
+    vd['客服貢獻金額'] = vd['訂單合計']
+    if adjustments:
+        mask = vd['訂單號碼'].isin(adjustments)
+        vd.loc[mask, '客服貢獻金額'] = vd.loc[mask].apply(
+            lambda r: r['訂單合計'] - adjustments.get(r['訂單號碼'], 0),
+            axis=1
+        )
+    return vd
+
 def classify_ad_channel(act):
     s = str(act).lower()
     if 'line' in s: return 'LINE 來源'
@@ -391,9 +520,11 @@ def compute_month_review(vd, ccol, yr, mo, target=None):
         ag_b = pm_lines[pm_lines['推薦活動'].notna() & pm_lines['推薦活動'].apply(is_real_agent)]
         if len(ag_b):
             ag_o = order_level(ag_b)
+            # 業務業績用「客服貢獻金額」（非 CSR 業務該值 = 訂單合計，行為不變）
+            rev_col = '客服貢獻金額' if '客服貢獻金額' in ag_o.columns else '訂單合計'
             ag_g = ag_o.groupby('推薦活動').agg(
                 orders=('訂單號碼', 'count'),
-                rev=('訂單合計', 'sum'),
+                rev=(rev_col, 'sum'),
                 customers=(ccol, 'nunique'),
             ).sort_values('rev', ascending=False).reset_index()
             for i, r in ag_g.iterrows():
@@ -406,14 +537,14 @@ def compute_month_review(vd, ccol, yr, mo, target=None):
                 agent_orders = ag_o[ag_o['推薦活動'] == r['推薦活動']]
                 agent_lines = ag_b[ag_b['推薦活動'] == r['推薦活動']]
 
-                # 1. 訂單價格分布
+                # 1. 訂單價格分布（用客服貢獻金額：非 CSR 業務值 = 訂單合計）
                 if len(agent_orders) > 0:
-                    price_max = agent_orders['訂單合計'].max()
-                    price_min = agent_orders['訂單合計'].min()
-                    price_median = agent_orders['訂單合計'].median()
-                    price_avg = agent_orders['訂單合計'].mean()
-                    # 高價訂單：訂單金額 >= 15000
-                    high_order_count = (agent_orders['訂單合計'] >= 15000).sum()
+                    price_max = agent_orders[rev_col].max()
+                    price_min = agent_orders[rev_col].min()
+                    price_median = agent_orders[rev_col].median()
+                    price_avg = agent_orders[rev_col].mean()
+                    # 高價訂單：金額 >= 15000
+                    high_order_count = (agent_orders[rev_col] >= 15000).sum()
                     high_order_pct = round(high_order_count / len(agent_orders) * 100, 1)
                 else:
                     price_max = price_min = price_median = 0
@@ -793,9 +924,11 @@ def compute_quarter_review(vd, ccol, today):
             q_base = vd[vd['推薦活動'].notna() & vd['推薦活動'].apply(is_real_agent)]
             q_orders = order_level(in_range(q_base, start_date, end_date))
             if len(q_orders) > 0:
+                # 業務業績用「客服貢獻金額」（非 CSR 業務該值 = 訂單合計）
+                rev_col = '客服貢獻金額' if '客服貢獻金額' in q_orders.columns else '訂單合計'
                 q_agg = q_orders.groupby('推薦活動').agg(
                     orders=('訂單號碼', 'count'),
-                    rev=('訂單合計', 'sum')
+                    rev=(rev_col, 'sum')
                 ).sort_values('rev', ascending=False).head(10)
                 for n, r in q_agg.iterrows():
                     agent_orders = q_orders[q_orders['推薦活動'] == n]
@@ -921,7 +1054,16 @@ def compute(df):
     vd = paid_orders(df)
     ccol = '顧客 ID'  # ✅ 提前定義
     print(f'[有效業績訂單] {vd["訂單號碼"].nunique():,} 張（已付款/歷史+非已取消）')
-    
+
+    # 🆕 銷售客服真實貢獻調整（從 raw df 找已取消單，回寫 vd 的「客服貢獻金額」欄位）
+    csr_adjustments = compute_csr_adjustment(df)
+    vd = attach_agent_revenue(vd, csr_adjustments)
+    if csr_adjustments:
+        print(f'[CSR 真實貢獻] 調整 {len(csr_adjustments)} 張訂單，'
+              f'共扣除 NT$ {sum(csr_adjustments.values()):,}（裸石部分歸內容）')
+    else:
+        print('[CSR 真實貢獻] 本批無備註含舊取消單號 → 客服貢獻 = 訂單合計')
+
     # ★ 關鍵診斷：vd 的日期範圍
     if len(vd):
         print(f'[vd 日期範圍] {vd["訂單日期"].min():%Y-%m-%d} ~ {vd["訂單日期"].max():%Y-%m-%d}')
@@ -1062,19 +1204,20 @@ def compute(df):
     }
     print(f'[流失] 本月流失 {len(churned_this_month)} / 90天流失 {len(c_prev - c_recent)}')
     
-    # Agents
+    # Agents（業務業績用「客服貢獻金額」：非 CSR 業務該值 = 訂單合計）
+    rev_col = '客服貢獻金額' if '客服貢獻金額' in vd.columns else '訂單合計'
     if '推薦活動' in vd.columns:
         mtd_ag_all = order_level(mtd_lines[mtd_lines['推薦活動'].notna() & (mtd_lines['推薦活動'].astype(str).str.strip() != '')])
         mtd_ag = mtd_ag_all[mtd_ag_all['推薦活動'].apply(is_real_agent)]
         agg = mtd_ag.groupby('推薦活動').agg(
-            orders=('訂單號碼','count'), rev=('訂單合計','sum')
+            orders=('訂單號碼','count'), rev=(rev_col,'sum')
         ).sort_values('rev', ascending=False).reset_index()
         lw_base = vd[vd['推薦活動'].notna() & vd['推薦活動'].apply(is_real_agent)]
         lw_ag = order_level(in_range(lw_base, lws, tws))
         if '推薦活動' in lw_ag.columns and len(lw_ag):
-            lw_rank = lw_ag.groupby('推薦活動')['訂單合計'].sum().sort_values(ascending=False).reset_index()
+            lw_rank = lw_ag.groupby('推薦活動')[rev_col].sum().sort_values(ascending=False).reset_index()
         else:
-            lw_rank = pd.DataFrame(columns=['推薦活動','訂單合計'])
+            lw_rank = pd.DataFrame(columns=['推薦活動', rev_col])
         lw_map  = {r['推薦活動']: i+1 for i, r in lw_rank.iterrows()}
 
     # Yesterday Agents（昨天業績王 TOP10）
@@ -1083,7 +1226,7 @@ def compute(df):
         yd_ag   = order_level(in_range(yd_base, ys, ye))
         if len(yd_ag) and '推薦活動' in yd_ag.columns:
             yd_agg = yd_ag.groupby('推薦活動').agg(
-                orders=('訂單號碼','count'), rev=('訂單合計','sum')
+                orders=('訂單號碼','count'), rev=(rev_col,'sum')
             ).sort_values('rev', ascending=False).reset_index()
             D['yesterday']['agents'] = [
                 {'name': str(r['推薦活動']), 'orders': int(r['orders']),
@@ -1437,9 +1580,11 @@ def compute(df):
         ag_b = mtd_lines[mtd_lines['推薦活動'].notna() & mtd_lines['推薦活動'].apply(is_real_agent)]
         if len(ag_b):
             ag_o = order_level(ag_b)
+            # 業務業績用「客服貢獻金額」（非 CSR 業務該值 = 訂單合計）
+            rev_col_d = '客服貢獻金額' if '客服貢獻金額' in ag_o.columns else '訂單合計'
             ag_g = ag_o.groupby('推薦活動').agg(
                 orders=('訂單號碼', 'count'),
-                rev=('訂單合計', 'sum'),
+                rev=(rev_col_d, 'sum'),
                 customers=(ccol, 'nunique'),
             ).sort_values('rev', ascending=False).reset_index()
             for i, r in ag_g.iterrows():
