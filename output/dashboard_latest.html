@@ -170,7 +170,7 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
 @media (max-width:768px){
   #topbar{position:static;min-height:52px;padding:8px 12px;flex-wrap:wrap;align-items:flex-start;}
   .m-banner{display:block;width:100%;height:auto;}
-  /* s1 第一行 KPI（本月營收 / 月底預估）改單欄堆疊，避免大金額溢出 */
+  /* s1 第一行 KPI（本月營收 / 預估業績）改單欄堆疊，避免大金額溢出 */
   #s1-kpi-block > div:first-child{grid-template-columns:1fr !important;}
   .tb-logo{padding:0;border-right:none;justify-content:flex-start;}
   .tb-logo-n{font-size:16px;}
@@ -234,7 +234,7 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
 
 <div id="topbar">
   <div class="tb-logo"><div class="tb-logo-n">電商部-日報表</div><div class="tb-logo-s">TZG Daily Brief</div></div>
-  <div class="tb-update"><div class="tb-update-l">最後更新</div><div class="tb-update-v" id="last-update">2026-05-23 00:00</div></div>
+  <div class="tb-update"><div class="tb-update-l">最後更新</div><div class="tb-update-v" id="last-update">2026-05-23 14:26</div></div>
   <div class="tb-kpis" id="tb-kpis"></div>
 </div>
 
@@ -519,10 +519,10 @@ function renderS1Kpi(){
   const ydr=dr(y.rev,y.rev_ly_same), wdr=dr(w.this_rev,w.last_rev||0);
   const confColor=proj.confidence==='high'?'var(--up)':proj.confidence==='medium'?'var(--gold)':'var(--dn)';
   const confText=proj.confidence==='high'?'達標無虞':proj.confidence==='medium'?'進度稍緩':'需要加把勁';
-  // 月份結算（最後一天）：預估會等於 MTD，改用「本月實績／已結算」標籤避免誤解
-  const monthEnded=(meta.days_elapsed||0)>=(meta.days_total||0);
-  const projLabel=monthEnded?'本月實績':'月底預估';
-  const projFoot=monthEnded?`本月達成 ${ach}% · 已結算`:`預估達成 ${pAch}% · ${confText}`;
+  // 預估業績：MTD ÷ days_elapsed × days_total（從 1 號到目前的速率推估到月底可能的總額）
+  // 月底最後一天時值會自然等於 MTD，這是邏輯結果（非 bug），標籤固定不切換
+  const projLabel='預估業績';
+  const projFoot=`預估達成 ${pAch}% · ${confText}`;
   document.getElementById('s1-kpi-block').innerHTML=`
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
       <div>
