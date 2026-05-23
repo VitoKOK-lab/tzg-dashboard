@@ -61,23 +61,42 @@ echo
 # ============ Step 5a: Auto Download from Shopline ============
 if [ -f ".env" ]; then
     TODAY="$(date +%Y-%m-%d)"
-    # 算「上月 1 號」與「上月 YYYY-MM」（macOS BSD date）
-    LASTMONTH_START="$(date -v-1m -v1d +%Y-%m-%d)"
+    # 算各種日期（macOS BSD date）
+    LASTMONTH_START="$(date -v-1m -v1d +%Y-%m-%d)"           # 上月 1 號
+    LASTMONTH_END="$(date -v1d -v-1d +%Y-%m-%d)"             # 上月最後一天（本月 1 號 - 1）
+    THISMONTH_START="$(date -v1d +%Y-%m-%d)"                 # 本月 1 號
     LASTMONTH="$(date -v-1m +%Y-%m)"
 
     if [ "$MODE" = "--shutdown" ] || [ "$MODE" = "--auto" ]; then
         echo "==================================================="
-        echo " Downloading from Shopline (rolling window, headless)"
-        echo " Range: $LASTMONTH_START ~ $TODAY"
+        echo " Downloading from Shopline (split: last month + this month)"
+        echo "   Range A (上月): $LASTMONTH_START ~ $LASTMONTH_END"
+        echo "   Range B (本月): $THISMONTH_START ~ $TODAY"
         echo "==================================================="
+        echo "  ※ 拆兩段抓：Shopline 報表跨月查詢常漏抓本月即時訂單，"
+        echo "    分開抓比較能拿到本月新單。"
         echo
-        TZG_HEADLESS=1 "$PYTHON" auto_shopline.py --start "$LASTMONTH_START" --end "$TODAY"
-        rc=$?
-        if [ $rc -ne 0 ]; then
-            echo "WARNING: Shopline download failed. Continuing with existing data..."
+
+        echo "--- [A] 抓上月整月 ---"
+        TZG_HEADLESS=1 "$PYTHON" auto_shopline.py --start "$LASTMONTH_START" --end "$LASTMONTH_END"
+        rc_a=$?
+
+        echo
+        echo "--- [B] 抓本月至今 ---"
+        TZG_HEADLESS=1 "$PYTHON" auto_shopline.py --start "$THISMONTH_START" --end "$TODAY"
+        rc_b=$?
+
+        if [ $rc_a -ne 0 ] && [ $rc_b -ne 0 ]; then
+            echo "WARNING: Shopline 兩段下載都失敗（A=$rc_a, B=$rc_b）。沿用既有資料..."
             echo
         else
-            echo "[5a] Shopline rolling-window download OK"
+            if [ $rc_a -ne 0 ]; then
+                echo "WARNING: 上月下載失敗（A=$rc_a），但本月成功。"
+            fi
+            if [ $rc_b -ne 0 ]; then
+                echo "WARNING: 本月下載失敗（B=$rc_b），但上月成功。"
+            fi
+            echo "[5a] Shopline download OK"
             echo
             echo " Rebuilding last-month archive ($LASTMONTH)..."
             "$PYTHON" generate_monthly_archive.py --month "$LASTMONTH" --force \
