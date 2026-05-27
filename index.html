@@ -54,17 +54,14 @@ body { font-family: 'Montserrat', 'PingFang TC', sans-serif; background: #fff; d
 .tab.active { color: #D4456A; border-bottom-color: #D4456A; font-weight: 700; }
 
 /* ── CONTENT ── */
-.content { flex: 1; position: relative; overflow: hidden; }
+.content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 
 iframe {
-  position: absolute; inset: 0;
   width: 100%; height: 100%;
   border: none;
-  transform: translateX(100%);
-  transition: transform .4s cubic-bezier(.4,0,.2,1);
-  pointer-events: none;
+  display: none;
 }
-iframe.active { pointer-events: auto; z-index: 1; }
+iframe.active { display: block; }
 
 /* Loading */
 .loader {
@@ -93,12 +90,12 @@ iframe.active { pointer-events: auto; z-index: 1; }
   <div class="tab" onclick="show(1)">月報</div>
   <div class="tab" onclick="show(2)">短影音</div>
   <div class="tab" onclick="show(3)">代理</div>
-  <div class="tab" onclick="show(4)">KPI</div>
+  <div class="tab" onclick="show(4)">KPI 建構中</div>
 </div>
 
 <div class="content">
   <div class="loader" id="loader"><div class="spinner"></div></div>
-  <iframe id="f0" class="active" src=""></iframe>
+  <iframe id="f0" class="active" src="https://vitokok-lab.github.io/tzg-dashboard/output/dashboard_latest.html"></iframe>
   <iframe id="f1" src=""></iframe>
   <iframe id="f2" src=""></iframe>
   <iframe id="f3" src=""></iframe>
@@ -121,38 +118,25 @@ const tabs   = document.querySelectorAll('.tab');
 const frames = [0,1,2,3,4].map(i => document.getElementById('f'+i));
 const loader = document.getElementById('loader');
 
-// 第一個 iframe 監聽 load，並帶 cache-buster 確保每次載入最新版（手機常被快取卡住）
+// 第一個 iframe 監聽 load
 frames[0].onload = () => { loaded[0] = true; if(cur===0) loader.classList.add('hidden'); };
-frames[0].style.transform = 'translateX(0)';
-frames[0].src = urls[0] + (urls[0].includes('?') ? '&' : '?') + '_t=' + Date.now();
 
 function show(i) {
   if (i === cur) return;
-  const dir = i > cur ? 1 : -1;          // 1：新頁從右滑入；-1：從左滑入
-  const oldF = frames[cur], newF = frames[i];
-
   tabs[cur].classList.remove('active');
+  frames[cur].classList.remove('active');
+  cur = i;
   tabs[i].classList.add('active');
 
   if (!loaded[i]) {
     loader.classList.remove('hidden');
-    newF.src = urls[i] + (urls[i].includes('?') ? '&' : '?') + '_t=' + Date.now();
-    newF.onload = () => { loaded[i] = true; loader.classList.add('hidden'); };
+    frames[i].src = urls[i] + (urls[i].includes('?') ? '&' : '?') + '_t=' + Date.now();
+    frames[i].onload = () => { loaded[i] = true; loader.classList.add('hidden'); };
   } else {
     loader.classList.add('hidden');
   }
 
-  // 新頁先瞬移到進場側，再一起滑動
-  newF.style.transition = 'none';
-  newF.style.transform = `translateX(${dir * 100}%)`;
-  newF.classList.add('active');
-  requestAnimationFrame(() => {
-    newF.style.transition = '';
-    newF.style.transform = 'translateX(0)';
-    oldF.style.transform = `translateX(${-dir * 100}%)`;
-  });
-  oldF.classList.remove('active');
-  cur = i;
+  frames[i].classList.add('active');
 }
 </script>
 </body>
