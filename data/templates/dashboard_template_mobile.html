@@ -151,7 +151,7 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
 @media (max-width:768px){
   #topbar{position:static;min-height:52px;padding:8px 12px;flex-wrap:wrap;align-items:flex-start;}
   .m-banner{display:block;width:100%;height:auto;}
-  /* s1 第一行 KPI（本月營收 / 預估業績）改單欄堆疊，避免大金額溢出 */
+  /* s1 第一行 KPI（本月營收 / 月底推算業績）改單欄堆疊，避免大金額溢出 */
   #s1-kpi-block > div:first-child{grid-template-columns:1fr !important;}
   .tb-logo{padding:0;border-right:none;justify-content:flex-start;}
   .tb-logo-n{font-size:16px;}
@@ -228,7 +228,7 @@ html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-fa
   <div class="body">
     <!-- 上排：區塊 1 + 區塊 2，等大 -->
     <div style="display:flex;flex-direction:column;gap:10px;">
-      <!-- 區塊 1：本月達成 + 預估 -->
+      <!-- 區塊 1：本月達成 + 月底推算 -->
       <div class="panel" style="flex:1;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
           <div class="pl" style="margin:0;">📊 本月達成</div>
@@ -500,10 +500,12 @@ function renderS1Kpi(){
   const ydr=dr(y.rev,y.rev_ly_same), wdr=dr(w.this_rev,w.last_rev||0);
   const confColor=proj.confidence==='high'?'var(--up)':proj.confidence==='medium'?'var(--gold)':'var(--dn)';
   const confText=proj.confidence==='high'?'達標無虞':proj.confidence==='medium'?'進度稍緩':'需要加把勁';
-  // 預估業績：MTD ÷ days_elapsed × days_total（從 1 號到目前的速率推估到月底可能的總額）
-  // 月底最後一天時值會自然等於 MTD，這是邏輯結果（非 bug），標籤固定不切換
-  const projLabel='預估業績';
-  const projFoot=`預估達成 ${pAch}% · ${confText}`;
+  // 月底推算業績：MTD × days_total / days_elapsed
+  //   性質：run-rate projection，不是 forecast
+  //   問題回答：「目前的速率持續到月底會跑出多少」
+  //   每天會跟著當下累計速率自然調整；月底最後一天必收斂到 MTD
+  const projLabel='月底推算業績';
+  const projFoot=`目前速率達成 ${pAch}% · ${confText}`;
   document.getElementById('s1-kpi-block').innerHTML=`
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
       <div>
@@ -587,7 +589,7 @@ function renderS1Action(){
   }else{
     blockGap=`<div style="padding:10px 12px;background:rgba(16,163,127,.08);border-left:3px solid var(--up);border-radius:4px;min-width:0;">
       <div style="font-size:10px;font-weight:700;color:var(--up);letter-spacing:1px;margin-bottom:4px;">🎯 本月已達標</div>
-      <div style="font-size:11px;line-height:1.5;">預估月底 ${fN(gap.rev_projected||0)}<br>超標 ${(gap.proj_achievement_pct-100).toFixed(1)}%</div>
+      <div style="font-size:11px;line-height:1.5;">月底推算 ${fN(gap.rev_projected||0)}<br>超標 ${(gap.proj_achievement_pct-100).toFixed(1)}%</div>
     </div>`;
   }
   const blockChurn=`<div style="padding:10px 12px;background:rgba(217,75,107,.06);border-left:3px solid var(--dn);border-radius:4px;min-width:0;">
