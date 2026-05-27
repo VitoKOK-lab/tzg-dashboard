@@ -1090,7 +1090,26 @@ def compute(df):
     aov       = rev_mtd / n_ord if n_ord else 0
     med       = mtd_ord['訂單合計'].median() if n_ord else 0
     dtot      = D['meta']['days_total']
-    proj      = rev_mtd / today.day * dtot if today.day else rev_mtd
+
+    # 月底推算業績 (run-rate projection)
+    #   公式：MTD + 最近 N 天日均 × 剩餘天數
+    #   性質：
+    #     - 月底最後一天 days_left=0 → proj = MTD（自然收斂）
+    #     - 用「最近 N 天日均」而非「整月日均」，避免月初檔期高峰拉高推算值
+    #     - 例如 5 月母親節後速率回落，月中跑時推算不會還沿用前半月速率
+    RECENT_WINDOW_DAYS = 7
+    recent_start = max(
+        (today - timedelta(days=RECENT_WINDOW_DAYS - 1)).replace(hour=0, minute=0, second=0, microsecond=0),
+        ms
+    )
+    recent_ord = mtd_ord[mtd_ord['訂單日期'] >= recent_start]
+    # 實際納入計算的天數（月初前 7 天會少於 7）
+    actual_recent_days = max(1, min(RECENT_WINDOW_DAYS, today.day))
+    recent_rev = recent_ord['訂單合計'].sum()
+    recent_daily = recent_rev / actual_recent_days if actual_recent_days else 0
+    days_left = max(0, dtot - today.day)
+    proj = rev_mtd + recent_daily * days_left if today.day else rev_mtd
+    print(f'[推算] 近 {actual_recent_days} 天日均 NT$ {int(recent_daily):,} × 剩 {days_left} 天 + MTD = NT$ {int(proj):,}')
     
     ly_s, ly_e = month_range(yr-1, mo)
     rev_ly_full = order_level(in_range(vd, ly_s, ly_e))['訂單合計'].sum()
