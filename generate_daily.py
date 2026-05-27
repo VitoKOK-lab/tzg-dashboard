@@ -1092,14 +1092,35 @@ def compute(df):
     dtot      = D['meta']['days_total']
 
     # 月底推算業績 (run-rate projection)
-    #   公式：MTD ÷ 已過天數 × 月份總天數
-    #   性質：「依本月迄今的累計速率持續到月底會跑出多少」
-    #     - 早期波動大（分母小）；越接近月底越貼近實際值
-    #     - 月底最後一天 today.day == dtot → proj = MTD（自然收斂）
-    proj = rev_mtd / today.day * dtot if today.day else rev_mtd
-    daily_avg = rev_mtd / today.day if today.day else 0
-    print(f'[推算] MTD NT$ {int(rev_mtd):,} ÷ {today.day} 天 × {dtot} = NT$ {int(proj):,} '
-          f'（日均 NT$ {int(daily_avg):,}）')
+    #   公式：MTD + 過去 N 天日均 × 剩餘天數
+    #   原則：
+    #     - MTD 用資料截止當下（可能與真實當下差一天，如 Shopline 抓資料的滯後）
+    #     - 日均用「過去 N=7 天」的速率，避免月初檔期（母親節）拉高整月平均
+    #     - 剩餘天數用「真實當下日期」算（含今天，因為今天還會做業績）
+    #     - 月底最後一天 days_left=0 → proj = MTD（自然收斂）
+    RECENT_WINDOW_DAYS = 7
+    recent_start = max(
+        (today - timedelta(days=RECENT_WINDOW_DAYS - 1)).replace(hour=0, minute=0, second=0, microsecond=0),
+        ms
+    )
+    recent_ord = mtd_ord[mtd_ord['訂單日期'] >= recent_start]
+    actual_recent_days = max(1, min(RECENT_WINDOW_DAYS, today.day))
+    recent_rev = recent_ord['訂單合計'].sum()
+    recent_daily = recent_rev / actual_recent_days if actual_recent_days else 0
+
+    # 剩餘天數：真實今天到月底（含今天）；若真實日期不在當前月，fallback 用資料 today
+    real_today = datetime.now()
+    if real_today.year == yr and real_today.month == mo:
+        days_left = max(0, dtot - real_today.day + 1)
+        days_left_basis = f'真實當下 {real_today:%Y-%m-%d}'
+    else:
+        days_left = max(0, dtot - today.day)
+        days_left_basis = f'資料截止 {today:%Y-%m-%d}'
+
+    proj = rev_mtd + recent_daily * days_left if today.day else rev_mtd
+    print(f'[推算] MTD NT$ {int(rev_mtd):,} + 近 {actual_recent_days} 天日均 '
+          f'NT$ {int(recent_daily):,} × 剩 {days_left} 天 ({days_left_basis}) '
+          f'= NT$ {int(proj):,}')
     
     ly_s, ly_e = month_range(yr-1, mo)
     rev_ly_full = order_level(in_range(vd, ly_s, ly_e))['訂單合計'].sum()
