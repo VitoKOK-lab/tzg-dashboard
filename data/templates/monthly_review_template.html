@@ -347,21 +347,21 @@ td.num{font-family:'DM Mono',monospace;}
       <div class="panel" id="p3-sale-analysis" style="display: none;">
         <div class="pl">💰 成交能力分析（對比 TOP 5）</div>
 
-        <!-- 三個圖表 -->
-        <div style="display:grid;grid-template-columns:1fr;gap:15px;margin-top:10px;">
-          <!-- 1. 有效接單時長 -->
-          <div style="padding:12px;background:var(--card);border-radius:6px;">
+        <!-- 三個圖表：有效接單時長獨佔一行、新客+單價並排 -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px;">
+          <!-- 1. 有效接單時長（橫向滿寬） -->
+          <div style="grid-column:1 / -1;padding:12px;background:var(--card);border-radius:6px;">
             <div style="font-size:11px;color:var(--sub);margin-bottom:8px;">⏱ 有效接單時長（小時）</div>
             <canvas id="p3-eff-chart" style="max-height:120px;"></canvas>
           </div>
 
-          <!-- 2. 獲新客能力 -->
+          <!-- 2. 獲新客能力（並排左） -->
           <div style="padding:12px;background:var(--card);border-radius:6px;">
             <div style="font-size:11px;color:var(--sub);margin-bottom:8px;">👥 獲新客能力（%）</div>
             <canvas id="p3-price-chart" style="max-height:120px;"></canvas>
           </div>
 
-          <!-- 3. 提高單價能力 -->
+          <!-- 3. 提高單價能力（並排右） -->
           <div style="padding:12px;background:var(--card);border-radius:6px;">
             <div style="font-size:11px;color:var(--sub);margin-bottom:8px;">💰 提高單價能力（%）</div>
             <canvas id="p3-upsell-chart" style="max-height:120px;"></canvas>
@@ -1132,11 +1132,20 @@ function renderP3(m){
         <div style="min-width:32px;text-align:right;font-family:'DM Mono',monospace;font-weight:${isPeak?700:400};">${c}</div>
       </div>`;
     }).join('');
-    const hrCells=at.hour.map((c,i)=>{
-      const intensity=c/maxHr;
-      const bg=c===0?'#f5f5f5':`rgba(217,75,107,${0.18+intensity*0.72})`;
+    // 工作時段範圍：訂單量 > peak × 10% 視為活躍時段
+    const peakCnt=at.hour[at.peak_hour]||0;
+    const threshold=Math.max(1,peakCnt*0.10);
+    const activeIdx=at.hour.map((c,i)=>c>=threshold?i:-1).filter(i=>i>=0);
+    const workStart=activeIdx.length?activeIdx[0]:0;
+    const workEnd=activeIdx.length?activeIdx[activeIdx.length-1]:23;
+    const fmtH=h=>String(h).padStart(2,'0')+':00';
+    // 24 小時水平 bar 圖
+    const hrBars=at.hour.map((c,i)=>{
+      const h=maxHr>0?Math.max(2,Math.round(c/maxHr*60)):2;
       const isPeak=i===at.peak_hour;
-      return `<div style="text-align:center;padding:4px 0;background:${bg};border-radius:2px;font-size:9px;font-family:'DM Mono',monospace;font-weight:${isPeak?700:400};color:${intensity>0.55?'#fff':'var(--ink)'};border:${isPeak?'1px solid #B8902A':'1px solid transparent'};">${c||''}</div>`;
+      const inWork=i>=workStart&&i<=workEnd&&c>=threshold;
+      const bg=isPeak?'#D94B6B':(inWork?'rgba(217,75,107,0.55)':'rgba(217,75,107,0.18)');
+      return `<div title="${fmtH(i)} · ${c} 張" style="flex:1;height:${h}px;background:${bg};border-radius:2px 2px 0 0;min-width:0;"></div>`;
     }).join('');
     cont.innerHTML=`
       <div>
@@ -1144,9 +1153,12 @@ function renderP3(m){
         ${dowBars}
       </div>
       <div>
-        <div style="font-size:11px;color:var(--sub);letter-spacing:1px;margin:8px 0 6px;">⏰ 時段分布（深色=高峰時段；峰值 ${at.peak_hour}:00）</div>
-        <div style="display:grid;grid-template-columns:repeat(12,1fr);gap:2px;">${hrCells}</div>
-        <div style="display:flex;justify-content:space-between;font-size:8px;color:var(--sub);margin-top:2px;"><span>0</span><span>6</span><span>12</span><span>18</span><span>23</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin:8px 0 6px;">
+          <div style="font-size:11px;color:var(--sub);letter-spacing:1px;">⏰ 工作時段 <span style="color:var(--ink);font-weight:600;">${fmtH(workStart)} ~ ${fmtH(workEnd)}</span></div>
+          <div style="font-size:11px;color:var(--sub);">峰值 <span style="color:#D94B6B;font-weight:700;">${fmtH(at.peak_hour)}</span> · ${peakCnt} 張</div>
+        </div>
+        <div style="display:flex;align-items:flex-end;gap:1px;height:64px;padding:0 2px;border-bottom:1px solid var(--line);">${hrBars}</div>
+        <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--sub);margin-top:3px;padding:0 2px;"><span>00</span><span>06</span><span>12</span><span>18</span><span>23</span></div>
       </div>`;
 
     // 渲染成交能力分析
