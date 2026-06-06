@@ -140,6 +140,28 @@ echo
 echo "[5/6] Dashboard generated OK"
 echo
 
+# 資料新鮮度檢查（資料 > 24h 沒更新 → macOS 通知 + 警示音）
+STALE_HOURS=$("$PYTHON" -c "
+import re
+from datetime import datetime
+try:
+    html = open('output/dashboard_latest.html', encoding='utf-8').read()
+    m = re.search(r'\"data_as_of\":\s*\"([^\"]+)\"', html)
+    if m:
+        d = datetime.strptime(m.group(1), '%Y-%m-%d').replace(hour=23, minute=59, second=59)
+        print(int(max(0, (datetime.now() - d).total_seconds() / 3600)))
+    else:
+        print(0)
+except Exception:
+    print(0)
+" 2>/dev/null || echo "0")
+
+if [ "$STALE_HOURS" -gt 24 ]; then
+    echo "⚠️  資料停滯 $STALE_HOURS 小時，跳 macOS 通知提醒"
+    osascript -e "display notification \"資料停滯 $STALE_HOURS 小時，Shopline 可能 session 過期，請進系統重新登入\" with title \"⚠️ TZG Dashboard 同步異常\" sound name \"Sosumi\"" 2>/dev/null || true
+fi
+echo
+
 # ============ Step 5b: Generate Monthly Review ============
 echo "==================================================="
 echo " Generating Monthly Review..."

@@ -1073,9 +1073,12 @@ def compute(df):
     cur_target = get_monthly_target(yr, mo)
     D = {'target': cur_target}
     ms, me = month_range(yr, mo)
+    # 資料最新訂單實際時刻（用於新鮮度檢查）：vd 最後一筆訂單的真實時間，不是日結 23:59
+    last_order_dt = vd['訂單日期'].max().to_pydatetime() if len(vd) else today
     D['meta'] = {
         'report_month': f'{yr}年{mo}月',
         'data_as_of': today.strftime('%Y-%m-%d'),
+        'data_as_of_iso': last_order_dt.strftime('%Y-%m-%dT%H:%M:%S'),
         'days_elapsed': today.day,
         'days_total': (me - ms).days,
         'yesterday': today.strftime('%Y-%m-%d'),
@@ -2061,6 +2064,33 @@ def main():
         # 最後更新時間（topbar 顯示用）
         last_update_str = datetime.now().strftime('%Y-%m-%d %H:%M')
         new_html = new_html.replace('__LAST_UPDATE__', last_update_str)
+
+        # 資料新鮮度檢查（資料停滯 > 24 小時 → 注入紅色警告 banner）
+        # 用「最後一筆訂單實際時刻」當基準，比「真實當下時間」精準
+        data_as_of_str = D['meta']['data_as_of']
+        data_as_of_iso = D['meta'].get('data_as_of_iso')
+        if data_as_of_iso:
+            last_order_dt = datetime.strptime(data_as_of_iso, '%Y-%m-%dT%H:%M:%S')
+        else:
+            last_order_dt = datetime.strptime(data_as_of_str, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
+        stale_hours = max(0, (datetime.now() - last_order_dt).total_seconds() / 3600)
+        if stale_hours > 24:
+            stale_banner = (
+                '<div id="stale-alert" style="position:fixed;top:0;left:0;right:0;z-index:9999;'
+                'background:#D94B6B;color:#fff;padding:10px 16px;text-align:center;'
+                'font-size:14px;font-weight:600;line-height:1.4;'
+                'box-shadow:0 2px 12px rgba(0,0,0,.3);font-family:\'Noto Sans TC\',sans-serif;'
+                'border-bottom:2px solid #fff;">'
+                f'⚠️ Shopline 資料停滯 {int(stale_hours)} 小時（最新訂單：{data_as_of_str}）'
+                '<span style="display:block;font-size:11px;font-weight:400;opacity:.92;margin-top:3px;">'
+                '自動同步可能失敗，請進入系統手動執行 <code style="background:rgba(255,255,255,.2);'
+                'padding:1px 6px;border-radius:3px;font-family:monospace;">auto_shopline.py</code> '
+                '重新登入確認</span></div>'
+            )
+            new_html = new_html.replace('<body>', f'<body>\n{stale_banner}', 1)
+            print(f'[⚠️ ] 資料停滯 {int(stale_hours)} 小時，已注入網頁警告 banner')
+        else:
+            print(f'[✓] 資料新鮮（停滯 {stale_hours:.1f} 小時 < 24h），不注入警告')
 
         print(f'[✓] 數據注入完成：{len(new_html):,} 字元')
     except Exception as e:
