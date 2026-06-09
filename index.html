@@ -90,7 +90,6 @@ iframe.active { display: block; }
   <div class="tab" onclick="show(1)">月報</div>
   <div class="tab" onclick="show(2)">短影音</div>
   <div class="tab" onclick="show(3)">代理</div>
-  <div class="tab" onclick="show(4)">KPI 建構中</div>
 </div>
 
 <div class="content">
@@ -99,7 +98,6 @@ iframe.active { display: block; }
   <iframe id="f1" src=""></iframe>
   <iframe id="f2" src=""></iframe>
   <iframe id="f3" src=""></iframe>
-  <iframe id="f4" src=""></iframe>
 </div>
 
 <script>
@@ -108,10 +106,9 @@ const urls = [
   'https://vitokok-lab.github.io/tzg-dashboard/output/monthly_review.html',
   'https://vitokok-lab.github.io/meta-dashboard/',
   'https://tzg-commission.fly.dev/review/2026-04?t=a301e31bce1565a771691b7ad3167e05',
-  'https://vitokok-lab.github.io/tzg-staff-dashboard/output/staff_latest.html',
 ];
 
-const loaded = [false, false, false, false, false];
+const loaded = [false, false, false, false];
 let cur = 0;
 
 const tabs   = document.querySelectorAll('.tab');
