@@ -620,6 +620,65 @@ const midStars  = makeParticles(1500, 400, 800,  2.2, {white:0.55, pink:0.20, cy
 const nearGlow  = makeParticles(500,  180, 380,  3.5, {white:0.30, pink:0.30, cyan:0.20, purple:0.20});
 scene.add(farStars, midStars, nearGlow);
 
+// ─── 螺旋星系（spiral galaxy）───
+// 用對數螺旋公式分布粒子，做出真實銀河旋臂結構
+function makeSpiralGalaxy(count, radius, arms = 3, palette = 'pink') {
+  const pos = new Float32Array(count * 3);
+  const col = new Float32Array(count * 3);
+  for (let i = 0; i < count; i++) {
+    const t = i / count;
+    const armIndex = i % arms;
+    const armOffset = (armIndex / arms) * Math.PI * 2;
+    // 對數螺旋 + 隨機抖動讓旋臂有厚度
+    const angle = t * Math.PI * 5.5 + armOffset + (Math.random() - 0.5) * 0.6;
+    const r = Math.pow(t, 0.55) * radius;            // sqrt-ish，核心密集
+    const jitter = (Math.random() - 0.5) * radius * 0.04;
+    pos[i*3]   = (r + jitter) * Math.cos(angle);
+    pos[i*3+1] = (Math.random() - 0.5) * radius * 0.06;  // 銀河盤面薄
+    pos[i*3+2] = (r + jitter) * Math.sin(angle);
+
+    // 顏色：核心暖白黃、旋臂依 palette、邊緣冷藍
+    if (t < 0.18) {
+      col[i*3]=1; col[i*3+1]=0.92; col[i*3+2]=0.72;   // 核心 warm
+    } else if (t < 0.65) {
+      if (palette === 'pink')  { col[i*3]=1;   col[i*3+1]=0.42; col[i*3+2]=0.72; }
+      if (palette === 'cyan')  { col[i*3]=0.2; col[i*3+1]=0.85; col[i*3+2]=1; }
+      if (palette === 'purple'){ col[i*3]=0.7; col[i*3+1]=0.4;  col[i*3+2]=1; }
+    } else {
+      col[i*3]=0.55; col[i*3+1]=0.72; col[i*3+2]=1;   // 邊緣 cold blue
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  const mat = new THREE.PointsMaterial({
+    size: 2.2, transparent: true, opacity: 0.85,
+    vertexColors: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false, sizeAttenuation: true,
+  });
+  const galaxy = new THREE.Points(geo, mat);
+  galaxy.userData = { baseOp: 0.85, autoRotateSpeed: 0.0008 };
+  return galaxy;
+}
+
+// 3 個遠景螺旋星系，不同方位、角度、配色
+const galaxies = [];
+const galaxyA = makeSpiralGalaxy(3500, 750, 3, 'pink');
+galaxyA.position.set(-1100, 250, -700);
+galaxyA.rotation.set(0.55, 0.35, 0);
+scene.add(galaxyA); galaxies.push(galaxyA);
+
+const galaxyB = makeSpiralGalaxy(2500, 580, 4, 'cyan');
+galaxyB.position.set(950, -350, -850);
+galaxyB.rotation.set(-0.45, 1.1, 0.2);
+scene.add(galaxyB); galaxies.push(galaxyB);
+
+const galaxyC = makeSpiralGalaxy(1800, 480, 2, 'purple');
+galaxyC.position.set(150, 700, -1100);
+galaxyC.rotation.set(1.0, 0.6, -0.3);
+scene.add(galaxyC); galaxies.push(galaxyC);
+
 // ─── 星雲 nebula sprites（6 個大型彩色光暈雲）───
 function makeNebulaTexture(c1, c2) {
   const cv = document.createElement('canvas');
@@ -873,6 +932,7 @@ function enterFocusMode(nodeId) {
   linkLines.children.forEach(line => { line.material.opacity = 0.06; });
   linkFlowParticles.forEach(p => { p.sprite.material.opacity = 0.10; });
   nebulas.forEach(n => { n.material.opacity = 0.15; });
+  galaxies.forEach(g => { g.material.opacity = 0.20; });
   // 粒子場淡化
   farStars.material.opacity = 0.30;
   midStars.material.opacity = 0.25;
@@ -888,6 +948,7 @@ function exitFocusMode() {
   linkLines.children.forEach(line => { line.material.opacity = 0.55; });
   linkFlowParticles.forEach(p => { p.sprite.material.opacity = p.sprite.userData.baseOp; });
   nebulas.forEach(n => { n.material.opacity = n.userData.baseOp; });
+  galaxies.forEach(g => { g.material.opacity = g.userData.baseOp; });
   farStars.material.opacity = 0.85;
   midStars.material.opacity = 0.85;
   nearGlow.material.opacity = 0.85;
@@ -1029,6 +1090,12 @@ function animate() {
   farStars.rotation.y += 0.00015;
   midStars.rotation.y -= 0.00025;
   nearGlow.rotation.y += 0.0004;
+
+  // 銀河系緩慢自轉（每個沿自己 normal 軸旋）
+  galaxies.forEach((g, i) => {
+    const sign = i % 2 === 0 ? 1 : -1;
+    g.rotation.z += g.userData.autoRotateSpeed * sign;
+  });
 
   // 連線流動粒子（沿線往返）
   linkFlowParticles.forEach(p => {
