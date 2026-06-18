@@ -24,7 +24,7 @@ from datetime import datetime, timedelta
 from itertools import combinations
 
 sys.path.insert(0, '.')
-from generate_daily import load_data, paid_orders, is_real_agent
+from generate_daily import load_data, paid_orders, is_real_agent, classify_source
 
 OUTPUT_HTML = Path('./output/test.html')
 TEMPLATE_HTML = Path('./data/templates/test_template.html')
@@ -170,36 +170,25 @@ def build_video_nodes_links():
 # 真實 UTM 渠道分布 (近 60 天 top 5)
 # ═══════════════════════════════════════════════════════════
 def build_utm_channels():
+    """用 generate_daily 內建的 classify_source 分類訂單渠道"""
     df = load_data()
     vd = paid_orders(df)
     cutoff = datetime.now() - timedelta(days=LOOKBACK_DAYS)
     vd = vd[vd['訂單日期'] >= cutoff]
-    if 'UTM 來源/媒介' not in vd.columns:
+    vd_uniq = vd.drop_duplicates('訂單號碼').copy()
+    if len(vd_uniq) == 0:
         return []
-    vd_uniq = vd.drop_duplicates('訂單號碼')
-
-    def classify(s):
-        s = str(s).strip().lower()
-        if not s or s == 'nan':
-            return '直接 / 官網'
-        if s.startswith('line/'): return 'LINE OA'
-        if s.startswith('fb/') or 'facebook' in s: return 'Facebook'
-        if s.startswith('ig/') or 'instagram' in s: return 'Instagram'
-        if s.startswith('shopline'): return 'SHOPLINE Email'
-        return '其他'
-
-    vd_uniq = vd_uniq.copy()
-    vd_uniq['_src'] = vd_uniq['UTM 來源/媒介'].fillna('').apply(classify)
+    vd_uniq['_src'] = vd_uniq.apply(classify_source, axis=1)
     g = vd_uniq.groupby('_src').agg(
         orders=('訂單號碼', 'count'),
         rev=('訂單合計', 'sum'),
-    ).reset_index().sort_values('rev', ascending=False).head(5)
+    ).reset_index().sort_values('rev', ascending=False).head(6)
     total_rev = vd_uniq['訂單合計'].sum()
     out = []
     for _, r in g.iterrows():
         pct = r['rev'] / total_rev * 100 if total_rev else 0
         out.append({
-            'name': r['_src'],
+            'name': str(r['_src']),
             'tag': f'NT$ {int(r["rev"]/1000):,}K',
             'mtime': f'{pct:.1f}%',
         })
