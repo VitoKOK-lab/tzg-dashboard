@@ -293,8 +293,8 @@ renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
 const scene = new THREE.Scene();
 scene.fog = new THREE.FogExp2(0x02010a, 0.0004);  // 更淡，看到更遠
 
-const camera = new THREE.PerspectiveCamera(60, W()/H(), 0.1, 5000);
-camera.position.set(0, 200, 1000);              // 拉遠看全景
+const camera = new THREE.PerspectiveCamera(65, W()/H(), 0.1, 5000);
+camera.position.set(0, 280, 1700);              // 拉遠看全景（涵蓋 ±1000 的兩個 anchor）
 
 let controls = null;
 if (typeof THREE.OrbitControls === 'function') {
@@ -497,9 +497,9 @@ nodes.forEach(n => { (grouped[n.type] ||= []).push(n); });
 //   Meta（流量入口·左）→ Shopline（成交系統·中）→ 主星（年度成長·右）
 //   中央 wireframe sphere 跟 Shopline 重疊，當作成交系統的科技外殼
 const anchorPositions = {
-  's:Meta':     [-1300, 0, 0],
+  's:Meta':     [-1000, 0, 0],
   's:Shopline': [    0, 0, 0],
-  's:Core':     [ 1300, 0, 0],   // 主星在右側終點
+  's:Core':     [ 1000, 0, 0],   // 主星在右側終點
 };
 
 // 軌道衛星全域陣列（每 frame 更新位置）
@@ -567,43 +567,48 @@ Object.keys(grouped).forEach(type => {
         // ─── 主星專屬：12 顆月度業績衛星（取代預設 3 衛星）───
         //   每顆衛星 = 一個月，大小按業績、顏色按達標率
         const monthly = n.monthly_rev || [];
-        const MONTHLY_TARGET = 4500000;  // 月目標 450 萬，用於上色
+        const MONTHLY_TARGET = 4500000;
         monthly.forEach((m, mi) => {
           const revLog = Math.log10(Math.max(1, m.rev));
-          const moonR = 5 + Math.min(11, (revLog - 5) * 4);   // 5 ~ 16
+          const moonR = 10 + Math.min(18, (revLog - 5) * 6);  // 放大：10 ~ 28
           const ach = m.rev / MONTHLY_TARGET;
           let moonColor, moonRgb;
-          if (ach >= 1)        { moonColor = 0xffb800; moonRgb = 'rgb(255,184,0)'; }   // 達標金
-          else if (ach >= 0.85){ moonColor = 0xffd966; moonRgb = 'rgb(255,217,102)'; } // 暖黃
-          else if (ach >= 0.6) { moonColor = 0xff8800; moonRgb = 'rgb(255,136,0)'; }   // 橘
-          else if (ach >= 0.3) { moonColor = 0xb86a2c; moonRgb = 'rgb(184,106,44)'; }  // 暗橘
-          else                 { moonColor = 0x666666; moonRgb = 'rgb(102,102,102)'; } // 灰
+          if (ach >= 1)        { moonColor = 0xffb800; moonRgb = 'rgb(255,184,0)'; }
+          else if (ach >= 0.85){ moonColor = 0xffd966; moonRgb = 'rgb(255,217,102)'; }
+          else if (ach >= 0.6) { moonColor = 0xff8800; moonRgb = 'rgb(255,136,0)'; }
+          else if (ach >= 0.3) { moonColor = 0xb86a2c; moonRgb = 'rgb(184,106,44)'; }
+          else                 { moonColor = 0x888888; moonRgb = 'rgb(136,136,136)'; }
 
           const moonMesh = new THREE.Mesh(
-            new THREE.SphereGeometry(moonR, 14, 14),
-            new THREE.MeshBasicMaterial({ color: moonColor, transparent: true, opacity: 0.95 })
+            new THREE.SphereGeometry(moonR, 16, 16),
+            new THREE.MeshBasicMaterial({ color: moonColor, transparent: true, opacity: 0.96 })
           );
           const moonGlow = new THREE.Sprite(new THREE.SpriteMaterial({
             map: makeGlowTexture(moonRgb), blending: THREE.AdditiveBlending,
             transparent: true, depthWrite: false,
           }));
-          moonGlow.scale.set(moonR * 4, moonR * 4, 1);
+          moonGlow.scale.set(moonR * 6, moonR * 6, 1);   // 光暈放大
           moonMesh.add(moonGlow);
-          // 本月加 pulse 環（亮一點）
+          // 本月加白色 pulse 環
           if (m.is_current) {
+            const pulseRing = new THREE.Mesh(
+              new THREE.RingGeometry(moonR * 1.4, moonR * 1.7, 32),
+              new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6, side: THREE.DoubleSide, depthWrite: false })
+            );
+            moonMesh.add(pulseRing);
+            moonMesh.userData.pulseRing = pulseRing;
             moonMesh.userData.isCurrent = true;
           }
-          // 把月度資料掛在 mesh 上，給 click 用
           moonMesh.userData.monthData = m;
           scene.add(moonMesh);
           orbiters.push({
             mesh: moonMesh,
             around: pos.clone(),
-            axisTilt: 0.22,                                   // 12 顆同一軌道平面
+            axisTilt: 0.25,
             axisRoll: 0,
-            dist: planetR * 2.0 + 60,                          // 約 260 半徑
-            angle: (mi / 12) * Math.PI * 2,                    // 12 等分
-            speed: 0.0015,                                     // 慢慢轉一圈代表一年
+            dist: planetR * 3.5 + 50,                          // 100*3.5+50 = 400 (距離拉開)
+            angle: (mi / 12) * Math.PI * 2,
+            speed: 0.0015,                                     // 轉一圈≈一年
           });
         });
       } else {
@@ -1238,6 +1243,16 @@ function animate() {
     meteorCooldown = 90 + Math.random() * 180;   // 1.5-4 秒
   }
   updateShooting();
+
+  // 本月月衛星 pulse 環呼吸
+  orbiters.forEach(o => {
+    const ring = o.mesh?.userData?.pulseRing;
+    if (ring) {
+      const s = 1 + Math.sin(frame * 0.08) * 0.18;
+      ring.scale.set(s, s, 1);
+      ring.material.opacity = 0.45 + Math.sin(frame * 0.08) * 0.25;
+    }
+  });
 
   // 軌道衛星運動（支援 around 為 Vector3 固定點 或 Object3D mesh 跟隨）
   orbiters.forEach(o => {
