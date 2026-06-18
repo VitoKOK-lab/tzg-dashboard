@@ -3,409 +3,461 @@
 <head>
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>JARVIS-BRAIN // TZG 神經中樞 3D</title>
+<title>JARVIS-BRAIN // TZG Neural Vault</title>
 <style>
 :root {
-  --bg-deep: #050817;
-  --bg-mid: #0b1132;
-  --neon-pink: #ff3d8a;
-  --neon-cyan: #00f0ff;
-  --neon-purple: #9b5cff;
-  --neon-gold: #ffb800;
-  --text-dim: rgba(255,255,255,.45);
-  --text-mid: rgba(255,255,255,.72);
-  --text-hi: #ffffff;
+  --bg: #000000;
+  --bg-panel: rgba(10,12,28,.85);
+  --bg-panel-solid: #08091a;
+  --line: rgba(255,255,255,.08);
+  --pink: #ff3d8a;
+  --cyan: #00f0ff;
+  --purple: #9b5cff;
+  --gold: #ffb800;
+  --green: #00ff88;
+  --red: #ff3d3d;
+  --dim: rgba(255,255,255,.42);
+  --mid: rgba(255,255,255,.7);
+  --hi: #ffffff;
+  --mono: 'SF Mono','JetBrains Mono','Menlo','Consolas',monospace;
 }
 * { margin:0; padding:0; box-sizing:border-box; }
 html, body {
   width: 100%; height: 100vh;
-  background: radial-gradient(ellipse at 50% 50%, #1a1f4a 0%, var(--bg-mid) 40%, var(--bg-deep) 100%);
-  font-family: -apple-system, BlinkMacSystemFont, 'Noto Sans TC', sans-serif;
-  color: var(--text-mid);
+  background: #000;
+  font-family: -apple-system, 'Noto Sans TC', 'Inter', sans-serif;
+  color: var(--mid);
   overflow: hidden;
 }
 
-/* 粒子星塵背景（純 CSS） */
-#stars, #stars2, #stars3 {
+/* === 背景三層：黑底 + 星塵 + 微紫漸層 === */
+#bg-grad {
+  position: fixed; inset: 0; z-index: 0;
+  background: radial-gradient(ellipse at 50% 50%, rgba(80,40,150,.18) 0%, rgba(20,15,50,.05) 30%, #000 70%);
+}
+#stars, #stars2 {
   position: fixed; inset: 0; z-index: 0; pointer-events: none;
 }
 #stars {
   background:
     radial-gradient(1px 1px at 20% 30%, white, transparent),
     radial-gradient(1px 1px at 60% 70%, rgba(255,255,255,.7), transparent),
-    radial-gradient(2px 2px at 50% 50%, white, transparent),
+    radial-gradient(2px 2px at 50% 50%, rgba(255,255,255,.9), transparent),
     radial-gradient(1px 1px at 80% 10%, rgba(255,200,255,.8), transparent),
     radial-gradient(2px 2px at 90% 60%, white, transparent),
     radial-gradient(1px 1px at 33% 80%, rgba(200,200,255,.6), transparent),
     radial-gradient(1px 1px at 10% 90%, white, transparent),
     radial-gradient(1px 1px at 70% 20%, rgba(255,180,220,.6), transparent);
-  background-size: 600px 600px;
-  animation: starsMove 90s linear infinite;
+  background-size: 700px 700px;
+  animation: starsMove 100s linear infinite;
 }
 #stars2 {
   background:
-    radial-gradient(1px 1px at 30% 50%, rgba(0,240,255,.6), transparent),
-    radial-gradient(1px 1px at 70% 30%, rgba(155,92,255,.5), transparent),
+    radial-gradient(1px 1px at 30% 50%, rgba(0,240,255,.5), transparent),
+    radial-gradient(1px 1px at 70% 30%, rgba(155,92,255,.45), transparent),
     radial-gradient(1px 1px at 50% 80%, rgba(255,61,138,.4), transparent);
-  background-size: 800px 800px;
-  animation: starsMove 120s linear infinite reverse;
+  background-size: 900px 900px;
+  animation: starsMove 150s linear infinite reverse;
 }
 @keyframes starsMove {
-  from { transform: translate(0, 0); }
-  to { transform: translate(-600px, 600px); }
+  from { transform: translate(0,0); }
+  to { transform: translate(-700px, 700px); }
 }
 
-/* 3D graph 容器 */
-#graph {
-  position: fixed; inset: 0; z-index: 1;
+/* === CRT scanline 效果 === */
+#scanlines {
+  position: fixed; inset: 0; z-index: 50; pointer-events: none;
+  background: linear-gradient(180deg, transparent 50%, rgba(0,0,0,.4) 50%);
+  background-size: 100% 3px;
+  opacity: .15;
+  mix-blend-mode: multiply;
 }
 
-/* Topbar */
-#topbar {
-  position: fixed; top: 0; left: 0; right: 0;
-  height: 50px;
-  display: flex; align-items: center;
-  padding: 0 20px;
-  z-index: 10;
-  background: linear-gradient(180deg, rgba(11,17,50,.92) 0%, rgba(11,17,50,.0) 100%);
-  border-bottom: 1px solid rgba(255,61,138,.25);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-}
-.logo {
-  font-family: 'SF Mono','Menlo','DM Mono',monospace;
-  font-size: 14px;
-  color: var(--neon-pink);
-  letter-spacing: 3px;
-  font-weight: 700;
-  text-shadow: 0 0 12px rgba(255,61,138,.6);
-}
-.sublogo {
-  margin-left: 14px;
-  font-size: 11px;
-  color: var(--text-dim);
-  letter-spacing: 1.5px;
-}
-#topbar .right {
-  margin-left: auto;
-  display: flex;
-  gap: 12px;
-  font-family: 'SF Mono',monospace;
-  font-size: 10px;
-}
-#topbar .stat {
-  padding: 5px 12px;
-  border: 1px solid rgba(0,240,255,.3);
+/* === Graph === */
+#graph { position: fixed; inset: 0; z-index: 1; }
+
+/* === 共用 panel === */
+.panel {
+  background: var(--bg-panel);
+  border: 1px solid rgba(0,240,255,.18);
   border-radius: 3px;
-  color: var(--neon-cyan);
-  letter-spacing: 1px;
-  background: rgba(0,240,255,.05);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 0 24px rgba(0,0,0,.5);
 }
-.live-dot {
-  width: 6px; height: 6px; border-radius: 50%;
-  background: #00ff66;
-  display: inline-block; margin-right: 6px;
-  box-shadow: 0 0 8px #00ff66;
-  animation: pulse 1.5s infinite;
-}
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: .3; }
-}
-
-/* Left metric cards */
-#leftbar {
-  position: fixed; top: 70px; left: 14px;
-  z-index: 10;
-  display: flex; flex-direction: column; gap: 8px;
-  font-family: 'SF Mono',monospace;
-}
-.metric-card {
-  background: rgba(11,17,50,.75);
-  border: 1px solid rgba(0,240,255,.25);
-  padding: 8px 14px;
-  border-radius: 3px;
-  min-width: 96px;
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-}
-.metric-card .l {
-  color: var(--text-dim);
-  font-size: 8.5px;
-  letter-spacing: 2px;
-  margin-bottom: 3px;
-  text-transform: uppercase;
-}
-.metric-card .v {
-  color: var(--neon-cyan);
-  font-size: 16px;
-  font-weight: 700;
-  letter-spacing: .5px;
-}
-.metric-card.pink .v { color: var(--neon-pink); }
-.metric-card.purple .v { color: var(--neon-purple); }
-
-/* Right tree (top agents) */
-#rightbar {
-  position: fixed; top: 70px; right: 14px;
-  z-index: 10;
-  background: rgba(11,17,50,.85);
-  border: 1px solid rgba(255,61,138,.3);
-  padding: 12px 16px;
-  border-radius: 3px;
-  width: 220px;
-  font-size: 11px;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-}
-#rightbar .title {
-  color: var(--neon-pink);
-  font-family: 'SF Mono',monospace;
-  letter-spacing: 2px;
-  margin-bottom: 10px;
-  font-size: 10px;
-  font-weight: 700;
-  border-bottom: 1px solid rgba(255,61,138,.2);
-  padding-bottom: 6px;
-}
-#rightbar .item {
-  padding: 5px 6px;
-  border-radius: 2px;
-  color: var(--text-mid);
-  cursor: pointer;
-  transition: all .15s;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 11px;
-}
-#rightbar .item:hover {
-  background: rgba(255,61,138,.12);
-  color: var(--text-hi);
-  transform: translateX(2px);
-}
-#rightbar .item .rank {
-  display: inline-block; min-width: 16px;
-  color: var(--neon-cyan);
-  font-family: 'SF Mono',monospace;
-  font-size: 10px;
-  margin-right: 8px;
-}
-#rightbar .item .rev {
-  color: var(--neon-gold);
-  font-family: 'SF Mono',monospace;
-  font-size: 10px;
-}
-
-/* Bottom service chips */
-#service-chips {
-  position: fixed; bottom: 24px; left: 50%;
-  transform: translateX(-50%);
-  z-index: 10;
-  display: flex; gap: 10px;
-}
-.chip {
-  background: rgba(11,17,50,.85);
-  border: 1px solid var(--neon-cyan);
-  padding: 8px 18px;
-  border-radius: 4px;
-  font-size: 13px;
-  color: var(--neon-cyan);
-  font-weight: 600;
-  letter-spacing: 1px;
-  position: relative;
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  box-shadow: 0 0 16px rgba(0,240,255,.15), inset 0 0 8px rgba(0,240,255,.08);
-}
-.chip .status {
-  display: block;
+.panel-h {
+  font-family: var(--mono);
   font-size: 9px;
-  color: rgba(0,240,255,.65);
-  margin-top: 2px;
+  color: var(--pink);
   letter-spacing: 2px;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(255,61,138,.15);
+  text-transform: uppercase;
+  font-weight: 700;
+}
+.panel-h .badge {
+  float: right;
+  color: var(--dim);
   font-weight: 400;
 }
 
-/* Center floating KPI */
-#center-kpi {
+/* === Topbar === */
+#topbar {
+  position: fixed; top: 0; left: 0; right: 0;
+  height: 42px;
+  z-index: 10;
+  background: linear-gradient(180deg, rgba(10,12,28,.95) 0%, rgba(10,12,28,.0) 100%);
+  border-bottom: 1px solid rgba(255,61,138,.2);
+  display: flex; align-items: center;
+  padding: 0 16px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+.brand {
+  color: var(--pink);
+  letter-spacing: 3px;
+  font-weight: 700;
+  text-shadow: 0 0 10px rgba(255,61,138,.5);
+}
+.sub-brand {
+  margin-left: 12px;
+  color: var(--dim);
+  letter-spacing: 1.5px;
+  font-size: 10px;
+}
+.live-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--green); display: inline-block; margin-right: 6px;
+  box-shadow: 0 0 8px var(--green);
+  animation: pulse 1.5s infinite;
+}
+@keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:.3 } }
+.topbar-stats {
+  margin-left: auto;
+  display: flex; gap: 8px;
+}
+.topbar-stats .stat {
+  padding: 4px 10px;
+  border: 1px solid rgba(0,240,255,.28);
+  border-radius: 2px;
+  color: var(--cyan);
+  font-size: 10px;
+  letter-spacing: 1px;
+  background: rgba(0,240,255,.04);
+}
+
+/* === Stock ticker (左下) === */
+#stock-ticker {
+  position: fixed; bottom: 14px; left: 14px;
+  z-index: 10;
+  padding: 8px 14px;
+  font-family: var(--mono);
+  font-size: 11px;
+  display: flex; gap: 12px; align-items: center;
+}
+.stock-sym { color: var(--gold); font-weight: 700; letter-spacing: 1px; }
+.stock-name { color: var(--dim); font-size: 10px; }
+.stock-price { color: var(--hi); font-size: 16px; font-weight: 700; }
+.stock-chg.up { color: var(--green); }
+.stock-chg.down { color: var(--red); }
+
+/* === Left bar (Dataview lists) === */
+#leftbar {
+  position: fixed; top: 56px; left: 14px;
+  z-index: 10;
+  width: 230px;
+  display: flex; flex-direction: column; gap: 10px;
+  font-size: 11px;
+}
+.dv-list { padding: 0 10px 10px; }
+.dv-row {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 5px 4px;
+  border-bottom: 1px dotted rgba(255,255,255,.06);
+  font-size: 11px;
+  cursor: pointer;
+  transition: background .15s;
+}
+.dv-row:hover { background: rgba(0,240,255,.06); }
+.dv-row:last-child { border-bottom: 0; }
+.dv-row .name { color: var(--mid); }
+.dv-row .meta { color: var(--dim); font-family: var(--mono); font-size: 9px; }
+
+/* === Right bar (MOC tree + Service status) === */
+#rightbar {
+  position: fixed; top: 56px; right: 14px;
+  z-index: 10;
+  width: 230px;
+  display: flex; flex-direction: column; gap: 10px;
+  font-size: 11px;
+}
+.moc-row {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 5px 10px;
+  border-bottom: 1px dotted rgba(255,255,255,.06);
+  cursor: pointer;
+  transition: background .15s;
+  font-size: 11px;
+}
+.moc-row:hover { background: rgba(255,61,138,.08); color: var(--hi); }
+.moc-row:last-child { border-bottom: 0; }
+.moc-row .icon { color: var(--pink); margin-right: 6px; }
+.moc-row .cnt { color: var(--dim); font-family: var(--mono); font-size: 9px; }
+
+/* Service status mini chips */
+.svc-grid {
+  padding: 10px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.svc-chip {
+  background: rgba(0,240,255,.05);
+  border: 1px solid rgba(0,240,255,.28);
+  padding: 6px 8px;
+  border-radius: 2px;
+  font-size: 10px;
+  text-align: center;
+}
+.svc-chip .nm { color: var(--cyan); font-weight: 600; font-family: var(--mono); }
+.svc-chip .st { color: var(--green); font-size: 8px; letter-spacing: 1.5px; margin-top: 2px; }
+.svc-chip .st::before { content: '● '; }
+
+/* === AI Chat panel (右下) === */
+#ai-chat {
+  position: fixed; bottom: 14px; right: 14px;
+  z-index: 10;
+  width: 280px;
+}
+.chat-msg {
+  padding: 6px 12px;
+  font-size: 11px;
+  border-bottom: 1px dotted rgba(255,255,255,.05);
+  line-height: 1.5;
+}
+.chat-msg:last-of-type { border-bottom: 0; }
+.chat-msg .who {
+  color: var(--pink);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  margin-right: 6px;
+}
+.chat-msg .who.jarvis { color: var(--cyan); }
+.chat-input {
+  padding: 8px 12px;
+  border-top: 1px solid rgba(0,240,255,.15);
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--dim);
+}
+.chat-input::before { content: '> '; color: var(--green); }
+.cursor { display: inline-block; width: 7px; height: 11px; background: var(--cyan); margin-left: 2px; animation: blink 1s infinite; }
+@keyframes blink { 0%,50% { opacity:1; } 51%,100% { opacity:0; } }
+
+/* === Center floating logo === */
+#center-logo {
   position: fixed; top: 50%; left: 50%;
   transform: translate(-50%, -50%);
   z-index: 5;
   pointer-events: none;
   text-align: center;
-  opacity: .35;
+  opacity: .25;
+  font-family: var(--mono);
 }
-#center-kpi .big {
-  font-family: 'SF Mono',monospace;
-  font-size: 11px;
-  color: var(--neon-pink);
-  letter-spacing: 4px;
-  margin-bottom: 4px;
-  text-shadow: 0 0 12px rgba(255,61,138,.6);
+#center-logo .big {
+  font-size: 12px;
+  color: var(--pink);
+  letter-spacing: 5px;
+  text-shadow: 0 0 16px rgba(255,61,138,.5);
 }
-#center-kpi .sub {
+#center-logo .sub {
+  margin-top: 4px;
   font-size: 9px;
-  color: var(--text-dim);
+  color: var(--dim);
   letter-spacing: 3px;
 }
 
-/* Detail panel (click node) */
-#detail-panel {
-  position: fixed; top: 80px; right: 244px;
-  z-index: 11;
-  background: rgba(11,17,50,.92);
-  border: 1px solid var(--neon-pink);
-  padding: 16px 20px;
-  border-radius: 4px;
-  width: 250px;
-  font-size: 12px;
+/* === Detail panel (click node) === */
+#detail {
+  position: fixed; top: 60px; left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  width: 320px;
   display: none;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  box-shadow: 0 0 30px rgba(255,61,138,.3);
-  animation: slideIn .25s ease;
+  animation: dropIn .25s ease;
 }
-@keyframes slideIn {
-  from { opacity: 0; transform: translateX(20px); }
-  to { opacity: 1; transform: translateX(0); }
+@keyframes dropIn {
+  from { opacity: 0; transform: translate(-50%, -10px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
 }
-#detail-panel.show { display: block; }
-#detail-panel .pname {
-  color: var(--neon-pink);
-  font-size: 15px;
+#detail.show { display: block; }
+#detail .d-h {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255,61,138,.2);
+}
+#detail .d-name {
+  color: var(--pink);
+  font-size: 16px;
   font-weight: 700;
-  margin-bottom: 4px;
-  font-family: 'SF Mono',monospace;
+  font-family: var(--mono);
   letter-spacing: 1px;
-  text-shadow: 0 0 10px rgba(255,61,138,.5);
 }
-#detail-panel .ploc {
-  color: var(--text-dim);
+#detail .d-sub {
+  color: var(--dim);
   font-size: 10px;
   letter-spacing: 2px;
-  margin-bottom: 12px;
+  margin-top: 4px;
   text-transform: uppercase;
 }
-#detail-panel .row {
-  display: flex;
-  justify-content: space-between;
-  padding: 6px 0;
-  border-bottom: 1px dotted rgba(255,255,255,.08);
-  align-items: baseline;
+#detail .d-body {
+  padding: 12px 16px;
 }
-#detail-panel .row:last-child { border: 0; }
-#detail-panel .row .l {
-  color: var(--text-dim);
-  font-size: 10px;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
+#detail .d-row {
+  display: flex; justify-content: space-between;
+  padding: 5px 0;
+  font-size: 11px;
+  border-bottom: 1px dotted rgba(255,255,255,.06);
 }
-#detail-panel .row .v {
-  color: var(--neon-cyan);
-  font-family: 'SF Mono',monospace;
-  font-size: 13px;
-  font-weight: 600;
-}
-#detail-panel .close {
-  position: absolute; top: 8px; right: 10px;
-  color: var(--text-dim); cursor: pointer; font-size: 16px;
+#detail .d-row:last-child { border: 0; }
+#detail .d-row .l { color: var(--dim); letter-spacing: 1px; }
+#detail .d-row .v { color: var(--cyan); font-family: var(--mono); font-weight: 600; }
+#detail .close {
+  position: absolute; top: 8px; right: 12px;
+  color: var(--dim); cursor: pointer; font-size: 14px;
   width: 20px; height: 20px; line-height: 18px; text-align: center;
   border: 1px solid rgba(255,255,255,.15); border-radius: 2px;
 }
-#detail-panel .close:hover { color: var(--neon-pink); border-color: var(--neon-pink); }
+#detail .close:hover { color: var(--pink); border-color: var(--pink); }
 
-/* Footer info */
-#footer-info {
-  position: fixed; bottom: 8px; left: 14px;
-  z-index: 10;
-  font-size: 9px;
-  color: var(--text-dim);
-  font-family: 'SF Mono',monospace;
-  letter-spacing: 1.5px;
-  pointer-events: none;
-}
-
-/* Hint */
+/* === Hint === */
 #hint {
-  position: fixed; bottom: 8px; right: 14px;
+  position: fixed; bottom: 6px; left: 50%; transform: translateX(-50%);
   z-index: 10;
-  font-size: 9px;
-  color: var(--text-dim);
-  font-family: 'SF Mono',monospace;
+  font-size: 9px; color: var(--dim); font-family: var(--mono);
   letter-spacing: 1.5px;
 }
+
+/* === 文字節點 label === */
+.node-label {
+  background: rgba(0,0,0,.7);
+  border: 1px solid rgba(255,61,138,.4);
+  padding: 6px 10px;
+  border-radius: 3px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--hi);
+}
+.node-label .nl-t { color: var(--pink); font-weight: 700; }
+.node-label .nl-s { color: var(--dim); font-size: 9px; margin-top: 2px; letter-spacing: 1.5px; }
 </style>
 <script src="https://unpkg.com/three@0.150.0/build/three.min.js"></script>
 <script src="https://unpkg.com/3d-force-graph@1.73.4/dist/3d-force-graph.min.js"></script>
 </head>
 <body>
 
+<div id="bg-grad"></div>
 <div id="stars"></div>
 <div id="stars2"></div>
 <div id="graph"></div>
+<div id="scanlines"></div>
 
-<div id="center-kpi">
-  <div class="big">TZG // JARVIS-BRAIN</div>
-  <div class="sub">CORE NEURAL HUB · ACTIVE</div>
+<div id="center-logo">
+  <div class="big">TZG // NEURAL CORE</div>
+  <div class="sub">JARVIS-BRAIN · LIVE</div>
 </div>
 
 <div id="topbar">
-  <span class="logo">JARVIS-BRAIN</span>
-  <span class="sublogo">// TZG 神經中樞 3D · <span class="live-dot"></span>DATA STREAM</span>
-  <div class="right">
+  <span class="brand">JARVIS-BRAIN</span>
+  <span class="sub-brand">// TZG VAULT · 3D · <span class="live-dot"></span>SYNC</span>
+  <div class="topbar-stats">
     <span class="stat" id="t-rev">--</span>
     <span class="stat" id="t-ord">--</span>
     <span class="stat" id="t-cust">--</span>
     <span class="stat" id="t-aov">--</span>
+    <span class="stat" style="color:var(--pink);" id="t-period">--</span>
   </div>
 </div>
 
 <div id="leftbar">
-  <div class="metric-card pink">
-    <div class="l">業務節點</div>
-    <div class="v" id="m-agents">--</div>
+  <div class="panel">
+    <div class="panel-h">AI 筆主 <span class="badge" id="b-ai">5</span></div>
+    <div class="dv-list" id="dv-ai"></div>
   </div>
-  <div class="metric-card">
-    <div class="l">客戶共享</div>
-    <div class="v" id="m-links">--</div>
+  <div class="panel">
+    <div class="panel-h">彩寶指任 // PROJECTS <span class="badge" id="b-proj">5</span></div>
+    <div class="dv-list" id="dv-proj"></div>
   </div>
-  <div class="metric-card purple">
-    <div class="l">統計區間</div>
-    <div class="v" id="m-period" style="font-size:13px;">--</div>
+  <div class="panel">
+    <div class="panel-h">最近筆記 <span class="badge" id="b-rec">5</span></div>
+    <div class="dv-list" id="dv-rec"></div>
   </div>
 </div>
 
 <div id="rightbar">
-  <div class="title">// TOP 業務 樹狀</div>
-  <div id="top-agents-list"></div>
+  <div class="panel">
+    <div class="panel-h">MOC 階層 // TOP <span class="badge" id="b-moc">7</span></div>
+    <div id="moc-list" style="padding: 0;"></div>
+  </div>
+  <div class="panel">
+    <div class="panel-h">系統狀態 // SERVICES</div>
+    <div class="svc-grid">
+      <div class="svc-chip"><div class="nm">POS</div><div class="st">啟用中</div></div>
+      <div class="svc-chip"><div class="nm">1SHOP</div><div class="st">啟用中</div></div>
+      <div class="svc-chip"><div class="nm">LINE</div><div class="st">啟用中</div></div>
+      <div class="svc-chip"><div class="nm">GBP</div><div class="st">啟用中</div></div>
+      <div class="svc-chip"><div class="nm">Shopline</div><div class="st">啟用中</div></div>
+      <div class="svc-chip"><div class="nm">Meta</div><div class="st">啟用中</div></div>
+    </div>
+  </div>
 </div>
 
-<div id="detail-panel">
-  <span class="close" onclick="document.getElementById('detail-panel').classList.remove('show')">×</span>
-  <div class="pname">--</div>
-  <div class="ploc">-- LOCATION</div>
-  <div class="row"><span class="l">業績</span><span class="v" data-key="rev">--</span></div>
-  <div class="row"><span class="l">訂單數</span><span class="v" data-key="orders">--</span></div>
-  <div class="row"><span class="l">客戶數</span><span class="v" data-key="customers">--</span></div>
-  <div class="row"><span class="l">AOV 均單價</span><span class="v" data-key="aov">--</span></div>
+<div id="stock-ticker" class="panel">
+  <span class="stock-sym" id="s-sym">--</span>
+  <span class="stock-name" id="s-name">--</span>
+  <span class="stock-price" id="s-price">--</span>
+  <span class="stock-chg" id="s-chg">--</span>
 </div>
 
-<div id="service-chips">
-  <div class="chip">POS 機<span class="status">啟用中</span></div>
-  <div class="chip">1SHOP<span class="status">啟用中</span></div>
-  <div class="chip">LINE 社群<span class="status">啟用中</span></div>
-  <div class="chip">GBP 雙店<span class="status">啟用中</span></div>
+<div id="ai-chat" class="panel">
+  <div class="panel-h">JARVIS // CHAT <span class="badge"><span class="live-dot" style="margin-right:2px;"></span>LIVE</span></div>
+  <div id="chat-body"></div>
+  <div class="chat-input">輸入指令<span class="cursor"></span></div>
 </div>
 
-<div id="footer-info">SYS://generated <span id="gen-at">--</span></div>
-<div id="hint">SCROLL = ZOOM · DRAG = ROTATE · CLICK NODE = INFO</div>
+<div id="detail" class="panel">
+  <span class="close" onclick="document.getElementById('detail').classList.remove('show')">×</span>
+  <div class="d-h">
+    <div class="d-name">--</div>
+    <div class="d-sub">--</div>
+  </div>
+  <div class="d-body" id="d-body"></div>
+</div>
+
+<div id="hint">DRAG · ZOOM · CLICK NODE = INSPECT</div>
 
 <script>
 const DATA = __GRAPH_DATA__;
+
+const TYPE_COLOR = {
+  persona: '#ff3d8a',
+  agent:   '#ff66a8',
+  system:  '#00f0ff',
+  moc:     '#ffb800',
+  project: '#9b5cff',
+  note:    'rgba(255,255,255,.7)',
+};
+const TYPE_LABEL = {
+  persona: 'PERSONA',
+  agent:   'BUSINESS AGENT',
+  system:  'SYSTEM',
+  moc:     'MAP OF CONTENT',
+  project: 'PROJECT',
+  note:    'NOTE',
+};
 
 function fmtN(n) { return (n||0).toLocaleString(); }
 function fmtF(n) {
@@ -415,75 +467,127 @@ function fmtF(n) {
   return 'NT$' + n;
 }
 
-// 填 KPI
-document.getElementById('t-rev').textContent  = fmtF(DATA.kpi.total_rev);
-document.getElementById('t-ord').textContent  = (DATA.kpi.total_orders||0) + ' ORD';
-document.getElementById('t-cust').textContent = (DATA.kpi.total_customers||0) + ' CUS';
-document.getElementById('t-aov').textContent  = 'AOV ' + fmtN(DATA.kpi.avg_aov);
-document.getElementById('m-agents').textContent = DATA.nodes.length;
-document.getElementById('m-links').textContent  = DATA.links.length;
-document.getElementById('m-period').textContent = DATA.kpi.period_label || '近 90 天';
-document.getElementById('gen-at').textContent   = DATA.kpi.generated_at || '';
+// Topbar KPI
+const k = DATA.kpi || {};
+document.getElementById('t-rev').textContent  = fmtF(k.total_rev);
+document.getElementById('t-ord').textContent  = (k.total_orders||0) + ' ORD';
+document.getElementById('t-cust').textContent = (k.total_customers||0) + ' CUS';
+document.getElementById('t-aov').textContent  = 'AOV ' + fmtN(k.avg_aov);
+document.getElementById('t-period').textContent = k.period_label || '近 60 天';
 
-// Top agents list
-const topList = document.getElementById('top-agents-list');
-(DATA.kpi.top_agents || []).forEach((a, i) => {
+// Stock ticker
+const st = DATA.stock || {};
+document.getElementById('s-sym').textContent = st.symbol || '--';
+document.getElementById('s-name').textContent = st.name || '';
+document.getElementById('s-price').textContent = (st.price || 0).toFixed(1);
+const chgEl = document.getElementById('s-chg');
+const isUp = (st.change||0) >= 0;
+chgEl.className = 'stock-chg ' + (isUp ? 'up' : 'down');
+chgEl.textContent = (isUp?'▲ +':'▼ ') + Math.abs(st.change||0).toFixed(1) + ' (' + (isUp?'+':'') + (st.pct||0).toFixed(2) + '%)';
+
+// Dataview lists
+function renderDv(el, items) {
+  el.innerHTML = items.map(i => `
+    <div class="dv-row">
+      <span class="name">${i.name}</span>
+      <span class="meta">${i.tag || ''} · ${i.mtime || ''}</span>
+    </div>
+  `).join('');
+}
+renderDv(document.getElementById('dv-ai'),   (DATA.dataview||{}).ai_brain || []);
+renderDv(document.getElementById('dv-proj'), (DATA.dataview||{}).projects || []);
+renderDv(document.getElementById('dv-rec'),  (DATA.dataview||{}).recent_notes || []);
+
+// MOC tree
+const mocEl = document.getElementById('moc-list');
+(DATA.moc_tree || []).forEach(m => {
   const div = document.createElement('div');
-  div.className = 'item';
-  div.title = a.fullName;
-  div.innerHTML = `<span><span class="rank">${(i+1).toString().padStart(2,'0')}</span>${a.name}</span><span class="rev">${(a.rev/1e3).toFixed(0)}K</span>`;
-  div.onclick = () => focusNode(a.id);
-  topList.appendChild(div);
+  div.className = 'moc-row';
+  div.innerHTML = `<span><span class="icon">▶</span>${m.name}</span><span class="cnt">${m.children_count || 0}</span>`;
+  mocEl.appendChild(div);
 });
 
-// 3D Force Graph
-const maxRev = Math.max(...DATA.nodes.map(n => n.rev), 1);
+// AI chat
+const chatBody = document.getElementById('chat-body');
+(DATA.ai_chat || []).forEach(m => {
+  const div = document.createElement('div');
+  div.className = 'chat-msg';
+  const whoClass = m.who === 'JARVIS' ? 'who jarvis' : 'who';
+  div.innerHTML = `<span class="${whoClass}">${m.who} ›</span>${m.msg}`;
+  chatBody.appendChild(div);
+});
+
+// === 3D Force Graph ===
 const Graph = ForceGraph3D()
   (document.getElementById('graph'))
   .backgroundColor('rgba(0,0,0,0)')
-  .nodeRelSize(5)
-  .nodeVal(n => 2 + (n.rev / maxRev) * 14)
-  .nodeColor(n => {
-    const t = n.rev / maxRev;
-    if (t > 0.66) return '#ff3d8a';
-    if (t > 0.33) return '#9b5cff';
-    return '#00f0ff';
+  .nodeRelSize(4)
+  .nodeVal(n => {
+    if (n.type === 'agent' && n.rev) {
+      const maxRev = Math.max(...DATA.nodes.filter(x => x.rev).map(x => x.rev), 1);
+      return 3 + (n.rev / maxRev) * 10;
+    }
+    return { persona: 8, system: 6, moc: 9, project: 5, note: 3, agent: 5 }[n.type] || 4;
   })
+  .nodeColor(n => TYPE_COLOR[n.type] || '#fff')
   .nodeOpacity(0.95)
   .nodeLabel(n => `
-    <div style="background:rgba(11,17,50,.95);border:1px solid #ff3d8a;padding:8px 12px;border-radius:3px;font-family:'SF Mono',monospace;font-size:11px;color:#fff;">
-      <div style="color:#ff3d8a;font-weight:700;margin-bottom:4px;">${n.fullName}</div>
-      <div>業績 <b style="color:#00f0ff;">NT$ ${fmtN(n.rev)}</b></div>
-      <div>${n.orders} 訂單 · ${n.customers} 客戶</div>
+    <div class="node-label">
+      <div class="nl-t">${n.name}</div>
+      <div class="nl-s">${TYPE_LABEL[n.type] || ''} · ${n.sub || ''}</div>
     </div>
   `)
-  .linkColor(() => 'rgba(155,92,255,0.4)')
-  .linkWidth(l => Math.max(0.6, Math.min(3, (l.value||1) * 0.6)))
-  .linkOpacity(0.55)
-  .linkDirectionalParticles(2)
-  .linkDirectionalParticleWidth(1.2)
-  .linkDirectionalParticleColor(() => '#ff3d8a')
-  .linkDirectionalParticleSpeed(0.008)
-  .onNodeClick(node => focusNode(node.id))
-  .onBackgroundClick(() => {
-    document.getElementById('detail-panel').classList.remove('show');
+  .linkColor(l => {
+    // 連到 MOC 用金色、其他預設紫
+    const s = (typeof l.source === 'object' ? l.source.id : l.source) || '';
+    const t = (typeof l.target === 'object' ? l.target.id : l.target) || '';
+    if (s.startsWith('m:') || t.startsWith('m:')) return 'rgba(255,184,0,0.4)';
+    if (s.startsWith('s:') || t.startsWith('s:')) return 'rgba(0,240,255,0.35)';
+    return 'rgba(155,92,255,0.35)';
   })
+  .linkWidth(0.8)
+  .linkOpacity(0.6)
+  .linkDirectionalParticles(2)
+  .linkDirectionalParticleWidth(1.4)
+  .linkDirectionalParticleColor(l => {
+    const s = (typeof l.source === 'object' ? l.source.id : l.source) || '';
+    if (s.startsWith('m:')) return '#ffb800';
+    if (s.startsWith('s:')) return '#00f0ff';
+    return '#ff3d8a';
+  })
+  .linkDirectionalParticleSpeed(0.006)
+  .onNodeClick(focusNode)
+  .onBackgroundClick(() => document.getElementById('detail').classList.remove('show'))
   .graphData(DATA);
 
-function focusNode(id) {
-  const node = DATA.nodes.find(n => n.id === id);
-  if (!node) return;
-  const p = document.getElementById('detail-panel');
+function focusNode(node) {
+  const p = document.getElementById('detail');
   p.classList.add('show');
-  p.querySelector('.pname').textContent = node.fullName;
-  p.querySelector('.ploc').textContent  = (node.location || 'TZG') + ' · BRANCH';
-  p.querySelector('[data-key="rev"]').textContent       = fmtF(node.rev);
-  p.querySelector('[data-key="orders"]').textContent    = fmtN(node.orders);
-  p.querySelector('[data-key="customers"]').textContent = fmtN(node.customers);
-  p.querySelector('[data-key="aov"]').textContent       = fmtN(node.aov);
-  // 鏡頭飛到那個節點
+  p.querySelector('.d-name').textContent = node.name;
+  p.querySelector('.d-sub').textContent  = (TYPE_LABEL[node.type] || '') + ' · ' + (node.sub || '');
+  const body = document.getElementById('d-body');
+  let rows = `<div class="d-row"><span class="l">節點 ID</span><span class="v" style="font-size:10px;">${node.id}</span></div>`;
+  rows += `<div class="d-row"><span class="l">類別</span><span class="v">${TYPE_LABEL[node.type] || '--'}</span></div>`;
+  if (node.rev) {
+    rows += `<div class="d-row"><span class="l">業績</span><span class="v">${fmtF(node.rev)}</span></div>`;
+    rows += `<div class="d-row"><span class="l">訂單</span><span class="v">${fmtN(node.orders)}</span></div>`;
+    rows += `<div class="d-row"><span class="l">客戶</span><span class="v">${fmtN(node.customers)}</span></div>`;
+  }
+  if (node.status) {
+    rows += `<div class="d-row"><span class="l">狀態</span><span class="v" style="color:var(--green);">● ${node.status}</span></div>`;
+  }
+  // 計算連線數
+  const linkCount = DATA.links.filter(l => {
+    const s = (typeof l.source === 'object' ? l.source.id : l.source);
+    const t = (typeof l.target === 'object' ? l.target.id : l.target);
+    return s === node.id || t === node.id;
+  }).length;
+  rows += `<div class="d-row"><span class="l">連線</span><span class="v">${linkCount}</span></div>`;
+  body.innerHTML = rows;
+
+  // 鏡頭飛到節點
   if (node.x != null) {
-    const distance = 90;
+    const distance = 80;
     const distRatio = 1 + distance / Math.hypot(node.x, node.y, node.z);
     Graph.cameraPosition(
       { x: node.x * distRatio, y: node.y * distRatio, z: node.z * distRatio },
@@ -492,17 +596,15 @@ function focusNode(id) {
   }
 }
 
-// 自動緩慢旋轉鏡頭（用 OrbitControls autoRotate）
+// 自動旋轉，拖拉暫停
 const controls = Graph.controls();
 if (controls) {
   controls.autoRotate = true;
-  controls.autoRotateSpeed = 0.45;
-  // 拖拉時暫停自動旋轉
+  controls.autoRotateSpeed = 0.35;
   Graph.renderer().domElement.addEventListener('pointerdown', () => {
     controls.autoRotate = false;
   });
 }
-
 </script>
 </body>
 </html>
