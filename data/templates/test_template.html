@@ -749,6 +749,149 @@ DATA.links.forEach(l => {
   });
 });
 
+// ─── 彗星 / 流星系統 ───
+//   彗星：壽命長、tail 長、出現少；流星：短促快閃，類似畫面跨越
+const shootingObjects = [];   // {head, tail, positions, velocity, life, maxLife, tailLen, dead, lifeFade}
+
+function spawnShooting(opts) {
+  const tailLen = opts.tailLen;
+  const speed   = opts.speed;
+  const headSize = opts.headSize;
+  const color   = opts.color;        // 'rgb(...)'
+  const colorVec = opts.colorVec;    // [r,g,b] 0-1
+  const maxLife = opts.maxLife;
+
+  // 起點：場景某一邊隨機，方向指向附近中心
+  const startR = 1800 + Math.random() * 800;
+  const sTheta = Math.random() * Math.PI * 2;
+  const sPhi = Math.acos(2 * Math.random() - 1);
+  const head = new THREE.Vector3(
+    startR * Math.sin(sPhi) * Math.cos(sTheta),
+    startR * Math.sin(sPhi) * Math.sin(sTheta) * 0.7,
+    startR * Math.cos(sPhi)
+  );
+  const target = new THREE.Vector3(
+    (Math.random() - 0.5) * 1200,
+    (Math.random() - 0.5) * 600,
+    (Math.random() - 0.5) * 1200
+  );
+  const velocity = target.sub(head).normalize().multiplyScalar(speed);
+
+  // Head sprite (亮)
+  const headSprite = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: makeGlowTexture(color),
+    blending: THREE.AdditiveBlending,
+    transparent: true, depthWrite: false,
+  }));
+  headSprite.scale.set(headSize, headSize, 1);
+  headSprite.position.copy(head);
+  scene.add(headSprite);
+
+  // Tail line
+  const tailGeo = new THREE.BufferGeometry();
+  const positions = new Float32Array(tailLen * 3);
+  const colors = new Float32Array(tailLen * 3);
+  tailGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  tailGeo.setAttribute('color',    new THREE.BufferAttribute(colors, 3));
+  const tail = new THREE.Line(tailGeo, new THREE.LineBasicMaterial({
+    vertexColors: true,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  }));
+  scene.add(tail);
+
+  shootingObjects.push({
+    head, tail, headSprite,
+    positions: [],
+    velocity,
+    life: 0, maxLife, tailLen,
+    color: colorVec,
+    dead: false,
+  });
+}
+
+function spawnComet() {
+  // 彗星：白偏冷藍、慢、長尾
+  const palettes = [
+    { color: 'rgb(220,240,255)', vec: [0.86, 0.94, 1.0] },   // 冷白藍
+    { color: 'rgb(255,220,255)', vec: [1.0, 0.86, 1.0] },    // 粉白
+    { color: 'rgb(180,220,255)', vec: [0.7, 0.86, 1.0] },    // 淡藍
+  ];
+  const p = palettes[Math.floor(Math.random() * palettes.length)];
+  spawnShooting({
+    tailLen: 40,
+    speed: 7 + Math.random() * 4,
+    headSize: 28 + Math.random() * 14,
+    color: p.color,
+    colorVec: p.vec,
+    maxLife: 600 + Math.random() * 400,    // frames
+  });
+}
+
+function spawnMeteor() {
+  // 流星：橘黃偏熱、快、短尾
+  const palettes = [
+    { color: 'rgb(255,200,100)', vec: [1.0, 0.78, 0.39] },   // 暖黃
+    { color: 'rgb(255,150,100)', vec: [1.0, 0.59, 0.39] },   // 暖橘
+    { color: 'rgb(255,220,180)', vec: [1.0, 0.86, 0.70] },   // 米白
+  ];
+  const p = palettes[Math.floor(Math.random() * palettes.length)];
+  spawnShooting({
+    tailLen: 18,
+    speed: 18 + Math.random() * 10,
+    headSize: 14 + Math.random() * 8,
+    color: p.color,
+    colorVec: p.vec,
+    maxLife: 120 + Math.random() * 100,
+  });
+}
+
+function updateShooting() {
+  for (let si = shootingObjects.length - 1; si >= 0; si--) {
+    const s = shootingObjects[si];
+    s.life++;
+    // 移動 head
+    s.head.add(s.velocity);
+    s.headSprite.position.copy(s.head);
+    // tail 紀錄
+    s.positions.unshift(s.head.clone());
+    if (s.positions.length > s.tailLen) s.positions.pop();
+
+    // 更新 tail buffer
+    const posAttr = s.tail.geometry.attributes.position;
+    const colAttr = s.tail.geometry.attributes.color;
+    for (let i = 0; i < s.tailLen; i++) {
+      const p = (i < s.positions.length) ? s.positions[i] : (s.positions[s.positions.length - 1] || s.head);
+      posAttr.array[i*3]   = p.x;
+      posAttr.array[i*3+1] = p.y;
+      posAttr.array[i*3+2] = p.z;
+      const fade = (i < s.positions.length) ? (1 - i / s.tailLen) : 0;
+      // 接近壽終時整體淡出
+      const lifeFade = Math.max(0, 1 - s.life / s.maxLife);
+      const f = fade * lifeFade;
+      colAttr.array[i*3]   = s.color[0] * f;
+      colAttr.array[i*3+1] = s.color[1] * f;
+      colAttr.array[i*3+2] = s.color[2] * f;
+    }
+    posAttr.needsUpdate = true;
+    colAttr.needsUpdate = true;
+    // Head sprite 透明度也跟著 lifeFade
+    s.headSprite.material.opacity = Math.max(0, 1 - s.life / s.maxLife);
+
+    // 死亡條件
+    if (s.life > s.maxLife || s.head.length() > 4000) {
+      s.dead = true;
+      scene.remove(s.headSprite);
+      scene.remove(s.tail);
+      shootingObjects.splice(si, 1);
+    }
+  }
+}
+
+let cometCooldown = 60;     // 1 秒後出第一顆
+let meteorCooldown = 30;    // 0.5 秒後出第一顆
+
 // ─── 鏡頭飛行 ───
 let flyAnimId = null;
 function flyTo(targetCamPos, lookAtPos, duration = 2600) {
@@ -932,6 +1075,19 @@ function animate() {
   decorPlanets.forEach((m, i) => {
     m.rotation.y += 0.0008 + (i * 0.0001);
   });
+  // 彗星 / 流星 spawn + update
+  cometCooldown--;
+  if (cometCooldown <= 0) {
+    spawnComet();
+    cometCooldown = 400 + Math.random() * 600;   // 6-15 秒
+  }
+  meteorCooldown--;
+  if (meteorCooldown <= 0) {
+    spawnMeteor();
+    meteorCooldown = 90 + Math.random() * 180;   // 1.5-4 秒
+  }
+  updateShooting();
+
   // 軌道衛星運動
   orbiters.forEach(o => {
     o.angle += o.speed;
