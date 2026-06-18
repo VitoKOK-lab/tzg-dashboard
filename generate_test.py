@@ -42,10 +42,11 @@ ANCHOR_NODES = [
     {'id': 's:Meta',     'name': 'Meta',       'type': 'anchor', 'sub': 'FB + IG 影音流量入口', 'tier': 1},
     {'id': 's:Shopline', 'name': 'Shopline',   'type': 'anchor', 'sub': '訂單成交系統',         'tier': 1},
 ]
-# 資料流方向：影音 → Meta → Shopline → 主星（年度營業額成長）
+# 資料流循環：影音 → Meta → Shopline → 主星 → 回饋投資 Meta（閉環）
 ANCHOR_LINKS = [
     ('s:Meta',     's:Shopline'),   # 流量轉成訂單
     ('s:Shopline', 's:Core'),       # 訂單匯流到年度業績
+    ('s:Core',     's:Meta'),       # 年度成長回饋再投資（閉環）
 ]
 
 

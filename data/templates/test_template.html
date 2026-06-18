@@ -293,8 +293,8 @@ renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
 const scene = new THREE.Scene();
 scene.fog = new THREE.FogExp2(0x02010a, 0.0004);  // 更淡，看到更遠
 
-const camera = new THREE.PerspectiveCamera(65, W()/H(), 0.1, 5000);
-camera.position.set(0, 280, 1700);              // 拉遠看全景（涵蓋 ±1000 的兩個 anchor）
+const camera = new THREE.PerspectiveCamera(70, W()/H(), 0.1, 5000);
+camera.position.set(0, 200, 2200);              // 拉遠看全景（涵蓋三角型 anchor，y 範圍 -400~800）
 
 let controls = null;
 if (typeof THREE.OrbitControls === 'function') {
@@ -493,13 +493,12 @@ const labelsLayer = document.getElementById('labels-layer');
 const grouped = {};
 nodes.forEach(n => { (grouped[n.type] ||= []).push(n); });
 
-// 三個 anchor 純「左右平行」排列在 X 軸上，按資料流方向：
-//   Meta（流量入口·左）→ Shopline（成交系統·中）→ 主星（年度成長·右）
-//   中央 wireframe sphere 跟 Shopline 重疊，當作成交系統的科技外殼
+// 三個 anchor 排成等邊三角形（XY 平面），形成資料流閉環：
+//   主星 (頂) ─→ Meta (左下) ─→ Shopline (右下) ─→ 主星 (循環)
 const anchorPositions = {
-  's:Meta':     [-1000, 0, 0],
-  's:Shopline': [    0, 0, 0],
-  's:Core':     [ 1000, 0, 0],   // 主星在右側終點
+  's:Core':     [    0,  800, 0],   // 主星頂端（最高目標）
+  's:Meta':     [-1000, -400, 0],   // 左下
+  's:Shopline': [ 1000, -400, 0],   // 右下
 };
 
 // 軌道衛星全域陣列（每 frame 更新位置）
@@ -867,8 +866,12 @@ DATA.links.forEach(l => {
   if (!a || !b) return;
   const geo = new THREE.BufferGeometry().setFromPoints([a.pos, b.pos]);
   let colorHex = 0x9b5cff, colorRgb = 'rgb(155,92,255)';
-  // Shopline → Core 用金色（年度成長能量流，最關鍵的一條）
-  if ((src === 's:Shopline' && tgt === 's:Core') || (src === 's:Core' && tgt === 's:Shopline')) {
+  // 三角形閉環三條 anchor 連線：
+  //   Shopline → Core: 金（成交匯流到年度業績）
+  //   Core → Meta:     金（年度成長回饋投資廣告）
+  //   Meta → Shopline: 青（流量轉成訂單）
+  if ((src === 's:Shopline' && tgt === 's:Core') || (src === 's:Core' && tgt === 's:Shopline') ||
+      (src === 's:Core' && tgt === 's:Meta')     || (src === 's:Meta' && tgt === 's:Core')) {
     colorHex = 0xffb800; colorRgb = 'rgb(255,184,0)';
   }
   else if (src.startsWith('v:') || tgt.startsWith('v:')) { colorHex = 0xff8800; colorRgb = 'rgb(255,136,0)'; }
