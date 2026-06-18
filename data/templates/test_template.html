@@ -493,13 +493,13 @@ const labelsLayer = document.getElementById('labels-layer');
 const grouped = {};
 nodes.forEach(n => { (grouped[n.type] ||= []).push(n); });
 
-// 三個 anchor 純「左右平行」排列在 X 軸上：
-//   Meta 左 ──── 主星 中央 ──── Shopline 右
-//   流量資料 ──→ 主星（年度營業額成長）←── 訂單成交資料
+// 三個 anchor 純「左右平行」排列在 X 軸上，按資料流方向：
+//   Meta（流量入口·左）→ Shopline（成交系統·中）→ 主星（年度成長·右）
+//   中央 wireframe sphere 跟 Shopline 重疊，當作成交系統的科技外殼
 const anchorPositions = {
-  's:Meta':     [-1000, 0, 0],
-  's:Core':     [    0, 0, 0],     // 主星 = 中央 wireframe sphere 位置
-  's:Shopline': [ 1000, 0, 0],
+  's:Meta':     [-1300, 0, 0],
+  's:Shopline': [    0, 0, 0],
+  's:Core':     [ 1300, 0, 0],   // 主星在右側終點
 };
 
 // 軌道衛星全域陣列（每 frame 更新位置）
@@ -527,22 +527,8 @@ Object.keys(grouped).forEach(type => {
       const rgbStr = isCore ? 'rgb(255,184,0)'
         : 'rgb(' + ((colorHex>>16)&255) + ',' + ((colorHex>>8)&255) + ',' + (colorHex&255) + ')';
 
-      // Core 主星：不另加大星球 mesh（中央 wireframe sphere 已存在當主體）
-      //   只加 label + 中央 sprite halo 強化
-      if (isCore) {
-        const div = document.createElement('div');
-        div.className = 'node-label anchor';
-        div.style.color = '#ffb800';
-        div.innerHTML = `${n.name}<span class="sub">${n.sub || ''}</span>`;
-        div.addEventListener('click', () => focusNode(n, pos));
-        labelsLayer.appendChild(div);
-        // 用 coreGlow 當 sprite (已是中央發光 sprite)
-        node3D.push({ node: n, pos, sprite: coreGlow, mesh: coreCore, div });
-        return;
-      }
-
-      // 大星球 mesh
-      const planetR = 50;
+      // 大星球 mesh（Core 略大一點 60，其他 50）
+      const planetR = isCore ? 60 : 50;
       const planetMesh = new THREE.Mesh(
         new THREE.SphereGeometry(planetR, 32, 32),
         new THREE.MeshBasicMaterial({ color: colorHex, transparent: true, opacity: 0.55 })
@@ -629,6 +615,7 @@ Object.keys(grouped).forEach(type => {
 
       const div = document.createElement('div');
       div.className = 'node-label anchor';
+      if (isCore) div.style.color = '#ffb800';   // 主星 label 金色
       div.innerHTML = `${n.name}<span class="sub">${n.sub || ''}</span>`;
       div.addEventListener('click', () => focusNode(n, pos));
       labelsLayer.appendChild(div);
