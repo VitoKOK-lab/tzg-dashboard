@@ -604,10 +604,53 @@ function makeParticles(count, rMin, rMax, baseSize, colorMix) {
   });
   return new THREE.Points(geo, mat);
 }
-const farStars  = makeParticles(2500, 800, 1500, 2.0, {white:0.85, pink:0.07, cyan:0.05, purple:0.03});
-const midStars  = makeParticles(1200, 400, 800,  2.2, {white:0.55, pink:0.20, cyan:0.15, purple:0.10});
-const nearGlow  = makeParticles(400,  180, 380,  3.5, {white:0.30, pink:0.30, cyan:0.20, purple:0.20});
+const farStars  = makeParticles(3500, 800, 1600, 2.0, {white:0.85, pink:0.07, cyan:0.05, purple:0.03});
+const midStars  = makeParticles(1500, 400, 800,  2.2, {white:0.55, pink:0.20, cyan:0.15, purple:0.10});
+const nearGlow  = makeParticles(500,  180, 380,  3.5, {white:0.30, pink:0.30, cyan:0.20, purple:0.20});
 scene.add(farStars, midStars, nearGlow);
+
+// ─── 星雲 nebula sprites（6 個大型彩色光暈雲）───
+function makeNebulaTexture(c1, c2) {
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = 256;
+  const ctx = cv.getContext('2d');
+  const g = ctx.createRadialGradient(128, 128, 10, 128, 128, 128);
+  g.addColorStop(0, c1);
+  g.addColorStop(0.35, c2);
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 256, 256);
+  return new THREE.CanvasTexture(cv);
+}
+const nebulaPalettes = [
+  ['rgba(255,61,138,.55)', 'rgba(155,92,255,.20)'],   // pink → purple
+  ['rgba(0,240,255,.50)',  'rgba(155,92,255,.18)'],   // cyan → purple
+  ['rgba(255,184,0,.45)',  'rgba(255,61,138,.15)'],   // gold → pink
+  ['rgba(155,92,255,.50)', 'rgba(0,240,255,.15)'],    // purple → cyan
+];
+const nebulas = [];
+for (let i = 0; i < 7; i++) {
+  const pal = nebulaPalettes[i % nebulaPalettes.length];
+  const tex = makeNebulaTexture(pal[0], pal[1]);
+  const mat = new THREE.SpriteMaterial({
+    map: tex, blending: THREE.AdditiveBlending,
+    transparent: true, depthWrite: false, opacity: 0.8,
+  });
+  const sprite = new THREE.Sprite(mat);
+  const size = 450 + Math.random() * 350;
+  sprite.scale.set(size, size, 1);
+  // 球外圍隨機分布（避開正中央）
+  const r = 700 + Math.random() * 500;
+  const theta = Math.random() * Math.PI * 2;
+  const phi = Math.acos(2 * Math.random() - 1);
+  sprite.position.set(
+    r * Math.sin(phi) * Math.cos(theta),
+    r * Math.sin(phi) * Math.sin(theta) * 0.6,  // y 軸壓扁，星雲偏盤狀
+    r * Math.cos(phi)
+  );
+  sprite.userData = { baseOp: 0.8 };
+  scene.add(sprite);
+  nebulas.push(sprite);
+}
 
 // ─── 戰術地平面（網格） ───
 const grid = new THREE.GridHelper(2000, 40, 0x00f0ff, 0x00f0ff);
@@ -697,6 +740,8 @@ scene.add(linkLines);
 const nodeMap = {};
 node3D.forEach(nd => { nodeMap[nd.node.id] = nd; });
 
+// 連線 + 沿線流動的粒子
+const linkFlowParticles = [];  // { sprite, from, to, t, speed }
 DATA.links.forEach(l => {
   const src = typeof l.source === 'object' ? l.source.id : l.source;
   const tgt = typeof l.target === 'object' ? l.target.id : l.target;
@@ -704,13 +749,32 @@ DATA.links.forEach(l => {
   const b = nodeMap[tgt];
   if (!a || !b) return;
   const geo = new THREE.BufferGeometry().setFromPoints([a.pos, b.pos]);
-  let color = 0x9b5cff;
-  if (src.startsWith('m:') || tgt.startsWith('m:')) color = 0xffb800;
-  else if (src.startsWith('s:') || tgt.startsWith('s:')) color = 0x00f0ff;
+  let colorHex = 0x9b5cff, colorRgb = 'rgb(155,92,255)';
+  if (src.startsWith('m:') || tgt.startsWith('m:')) { colorHex = 0xffb800; colorRgb = 'rgb(255,184,0)'; }
+  else if (src.startsWith('s:') || tgt.startsWith('s:')) { colorHex = 0x00f0ff; colorRgb = 'rgb(0,240,255)'; }
+
+  // 主線（提高 opacity .35 → .55，更明顯）
   const line = new THREE.Line(geo, new THREE.LineBasicMaterial({
-    color, transparent: true, opacity: 0.35, depthWrite: false,
+    color: colorHex, transparent: true, opacity: 0.55, depthWrite: false,
   }));
   linkLines.add(line);
+
+  // 沿線流動的發光粒子（每條 1 個 sprite）
+  const flowTex = makeGlowTexture(colorRgb);
+  const flowSprite = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: flowTex, blending: THREE.AdditiveBlending,
+    transparent: true, depthWrite: false, opacity: 0.95,
+  }));
+  flowSprite.scale.set(10, 10, 1);
+  flowSprite.userData = { baseOp: 0.95 };
+  scene.add(flowSprite);
+  linkFlowParticles.push({
+    sprite: flowSprite,
+    from: a.pos,
+    to: b.pos,
+    t: Math.random(),
+    speed: 0.0025 + Math.random() * 0.003,
+  });
 });
 
 // ─── Label projection（每 frame 把 3D pos 投影到 2D）───
@@ -796,6 +860,8 @@ function enterFocusMode(nodeId) {
   });
   // 連線淡化
   linkLines.children.forEach(line => { line.material.opacity = 0.06; });
+  linkFlowParticles.forEach(p => { p.sprite.material.opacity = 0.10; });
+  nebulas.forEach(n => { n.material.opacity = 0.15; });
   // 粒子場淡化
   farStars.material.opacity = 0.30;
   midStars.material.opacity = 0.25;
@@ -808,7 +874,9 @@ function exitFocusMode() {
   focusedNodeId = null;
   document.getElementById('labels-layer').classList.remove('focused');
   node3D.forEach(nd => nd.div.classList.remove('is-focus'));
-  linkLines.children.forEach(line => { line.material.opacity = 0.35; });
+  linkLines.children.forEach(line => { line.material.opacity = 0.55; });
+  linkFlowParticles.forEach(p => { p.sprite.material.opacity = p.sprite.userData.baseOp; });
+  nebulas.forEach(n => { n.material.opacity = n.userData.baseOp; });
   farStars.material.opacity = 0.85;
   midStars.material.opacity = 0.85;
   nearGlow.material.opacity = 0.85;
@@ -950,6 +1018,24 @@ function animate() {
   farStars.rotation.y += 0.00015;
   midStars.rotation.y -= 0.00025;
   nearGlow.rotation.y += 0.0004;
+
+  // 連線流動粒子（沿線往返）
+  linkFlowParticles.forEach(p => {
+    p.t += p.speed;
+    if (p.t > 1) p.t -= 1;
+    // 用 sin 曲線讓中段加速、頭尾減速，更有「脈衝流」感
+    const tt = p.t;
+    p.sprite.position.lerpVectors(p.from, p.to, tt);
+  });
+
+  // 星雲緩慢呼吸（scale 微縮+opacity 漂浮）
+  nebulas.forEach((n, i) => {
+    const breathe = 1 + Math.sin(frame * 0.005 + i * 1.3) * 0.04;
+    n.scale.x = n.scale.y = (450 + (i * 50)) * breathe;
+    if (!focusedNodeId) {
+      n.material.opacity = 0.7 + Math.sin(frame * 0.008 + i) * 0.15;
+    }
+  });
 
   // Pulse 中心 glow
   const pulse = 1 + Math.sin(frame * 0.04) * 0.08;
