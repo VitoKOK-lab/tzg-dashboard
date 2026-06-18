@@ -725,6 +725,54 @@ function updateLabels() {
   });
 }
 
+// ─── 鏡頭飛行補間（ease-in-out cubic + dolly zoom 微感）───
+let flyAnimId = null;
+function flyTo(targetCamPos, lookAtPos, duration = 1400) {
+  if (flyAnimId !== null) cancelAnimationFrame(flyAnimId);
+  // 暫停 autoRotate
+  if (controls) controls.autoRotate = false;
+  else autoRotate = false;
+
+  const startPos = camera.position.clone();
+  const startTarget = controls ? controls.target.clone() : new THREE.Vector3(0, 0, 0);
+  const startFov = camera.fov;
+  const startTime = performance.now();
+
+  function easeInOutCubic(t) {
+    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  }
+
+  function tick() {
+    const elapsed = performance.now() - startTime;
+    const t = Math.min(1, elapsed / duration);
+    const e = easeInOutCubic(t);
+
+    camera.position.lerpVectors(startPos, targetCamPos, e);
+    // dolly zoom：拉近時 FOV 稍縮 (60 → 52)，給「**穿越**」感
+    const fovT = Math.sin(e * Math.PI);  // 中段 1、頭尾 0
+    camera.fov = startFov - fovT * 8;
+    camera.updateProjectionMatrix();
+
+    if (controls) {
+      controls.target.lerpVectors(startTarget, lookAtPos, e);
+      controls.update();
+    } else {
+      const cur = new THREE.Vector3().lerpVectors(startTarget, lookAtPos, e);
+      camera.lookAt(cur);
+    }
+
+    if (t < 1) {
+      flyAnimId = requestAnimationFrame(tick);
+    } else {
+      flyAnimId = null;
+      // 還原 FOV
+      camera.fov = startFov;
+      camera.updateProjectionMatrix();
+    }
+  }
+  flyAnimId = requestAnimationFrame(tick);
+}
+
 // ─── Detail panel ───
 function focusNode(node, pos) {
   const p = document.getElementById('detail');
@@ -750,19 +798,57 @@ function focusNode(node, pos) {
   rows += `<div class="d-row"><span class="l">連線</span><span class="v">${linkCount}</span></div>`;
   body.innerHTML = rows;
 
-  // 鏡頭飛到節點
-  const dist = 300;
+  // 從目前位置「**飛行**」到節點：終點較近、視角貼近
+  const dist = 160;  // 拉得更近，產生「貼近」感
   const dir = pos.clone().normalize().multiplyScalar(dist);
-  camera.position.copy(pos.clone().add(dir));
-  if (controls) {
-    controls.autoRotate = false;
-    controls.target.copy(pos);
-    controls.update();
-  } else {
-    autoRotate = false;
-    camera.lookAt(pos);
-  }
+  const targetCam = pos.clone().add(dir);
+  flyTo(targetCam, pos, 1400);
 }
+
+// ─── 側邊 panel 各項目也能觸發飛行 ───
+function findNodeByMatch(predicate) {
+  for (const nd of node3D) {
+    if (predicate(nd.node)) return nd;
+  }
+  return null;
+}
+
+// MOC 樹 row click → 飛到對應 m:* 節點（by name 子串 match）
+document.querySelectorAll('#moc-list .moc-row').forEach((row, idx) => {
+  row.style.cursor = 'pointer';
+  row.addEventListener('click', () => {
+    const moc = (DATA.moc_tree || [])[idx];
+    if (!moc) return;
+    const nd = findNodeByMatch(n => n.type === 'moc' && (n.name.includes(moc.name.replace('...','').slice(0, 4))));
+    if (nd) focusNode(nd.node, nd.pos);
+  });
+});
+
+// 服務 chip click → 飛到對應 system 節點（by 名稱前 4 字）
+document.querySelectorAll('.svc-chip').forEach(chip => {
+  chip.style.cursor = 'pointer';
+  chip.addEventListener('click', () => {
+    const name = chip.querySelector('.nm').textContent.trim();
+    const nd = findNodeByMatch(n => n.type === 'system' && n.name.startsWith(name.slice(0, 3)));
+    if (nd) focusNode(nd.node, nd.pos);
+  });
+});
+
+// Dataview rows click → 飛到對應節點
+function bindDvRows(elId, candidateTypes) {
+  document.querySelectorAll('#' + elId + ' .dv-row').forEach((row, idx) => {
+    row.style.cursor = 'pointer';
+    row.addEventListener('click', () => {
+      // 找 candidateTypes 內第 idx 個節點
+      const matched = node3D.filter(nd => candidateTypes.includes(nd.node.type));
+      const target = matched[idx % matched.length];
+      if (target) focusNode(target.node, target.pos);
+    });
+  });
+}
+bindDvRows('dv-ai',   ['persona']);
+bindDvRows('dv-proj', ['project']);
+bindDvRows('dv-rec',  ['note', 'agent']);
 
 if (controls) canvas.addEventListener('pointerdown', () => { controls.autoRotate = false; });
 
