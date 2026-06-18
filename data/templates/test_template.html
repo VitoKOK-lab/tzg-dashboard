@@ -63,6 +63,13 @@ html, body {
   user-select: none;
 }
 .node-label:hover { filter: brightness(1.4) drop-shadow(0 0 8px currentColor); }
+.node-label { transition: opacity .5s ease; }
+/* === Focus mode：dim 所有非 focus 的元素 === */
+#labels-layer.focused .node-label:not(.is-focus) { opacity: .08 !important; pointer-events: none; }
+#labels-layer.focused .node-label.is-focus {
+  filter: drop-shadow(0 0 14px currentColor) drop-shadow(0 0 28px currentColor);
+  transform: translate(-50%, -50%) scale(1.15);
+}
 .node-label.persona { color: var(--pink); font-size: 22px; }
 .node-label.agent   { color: var(--pink); font-size: 16px; }
 .node-label.system  { color: var(--cyan); font-size: 18px; }
@@ -346,7 +353,7 @@ html, body {
 </div>
 
 <div id="detail" class="panel">
-  <span class="close" onclick="document.getElementById('detail').classList.remove('show')">×</span>
+  <span class="close" onclick="exitFocusMode()">×</span>
   <div class="d-h">
     <div class="d-name">--</div>
     <div class="d-sub">--</div>
@@ -715,21 +722,28 @@ function updateLabels() {
     const x = (tmpVec.x * halfW) + halfW;
     const y = (-tmpVec.y * halfH) + halfH;
     const inFront = tmpVec.z < 1;
-    // 依距離調透明度
-    const distance = camera.position.distanceTo(nd.pos);
-    const opacity = inFront ? Math.max(0.15, Math.min(1, 1 - (distance - 200) / 900)) : 0;
     nd.div.style.left = x + 'px';
     nd.div.style.top  = y + 'px';
-    nd.div.style.opacity = opacity;
     nd.div.style.display = inFront ? 'block' : 'none';
+    // focus mode 時 opacity 由 CSS class 控制；否則用距離計算
+    if (focusedNodeId) {
+      if (nd.node.id === focusedNodeId) {
+        nd.div.style.opacity = 1;
+      } else {
+        nd.div.style.opacity = '';  // 讓 CSS .focused .node-label 接管
+      }
+    } else {
+      const distance = camera.position.distanceTo(nd.pos);
+      const opacity = inFront ? Math.max(0.15, Math.min(1, 1 - (distance - 200) / 900)) : 0;
+      nd.div.style.opacity = opacity;
+    }
   });
 }
 
-// ─── 鏡頭飛行補間（ease-in-out cubic + dolly zoom 微感）───
+// ─── 鏡頭飛行補間（ease-out cubic 起飛快、落點慢 + dolly zoom）───
 let flyAnimId = null;
-function flyTo(targetCamPos, lookAtPos, duration = 1400) {
+function flyTo(targetCamPos, lookAtPos, duration = 2600) {
   if (flyAnimId !== null) cancelAnimationFrame(flyAnimId);
-  // 暫停 autoRotate
   if (controls) controls.autoRotate = false;
   else autoRotate = false;
 
@@ -738,19 +752,19 @@ function flyTo(targetCamPos, lookAtPos, duration = 1400) {
   const startFov = camera.fov;
   const startTime = performance.now();
 
-  function easeInOutCubic(t) {
-    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  // ease-out quart：起飛瞬間快、尾端非常慢、有「滑入定位」感
+  function easeOutQuart(t) {
+    return 1 - Math.pow(1 - t, 4);
   }
 
   function tick() {
     const elapsed = performance.now() - startTime;
     const t = Math.min(1, elapsed / duration);
-    const e = easeInOutCubic(t);
+    const e = easeOutQuart(t);
 
     camera.position.lerpVectors(startPos, targetCamPos, e);
-    // dolly zoom：拉近時 FOV 稍縮 (60 → 52)，給「**穿越**」感
-    const fovT = Math.sin(e * Math.PI);  // 中段 1、頭尾 0
-    camera.fov = startFov - fovT * 8;
+    const fovT = Math.sin(e * Math.PI);
+    camera.fov = startFov - fovT * 6;
     camera.updateProjectionMatrix();
 
     if (controls) {
@@ -765,12 +779,42 @@ function flyTo(targetCamPos, lookAtPos, duration = 1400) {
       flyAnimId = requestAnimationFrame(tick);
     } else {
       flyAnimId = null;
-      // 還原 FOV
       camera.fov = startFov;
       camera.updateProjectionMatrix();
     }
   }
   flyAnimId = requestAnimationFrame(tick);
+}
+
+// ─── Focus Mode：飛到節點後 dim 周圍 ───
+let focusedNodeId = null;
+function enterFocusMode(nodeId) {
+  focusedNodeId = nodeId;
+  document.getElementById('labels-layer').classList.add('focused');
+  node3D.forEach(nd => {
+    nd.div.classList.toggle('is-focus', nd.node.id === nodeId);
+  });
+  // 連線淡化
+  linkLines.children.forEach(line => { line.material.opacity = 0.06; });
+  // 粒子場淡化
+  farStars.material.opacity = 0.30;
+  midStars.material.opacity = 0.25;
+  nearGlow.material.opacity = 0.18;
+  // 中央球體稍淡
+  icoLines.material.opacity = 0.35;
+  icoLines2.material.opacity = 0.15;
+}
+function exitFocusMode() {
+  focusedNodeId = null;
+  document.getElementById('labels-layer').classList.remove('focused');
+  node3D.forEach(nd => nd.div.classList.remove('is-focus'));
+  linkLines.children.forEach(line => { line.material.opacity = 0.35; });
+  farStars.material.opacity = 0.85;
+  midStars.material.opacity = 0.85;
+  nearGlow.material.opacity = 0.85;
+  icoLines.material.opacity = 0.65;
+  icoLines2.material.opacity = 0.30;
+  document.getElementById('detail').classList.remove('show');
 }
 
 // ─── Detail panel ───
@@ -798,12 +842,30 @@ function focusNode(node, pos) {
   rows += `<div class="d-row"><span class="l">連線</span><span class="v">${linkCount}</span></div>`;
   body.innerHTML = rows;
 
-  // 從目前位置「**飛行**」到節點：終點較近、視角貼近
-  const dist = 160;  // 拉得更近，產生「貼近」感
-  const dir = pos.clone().normalize().multiplyScalar(dist);
-  const targetCam = pos.clone().add(dir);
-  flyTo(targetCam, pos, 1400);
+  // 飛行終點計算：
+  //   1) 沿節點方向 (球心 → 節點) 拉遠 dist，讓 camera 在節點外側
+  //   2) 沿節點切線方向 (右手系，與 world Y 做 cross) 偏移 sideOffset
+  //      讓節點顯示在畫面「**左 1/3**」處，detail panel 在右側不會擋
+  const dist = 190;
+  const sideOffset = 90;  // 偏移強度
+  const dirOut = pos.clone().normalize();
+  const right = new THREE.Vector3().crossVectors(dirOut, new THREE.Vector3(0, 1, 0)).normalize();
+  // 若節點剛好在 y 軸上 (right 變 0)，fallback 用 X 軸
+  if (right.length() < 0.1) right.set(1, 0, 0);
+  const targetCam = pos.clone()
+    .add(dirOut.multiplyScalar(dist))
+    .add(right.multiplyScalar(sideOffset));
+  flyTo(targetCam, pos, 2600);
+
+  // 飛行結束後（稍延遲一點 ease-out 比較慢）進入 focus mode
+  setTimeout(() => enterFocusMode(node.id), 2400);
 }
+
+// 點背景或 close → 退出 focus mode
+canvas.addEventListener('click', e => {
+  // 排除點到 label 的情況
+  if (e.target === canvas) exitFocusMode();
+});
 
 // ─── 側邊 panel 各項目也能觸發飛行 ───
 function findNodeByMatch(predicate) {

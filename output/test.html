@@ -63,6 +63,13 @@ html, body {
   user-select: none;
 }
 .node-label:hover { filter: brightness(1.4) drop-shadow(0 0 8px currentColor); }
+.node-label { transition: opacity .5s ease; }
+/* === Focus mode：dim 所有非 focus 的元素 === */
+#labels-layer.focused .node-label:not(.is-focus) { opacity: .08 !important; pointer-events: none; }
+#labels-layer.focused .node-label.is-focus {
+  filter: drop-shadow(0 0 14px currentColor) drop-shadow(0 0 28px currentColor);
+  transform: translate(-50%, -50%) scale(1.15);
+}
 .node-label.persona { color: var(--pink); font-size: 22px; }
 .node-label.agent   { color: var(--pink); font-size: 16px; }
 .node-label.system  { color: var(--cyan); font-size: 18px; }
@@ -346,7 +353,7 @@ html, body {
 </div>
 
 <div id="detail" class="panel">
-  <span class="close" onclick="document.getElementById('detail').classList.remove('show')">×</span>
+  <span class="close" onclick="exitFocusMode()">×</span>
   <div class="d-h">
     <div class="d-name">--</div>
     <div class="d-sub">--</div>
@@ -357,7 +364,7 @@ html, body {
 <div id="hint">DRAG · ZOOM · CLICK NODE = INSPECT</div>
 
 <script>
-const DATA = {"nodes": [{"id": "p:CMO_xiaowang", "name": "小王", "type": "persona", "sub": "CMO · Mac mini", "tier": 1}, {"id": "p:COO_yanxiong", "name": "炎兄", "type": "persona", "sub": "COO · MacBook", "tier": 1}, {"id": "p:UI_damaluo", "name": "大瑪螺", "type": "persona", "sub": "UI/UX · Drone", "tier": 2}, {"id": "p:AI_jarvis", "name": "JARVIS", "type": "persona", "sub": "AI Core", "tier": 1}, {"id": "p:AI_claude", "name": "Claude", "type": "persona", "sub": "AI 群體組合 · LLM", "tier": 2}, {"id": "p:AI_gpt", "name": "GPT-5", "type": "persona", "sub": "AI 群體組合", "tier": 3}, {"id": "p:dev_aiko", "name": "愛克", "type": "persona", "sub": "AI 助理 · 代理", "tier": 2}, {"id": "s:POS", "name": "POS 機", "type": "system", "sub": "門市結帳", "tier": 1, "status": "啟用中"}, {"id": "s:1SHOP", "name": "1SHOP", "type": "system", "sub": "官網", "tier": 1, "status": "啟用中"}, {"id": "s:LINE", "name": "LINE 社群", "type": "system", "sub": "OA + 群組", "tier": 1, "status": "啟用中"}, {"id": "s:GBP", "name": "GBP 雙店", "type": "system", "sub": "Google 商家", "tier": 2, "status": "啟用中"}, {"id": "s:Shopline", "name": "Shopline", "type": "system", "sub": "訂單系統", "tier": 1, "status": "啟用中"}, {"id": "s:Meta", "name": "Meta Ads", "type": "system", "sub": "FB + IG 廣告", "tier": 2, "status": "啟用中"}, {"id": "s:GitHub", "name": "GitHub", "type": "system", "sub": "Code · Pages", "tier": 2, "status": "啟用中"}, {"id": "s:Slack", "name": "Slack", "type": "system", "sub": "溝通", "tier": 3, "status": "啟用中"}, {"id": "m:BRAIN", "name": "MOC_BRAIN", "type": "moc", "sub": "主圖譜", "tier": 1}, {"id": "m:THINK", "name": "MOC_思路鏈", "type": "moc", "sub": "Reasoning", "tier": 2}, {"id": "m:FEED", "name": "feedback-na-app", "type": "moc", "sub": "產品回饋", "tier": 2}, {"id": "m:MASTER", "name": "/master 整理東西處", "type": "moc", "sub": "A-Z", "tier": 2}, {"id": "m:UX", "name": "用戶體驗", "type": "moc", "sub": "UX Notes", "tier": 3}, {"id": "m:BIZ", "name": "視性回應", "type": "moc", "sub": "訪談", "tier": 3}, {"id": "pj:POS_intg", "name": "POS 整合", "type": "project", "sub": "開發中", "tier": 2}, {"id": "pj:1SHOP_v3", "name": "1SHOP v3", "type": "project", "sub": "籌備中", "tier": 2}, {"id": "pj:LINE_auto", "name": "LINE 自動化", "type": "project", "sub": "進行中", "tier": 2}, {"id": "pj:GBP_local", "name": "GBP 本地化", "type": "project", "sub": "籌備中", "tier": 3}, {"id": "pj:Dashboard_v2", "name": "Dashboard v2", "type": "project", "sub": "進行中", "tier": 2}, {"id": "n:彩寶指任", "name": "彩寶指任", "type": "note", "sub": "商品分類", "tier": 3}, {"id": "n:寵粉策略", "name": "寵粉策略", "type": "note", "sub": "行銷", "tier": 3}, {"id": "n:LINE_OA", "name": "LINE OA 分析", "type": "note", "sub": "通路", "tier": 3}, {"id": "n:會員等級", "name": "會員等級設計", "type": "note", "sub": "CRM", "tier": 3}, {"id": "n:庫存週轉", "name": "庫存週轉", "type": "note", "sub": "營運", "tier": 3}, {"id": "agent:業務 /江瑩/ 深圳", "name": "業務", "type": "agent", "sub": "業務 /江瑩/ 深圳", "tier": 2, "rev": 1668042, "orders": 70, "customers": 62}, {"id": "agent:客服跟單/陳怡萍/深圳", "name": "客服跟單", "type": "agent", "sub": "客服跟單/陳怡萍/深圳", "tier": 2, "rev": 952918, "orders": 53, "customers": 47}, {"id": "agent:業務/以恩/彰化", "name": "業務", "type": "agent", "sub": "業務/以恩/彰化", "tier": 2, "rev": 314196, "orders": 44, "customers": 41}, {"id": "agent:業務/均睿/彰化", "name": "業務", "type": "agent", "sub": "業務/均睿/彰化", "tier": 2, "rev": 168766, "orders": 10, "customers": 10}, {"id": "agent:中控 /徐炳昌 /深圳", "name": "中控", "type": "agent", "sub": "中控 /徐炳昌 /深圳", "tier": 2, "rev": 166784, "orders": 13, "customers": 13}, {"id": "agent:代理/楊淑錚/台北", "name": "代理", "type": "agent", "sub": "代理/楊淑錚/台北", "tier": 2, "rev": 139000, "orders": 1, "customers": 1}, {"id": "agent:行政文書助理/蔡宇綾/彰化總部", "name": "行政文書助理", "type": "agent", "sub": "行政文書助理/蔡宇綾/彰化總部", "tier": 2, "rev": 82101, "orders": 4, "customers": 4}, {"id": "agent:店務客服/朱柏境/彰化", "name": "店務客服", "type": "agent", "sub": "店務客服/朱柏境/彰化", "tier": 2, "rev": 37800, "orders": 4, "customers": 4}, {"id": "agent:客服/尤藝/彰化", "name": "客服", "type": "agent", "sub": "客服/尤藝/彰化", "tier": 2, "rev": 25000, "orders": 2, "customers": 2}, {"id": "agent:B級代理/ 甘秀薇 / 新北市", "name": "B級代理", "type": "agent", "sub": "B級代理/ 甘秀薇 / 新北市", "tier": 2, "rev": 24987, "orders": 1, "customers": 1}, {"id": "agent:代理/楊依靈/台南", "name": "代理", "type": "agent", "sub": "代理/楊依靈/台南", "tier": 2, "rev": 20640, "orders": 2, "customers": 2}, {"id": "agent:代理/林志娟/台中", "name": "代理", "type": "agent", "sub": "代理/林志娟/台中", "tier": 2, "rev": 6760, "orders": 1, "customers": 1}], "links": [{"source": "m:BRAIN", "target": "m:THINK"}, {"source": "m:BRAIN", "target": "m:FEED"}, {"source": "m:BRAIN", "target": "m:MASTER"}, {"source": "m:BRAIN", "target": "m:UX"}, {"source": "m:BRAIN", "target": "m:BIZ"}, {"source": "m:BRAIN", "target": "p:AI_jarvis"}, {"source": "p:CMO_xiaowang", "target": "p:COO_yanxiong"}, {"source": "p:COO_yanxiong", "target": "p:UI_damaluo"}, {"source": "p:CMO_xiaowang", "target": "p:AI_jarvis"}, {"source": "p:COO_yanxiong", "target": "p:AI_jarvis"}, {"source": "p:AI_jarvis", "target": "p:AI_claude"}, {"source": "p:AI_jarvis", "target": "p:AI_gpt"}, {"source": "p:AI_jarvis", "target": "p:dev_aiko"}, {"source": "p:CMO_xiaowang", "target": "s:Meta"}, {"source": "p:CMO_xiaowang", "target": "s:LINE"}, {"source": "p:COO_yanxiong", "target": "s:Shopline"}, {"source": "p:COO_yanxiong", "target": "s:GitHub"}, {"source": "p:UI_damaluo", "target": "s:1SHOP"}, {"source": "p:UI_damaluo", "target": "s:GBP"}, {"source": "p:dev_aiko", "target": "s:Slack"}, {"source": "p:dev_aiko", "target": "s:GitHub"}, {"source": "s:Shopline", "target": "s:POS"}, {"source": "s:Shopline", "target": "s:1SHOP"}, {"source": "s:Shopline", "target": "s:LINE"}, {"source": "s:Meta", "target": "s:LINE"}, {"source": "s:Meta", "target": "s:1SHOP"}, {"source": "pj:POS_intg", "target": "s:POS"}, {"source": "pj:POS_intg", "target": "s:Shopline"}, {"source": "pj:1SHOP_v3", "target": "s:1SHOP"}, {"source": "pj:LINE_auto", "target": "s:LINE"}, {"source": "pj:LINE_auto", "target": "s:Meta"}, {"source": "pj:GBP_local", "target": "s:GBP"}, {"source": "pj:Dashboard_v2", "target": "s:GitHub"}, {"source": "pj:Dashboard_v2", "target": "s:Shopline"}, {"source": "n:彩寶指任", "target": "m:MASTER"}, {"source": "n:寵粉策略", "target": "m:FEED"}, {"source": "n:LINE_OA", "target": "m:THINK"}, {"source": "n:會員等級", "target": "m:UX"}, {"source": "n:庫存週轉", "target": "m:BIZ"}, {"source": "n:LINE_OA", "target": "s:LINE"}, {"source": "n:LINE_OA", "target": "s:Meta"}, {"source": "n:寵粉策略", "target": "p:CMO_xiaowang"}, {"source": "n:會員等級", "target": "s:Shopline"}, {"source": "agent:中控 /徐炳昌 /深圳", "target": "agent:業務 /江瑩/ 深圳"}, {"source": "agent:客服跟單/陳怡萍/深圳", "target": "agent:業務/以恩/彰化"}, {"source": "agent:客服跟單/陳怡萍/深圳", "target": "agent:業務 /江瑩/ 深圳"}, {"source": "agent:業務 /江瑩/ 深圳", "target": "agent:業務/以恩/彰化"}, {"source": "agent:業務 /江瑩/ 深圳", "target": "s:Shopline"}, {"source": "agent:客服跟單/陳怡萍/深圳", "target": "s:Shopline"}, {"source": "agent:業務/以恩/彰化", "target": "s:Shopline"}, {"source": "agent:業務/均睿/彰化", "target": "s:Shopline"}, {"source": "agent:中控 /徐炳昌 /深圳", "target": "s:Shopline"}, {"source": "agent:代理/楊淑錚/台北", "target": "s:Shopline"}, {"source": "agent:行政文書助理/蔡宇綾/彰化總部", "target": "s:Shopline"}, {"source": "agent:店務客服/朱柏境/彰化", "target": "s:Shopline"}, {"source": "agent:客服/尤藝/彰化", "target": "s:Shopline"}, {"source": "agent:B級代理/ 甘秀薇 / 新北市", "target": "s:Shopline"}, {"source": "agent:代理/楊依靈/台南", "target": "s:Shopline"}, {"source": "agent:代理/林志娟/台中", "target": "s:Shopline"}], "kpi": {"total_rev": 10283597, "total_orders": 1424, "total_customers": 1078, "avg_aov": 7221, "period_label": "近 60 天"}, "moc_tree": [{"name": "MOC_BRAIN", "children_count": 8, "tag": "core"}, {"name": "MOC_思路鏈", "children_count": 5, "tag": "reason"}, {"name": "feedback-na-app...", "children_count": 3, "tag": "fb"}, {"name": "/master 整理東西處 A-Z", "children_count": 26, "tag": "org"}, {"name": "視性回應", "children_count": 4, "tag": "biz"}, {"name": "用戶體驗", "children_count": 6, "tag": "ux"}, {"name": "1Shop", "children_count": 7, "tag": "sys"}], "dataview": {"ai_brain": [{"name": "AI Core / JARVIS", "tag": "#ai #core", "mtime": "2026-06-18"}, {"name": "Claude 4.7 prompt 模板", "tag": "#ai #prompt", "mtime": "2026-06-17"}, {"name": "GPT-5 function call", "tag": "#ai #tool", "mtime": "2026-06-15"}, {"name": "Agent SDK pipeline", "tag": "#ai #dev", "mtime": "2026-06-12"}, {"name": "對話歷史庫設計", "tag": "#ai #memory", "mtime": "2026-06-10"}], "projects": [{"name": "彩寶指任", "tag": "開發中", "mtime": "2026-06-18"}, {"name": "POS 整合", "tag": "開發中", "mtime": "2026-06-17"}, {"name": "LINE 自動化", "tag": "進行中", "mtime": "2026-06-15"}, {"name": "1SHOP v3", "tag": "籌備中", "mtime": "2026-06-10"}, {"name": "Dashboard v2", "tag": "進行中", "mtime": "2026-06-18"}], "recent_notes": [{"name": "LINE OA 業績拆分", "tag": "#analysis", "mtime": "今天"}, {"name": "寵粉策略檢討", "tag": "#mkt", "mtime": "今天"}, {"name": "會員等級設計 v2", "tag": "#crm", "mtime": "昨天"}, {"name": "客服 UTM 真實貢獻", "tag": "#data", "mtime": "6/16"}, {"name": "月底推算業績算法", "tag": "#dev", "mtime": "6/16"}]}, "stock": {"symbol": "2330.TW", "name": "台積電", "price": 1075.0, "change": 12.0, "pct": 1.13}, "ai_chat": [{"who": "JARVIS", "msg": "本月 LINE OA 業績已達 NT$ 506K，扣寵粉後 NT$ 240K"}, {"who": "小王", "msg": "近 7 天日均下滑，建議減少 g 系列投放"}, {"who": "JARVIS", "msg": "已分析 f24fb 廣告轉換率最高，建議追加預算 30%"}], "generated_at": "2026-06-18 19:23"};
+const DATA = {"nodes": [{"id": "p:CMO_xiaowang", "name": "小王", "type": "persona", "sub": "CMO · Mac mini", "tier": 1}, {"id": "p:COO_yanxiong", "name": "炎兄", "type": "persona", "sub": "COO · MacBook", "tier": 1}, {"id": "p:UI_damaluo", "name": "大瑪螺", "type": "persona", "sub": "UI/UX · Drone", "tier": 2}, {"id": "p:AI_jarvis", "name": "JARVIS", "type": "persona", "sub": "AI Core", "tier": 1}, {"id": "p:AI_claude", "name": "Claude", "type": "persona", "sub": "AI 群體組合 · LLM", "tier": 2}, {"id": "p:AI_gpt", "name": "GPT-5", "type": "persona", "sub": "AI 群體組合", "tier": 3}, {"id": "p:dev_aiko", "name": "愛克", "type": "persona", "sub": "AI 助理 · 代理", "tier": 2}, {"id": "s:POS", "name": "POS 機", "type": "system", "sub": "門市結帳", "tier": 1, "status": "啟用中"}, {"id": "s:1SHOP", "name": "1SHOP", "type": "system", "sub": "官網", "tier": 1, "status": "啟用中"}, {"id": "s:LINE", "name": "LINE 社群", "type": "system", "sub": "OA + 群組", "tier": 1, "status": "啟用中"}, {"id": "s:GBP", "name": "GBP 雙店", "type": "system", "sub": "Google 商家", "tier": 2, "status": "啟用中"}, {"id": "s:Shopline", "name": "Shopline", "type": "system", "sub": "訂單系統", "tier": 1, "status": "啟用中"}, {"id": "s:Meta", "name": "Meta Ads", "type": "system", "sub": "FB + IG 廣告", "tier": 2, "status": "啟用中"}, {"id": "s:GitHub", "name": "GitHub", "type": "system", "sub": "Code · Pages", "tier": 2, "status": "啟用中"}, {"id": "s:Slack", "name": "Slack", "type": "system", "sub": "溝通", "tier": 3, "status": "啟用中"}, {"id": "m:BRAIN", "name": "MOC_BRAIN", "type": "moc", "sub": "主圖譜", "tier": 1}, {"id": "m:THINK", "name": "MOC_思路鏈", "type": "moc", "sub": "Reasoning", "tier": 2}, {"id": "m:FEED", "name": "feedback-na-app", "type": "moc", "sub": "產品回饋", "tier": 2}, {"id": "m:MASTER", "name": "/master 整理東西處", "type": "moc", "sub": "A-Z", "tier": 2}, {"id": "m:UX", "name": "用戶體驗", "type": "moc", "sub": "UX Notes", "tier": 3}, {"id": "m:BIZ", "name": "視性回應", "type": "moc", "sub": "訪談", "tier": 3}, {"id": "pj:POS_intg", "name": "POS 整合", "type": "project", "sub": "開發中", "tier": 2}, {"id": "pj:1SHOP_v3", "name": "1SHOP v3", "type": "project", "sub": "籌備中", "tier": 2}, {"id": "pj:LINE_auto", "name": "LINE 自動化", "type": "project", "sub": "進行中", "tier": 2}, {"id": "pj:GBP_local", "name": "GBP 本地化", "type": "project", "sub": "籌備中", "tier": 3}, {"id": "pj:Dashboard_v2", "name": "Dashboard v2", "type": "project", "sub": "進行中", "tier": 2}, {"id": "n:彩寶指任", "name": "彩寶指任", "type": "note", "sub": "商品分類", "tier": 3}, {"id": "n:寵粉策略", "name": "寵粉策略", "type": "note", "sub": "行銷", "tier": 3}, {"id": "n:LINE_OA", "name": "LINE OA 分析", "type": "note", "sub": "通路", "tier": 3}, {"id": "n:會員等級", "name": "會員等級設計", "type": "note", "sub": "CRM", "tier": 3}, {"id": "n:庫存週轉", "name": "庫存週轉", "type": "note", "sub": "營運", "tier": 3}, {"id": "agent:業務 /江瑩/ 深圳", "name": "業務", "type": "agent", "sub": "業務 /江瑩/ 深圳", "tier": 2, "rev": 1668042, "orders": 70, "customers": 62}, {"id": "agent:客服跟單/陳怡萍/深圳", "name": "客服跟單", "type": "agent", "sub": "客服跟單/陳怡萍/深圳", "tier": 2, "rev": 952918, "orders": 53, "customers": 47}, {"id": "agent:業務/以恩/彰化", "name": "業務", "type": "agent", "sub": "業務/以恩/彰化", "tier": 2, "rev": 314196, "orders": 44, "customers": 41}, {"id": "agent:業務/均睿/彰化", "name": "業務", "type": "agent", "sub": "業務/均睿/彰化", "tier": 2, "rev": 168766, "orders": 10, "customers": 10}, {"id": "agent:中控 /徐炳昌 /深圳", "name": "中控", "type": "agent", "sub": "中控 /徐炳昌 /深圳", "tier": 2, "rev": 166784, "orders": 13, "customers": 13}, {"id": "agent:代理/楊淑錚/台北", "name": "代理", "type": "agent", "sub": "代理/楊淑錚/台北", "tier": 2, "rev": 139000, "orders": 1, "customers": 1}, {"id": "agent:行政文書助理/蔡宇綾/彰化總部", "name": "行政文書助理", "type": "agent", "sub": "行政文書助理/蔡宇綾/彰化總部", "tier": 2, "rev": 82101, "orders": 4, "customers": 4}, {"id": "agent:店務客服/朱柏境/彰化", "name": "店務客服", "type": "agent", "sub": "店務客服/朱柏境/彰化", "tier": 2, "rev": 37800, "orders": 4, "customers": 4}, {"id": "agent:客服/尤藝/彰化", "name": "客服", "type": "agent", "sub": "客服/尤藝/彰化", "tier": 2, "rev": 25000, "orders": 2, "customers": 2}, {"id": "agent:B級代理/ 甘秀薇 / 新北市", "name": "B級代理", "type": "agent", "sub": "B級代理/ 甘秀薇 / 新北市", "tier": 2, "rev": 24987, "orders": 1, "customers": 1}, {"id": "agent:代理/楊依靈/台南", "name": "代理", "type": "agent", "sub": "代理/楊依靈/台南", "tier": 2, "rev": 20640, "orders": 2, "customers": 2}, {"id": "agent:代理/林志娟/台中", "name": "代理", "type": "agent", "sub": "代理/林志娟/台中", "tier": 2, "rev": 6760, "orders": 1, "customers": 1}], "links": [{"source": "m:BRAIN", "target": "m:THINK"}, {"source": "m:BRAIN", "target": "m:FEED"}, {"source": "m:BRAIN", "target": "m:MASTER"}, {"source": "m:BRAIN", "target": "m:UX"}, {"source": "m:BRAIN", "target": "m:BIZ"}, {"source": "m:BRAIN", "target": "p:AI_jarvis"}, {"source": "p:CMO_xiaowang", "target": "p:COO_yanxiong"}, {"source": "p:COO_yanxiong", "target": "p:UI_damaluo"}, {"source": "p:CMO_xiaowang", "target": "p:AI_jarvis"}, {"source": "p:COO_yanxiong", "target": "p:AI_jarvis"}, {"source": "p:AI_jarvis", "target": "p:AI_claude"}, {"source": "p:AI_jarvis", "target": "p:AI_gpt"}, {"source": "p:AI_jarvis", "target": "p:dev_aiko"}, {"source": "p:CMO_xiaowang", "target": "s:Meta"}, {"source": "p:CMO_xiaowang", "target": "s:LINE"}, {"source": "p:COO_yanxiong", "target": "s:Shopline"}, {"source": "p:COO_yanxiong", "target": "s:GitHub"}, {"source": "p:UI_damaluo", "target": "s:1SHOP"}, {"source": "p:UI_damaluo", "target": "s:GBP"}, {"source": "p:dev_aiko", "target": "s:Slack"}, {"source": "p:dev_aiko", "target": "s:GitHub"}, {"source": "s:Shopline", "target": "s:POS"}, {"source": "s:Shopline", "target": "s:1SHOP"}, {"source": "s:Shopline", "target": "s:LINE"}, {"source": "s:Meta", "target": "s:LINE"}, {"source": "s:Meta", "target": "s:1SHOP"}, {"source": "pj:POS_intg", "target": "s:POS"}, {"source": "pj:POS_intg", "target": "s:Shopline"}, {"source": "pj:1SHOP_v3", "target": "s:1SHOP"}, {"source": "pj:LINE_auto", "target": "s:LINE"}, {"source": "pj:LINE_auto", "target": "s:Meta"}, {"source": "pj:GBP_local", "target": "s:GBP"}, {"source": "pj:Dashboard_v2", "target": "s:GitHub"}, {"source": "pj:Dashboard_v2", "target": "s:Shopline"}, {"source": "n:彩寶指任", "target": "m:MASTER"}, {"source": "n:寵粉策略", "target": "m:FEED"}, {"source": "n:LINE_OA", "target": "m:THINK"}, {"source": "n:會員等級", "target": "m:UX"}, {"source": "n:庫存週轉", "target": "m:BIZ"}, {"source": "n:LINE_OA", "target": "s:LINE"}, {"source": "n:LINE_OA", "target": "s:Meta"}, {"source": "n:寵粉策略", "target": "p:CMO_xiaowang"}, {"source": "n:會員等級", "target": "s:Shopline"}, {"source": "agent:中控 /徐炳昌 /深圳", "target": "agent:業務 /江瑩/ 深圳"}, {"source": "agent:客服跟單/陳怡萍/深圳", "target": "agent:業務/以恩/彰化"}, {"source": "agent:客服跟單/陳怡萍/深圳", "target": "agent:業務 /江瑩/ 深圳"}, {"source": "agent:業務 /江瑩/ 深圳", "target": "agent:業務/以恩/彰化"}, {"source": "agent:業務 /江瑩/ 深圳", "target": "s:Shopline"}, {"source": "agent:客服跟單/陳怡萍/深圳", "target": "s:Shopline"}, {"source": "agent:業務/以恩/彰化", "target": "s:Shopline"}, {"source": "agent:業務/均睿/彰化", "target": "s:Shopline"}, {"source": "agent:中控 /徐炳昌 /深圳", "target": "s:Shopline"}, {"source": "agent:代理/楊淑錚/台北", "target": "s:Shopline"}, {"source": "agent:行政文書助理/蔡宇綾/彰化總部", "target": "s:Shopline"}, {"source": "agent:店務客服/朱柏境/彰化", "target": "s:Shopline"}, {"source": "agent:客服/尤藝/彰化", "target": "s:Shopline"}, {"source": "agent:B級代理/ 甘秀薇 / 新北市", "target": "s:Shopline"}, {"source": "agent:代理/楊依靈/台南", "target": "s:Shopline"}, {"source": "agent:代理/林志娟/台中", "target": "s:Shopline"}], "kpi": {"total_rev": 10283597, "total_orders": 1424, "total_customers": 1078, "avg_aov": 7221, "period_label": "近 60 天"}, "moc_tree": [{"name": "MOC_BRAIN", "children_count": 8, "tag": "core"}, {"name": "MOC_思路鏈", "children_count": 5, "tag": "reason"}, {"name": "feedback-na-app...", "children_count": 3, "tag": "fb"}, {"name": "/master 整理東西處 A-Z", "children_count": 26, "tag": "org"}, {"name": "視性回應", "children_count": 4, "tag": "biz"}, {"name": "用戶體驗", "children_count": 6, "tag": "ux"}, {"name": "1Shop", "children_count": 7, "tag": "sys"}], "dataview": {"ai_brain": [{"name": "AI Core / JARVIS", "tag": "#ai #core", "mtime": "2026-06-18"}, {"name": "Claude 4.7 prompt 模板", "tag": "#ai #prompt", "mtime": "2026-06-17"}, {"name": "GPT-5 function call", "tag": "#ai #tool", "mtime": "2026-06-15"}, {"name": "Agent SDK pipeline", "tag": "#ai #dev", "mtime": "2026-06-12"}, {"name": "對話歷史庫設計", "tag": "#ai #memory", "mtime": "2026-06-10"}], "projects": [{"name": "彩寶指任", "tag": "開發中", "mtime": "2026-06-18"}, {"name": "POS 整合", "tag": "開發中", "mtime": "2026-06-17"}, {"name": "LINE 自動化", "tag": "進行中", "mtime": "2026-06-15"}, {"name": "1SHOP v3", "tag": "籌備中", "mtime": "2026-06-10"}, {"name": "Dashboard v2", "tag": "進行中", "mtime": "2026-06-18"}], "recent_notes": [{"name": "LINE OA 業績拆分", "tag": "#analysis", "mtime": "今天"}, {"name": "寵粉策略檢討", "tag": "#mkt", "mtime": "今天"}, {"name": "會員等級設計 v2", "tag": "#crm", "mtime": "昨天"}, {"name": "客服 UTM 真實貢獻", "tag": "#data", "mtime": "6/16"}, {"name": "月底推算業績算法", "tag": "#dev", "mtime": "6/16"}]}, "stock": {"symbol": "2330.TW", "name": "台積電", "price": 1075.0, "change": 12.0, "pct": 1.13}, "ai_chat": [{"who": "JARVIS", "msg": "本月 LINE OA 業績已達 NT$ 506K，扣寵粉後 NT$ 240K"}, {"who": "小王", "msg": "近 7 天日均下滑，建議減少 g 系列投放"}, {"who": "JARVIS", "msg": "已分析 f24fb 廣告轉換率最高，建議追加預算 30%"}], "generated_at": "2026-06-18 19:36"};
 
 const TYPE_COLOR = {
   persona: 0xff3d8a, agent: 0xff66a8,
@@ -715,21 +722,28 @@ function updateLabels() {
     const x = (tmpVec.x * halfW) + halfW;
     const y = (-tmpVec.y * halfH) + halfH;
     const inFront = tmpVec.z < 1;
-    // 依距離調透明度
-    const distance = camera.position.distanceTo(nd.pos);
-    const opacity = inFront ? Math.max(0.15, Math.min(1, 1 - (distance - 200) / 900)) : 0;
     nd.div.style.left = x + 'px';
     nd.div.style.top  = y + 'px';
-    nd.div.style.opacity = opacity;
     nd.div.style.display = inFront ? 'block' : 'none';
+    // focus mode 時 opacity 由 CSS class 控制；否則用距離計算
+    if (focusedNodeId) {
+      if (nd.node.id === focusedNodeId) {
+        nd.div.style.opacity = 1;
+      } else {
+        nd.div.style.opacity = '';  // 讓 CSS .focused .node-label 接管
+      }
+    } else {
+      const distance = camera.position.distanceTo(nd.pos);
+      const opacity = inFront ? Math.max(0.15, Math.min(1, 1 - (distance - 200) / 900)) : 0;
+      nd.div.style.opacity = opacity;
+    }
   });
 }
 
-// ─── 鏡頭飛行補間（ease-in-out cubic + dolly zoom 微感）───
+// ─── 鏡頭飛行補間（ease-out cubic 起飛快、落點慢 + dolly zoom）───
 let flyAnimId = null;
-function flyTo(targetCamPos, lookAtPos, duration = 1400) {
+function flyTo(targetCamPos, lookAtPos, duration = 2600) {
   if (flyAnimId !== null) cancelAnimationFrame(flyAnimId);
-  // 暫停 autoRotate
   if (controls) controls.autoRotate = false;
   else autoRotate = false;
 
@@ -738,19 +752,19 @@ function flyTo(targetCamPos, lookAtPos, duration = 1400) {
   const startFov = camera.fov;
   const startTime = performance.now();
 
-  function easeInOutCubic(t) {
-    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  // ease-out quart：起飛瞬間快、尾端非常慢、有「滑入定位」感
+  function easeOutQuart(t) {
+    return 1 - Math.pow(1 - t, 4);
   }
 
   function tick() {
     const elapsed = performance.now() - startTime;
     const t = Math.min(1, elapsed / duration);
-    const e = easeInOutCubic(t);
+    const e = easeOutQuart(t);
 
     camera.position.lerpVectors(startPos, targetCamPos, e);
-    // dolly zoom：拉近時 FOV 稍縮 (60 → 52)，給「**穿越**」感
-    const fovT = Math.sin(e * Math.PI);  // 中段 1、頭尾 0
-    camera.fov = startFov - fovT * 8;
+    const fovT = Math.sin(e * Math.PI);
+    camera.fov = startFov - fovT * 6;
     camera.updateProjectionMatrix();
 
     if (controls) {
@@ -765,12 +779,42 @@ function flyTo(targetCamPos, lookAtPos, duration = 1400) {
       flyAnimId = requestAnimationFrame(tick);
     } else {
       flyAnimId = null;
-      // 還原 FOV
       camera.fov = startFov;
       camera.updateProjectionMatrix();
     }
   }
   flyAnimId = requestAnimationFrame(tick);
+}
+
+// ─── Focus Mode：飛到節點後 dim 周圍 ───
+let focusedNodeId = null;
+function enterFocusMode(nodeId) {
+  focusedNodeId = nodeId;
+  document.getElementById('labels-layer').classList.add('focused');
+  node3D.forEach(nd => {
+    nd.div.classList.toggle('is-focus', nd.node.id === nodeId);
+  });
+  // 連線淡化
+  linkLines.children.forEach(line => { line.material.opacity = 0.06; });
+  // 粒子場淡化
+  farStars.material.opacity = 0.30;
+  midStars.material.opacity = 0.25;
+  nearGlow.material.opacity = 0.18;
+  // 中央球體稍淡
+  icoLines.material.opacity = 0.35;
+  icoLines2.material.opacity = 0.15;
+}
+function exitFocusMode() {
+  focusedNodeId = null;
+  document.getElementById('labels-layer').classList.remove('focused');
+  node3D.forEach(nd => nd.div.classList.remove('is-focus'));
+  linkLines.children.forEach(line => { line.material.opacity = 0.35; });
+  farStars.material.opacity = 0.85;
+  midStars.material.opacity = 0.85;
+  nearGlow.material.opacity = 0.85;
+  icoLines.material.opacity = 0.65;
+  icoLines2.material.opacity = 0.30;
+  document.getElementById('detail').classList.remove('show');
 }
 
 // ─── Detail panel ───
@@ -798,12 +842,30 @@ function focusNode(node, pos) {
   rows += `<div class="d-row"><span class="l">連線</span><span class="v">${linkCount}</span></div>`;
   body.innerHTML = rows;
 
-  // 從目前位置「**飛行**」到節點：終點較近、視角貼近
-  const dist = 160;  // 拉得更近，產生「貼近」感
-  const dir = pos.clone().normalize().multiplyScalar(dist);
-  const targetCam = pos.clone().add(dir);
-  flyTo(targetCam, pos, 1400);
+  // 飛行終點計算：
+  //   1) 沿節點方向 (球心 → 節點) 拉遠 dist，讓 camera 在節點外側
+  //   2) 沿節點切線方向 (右手系，與 world Y 做 cross) 偏移 sideOffset
+  //      讓節點顯示在畫面「**左 1/3**」處，detail panel 在右側不會擋
+  const dist = 190;
+  const sideOffset = 90;  // 偏移強度
+  const dirOut = pos.clone().normalize();
+  const right = new THREE.Vector3().crossVectors(dirOut, new THREE.Vector3(0, 1, 0)).normalize();
+  // 若節點剛好在 y 軸上 (right 變 0)，fallback 用 X 軸
+  if (right.length() < 0.1) right.set(1, 0, 0);
+  const targetCam = pos.clone()
+    .add(dirOut.multiplyScalar(dist))
+    .add(right.multiplyScalar(sideOffset));
+  flyTo(targetCam, pos, 2600);
+
+  // 飛行結束後（稍延遲一點 ease-out 比較慢）進入 focus mode
+  setTimeout(() => enterFocusMode(node.id), 2400);
 }
+
+// 點背景或 close → 退出 focus mode
+canvas.addEventListener('click', e => {
+  // 排除點到 label 的情況
+  if (e.target === canvas) exitFocusMode();
+});
 
 // ─── 側邊 panel 各項目也能觸發飛行 ───
 function findNodeByMatch(predicate) {
