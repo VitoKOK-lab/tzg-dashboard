@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>JARVIS-BRAIN // 神經中樞 3D</title>
+<title>JARVIS-BRAIN // TZG 神經中樞</title>
 <style>
 :root {
   --bg: #02010a;
@@ -13,6 +13,7 @@
   --cyan: #00f0ff;
   --purple: #9b5cff;
   --gold: #ffb800;
+  --orange: #ff8800;
   --green: #00ff88;
   --red: #ff3d3d;
   --dim: rgba(255,255,255,.42);
@@ -34,18 +35,10 @@ html, body {
   background: radial-gradient(ellipse at 50% 50%, #160b3a 0%, #08051c 35%, #01000a 80%);
 }
 
-/* === 3D scene container === */
-#scene-canvas {
-  position: fixed; inset: 0; z-index: 1;
-  cursor: grab;
-}
+#scene-canvas { position: fixed; inset: 0; z-index: 1; cursor: grab; }
 #scene-canvas:active { cursor: grabbing; }
 
-/* === HTML labels overlay (跟 3D 位置同步) === */
-#labels-layer {
-  position: fixed; inset: 0; z-index: 2;
-  pointer-events: none;
-}
+#labels-layer { position: fixed; inset: 0; z-index: 2; pointer-events: none; }
 .node-label {
   position: absolute;
   transform: translate(-50%, -50%);
@@ -59,24 +52,13 @@ html, body {
   letter-spacing: 1px;
   pointer-events: auto;
   cursor: pointer;
-  transition: filter .15s;
+  transition: filter .15s, opacity .5s ease;
   user-select: none;
 }
 .node-label:hover { filter: brightness(1.4) drop-shadow(0 0 8px currentColor); }
-.node-label { transition: opacity .5s ease; }
-/* === Focus mode：dim 所有非 focus 的元素 === */
-#labels-layer.focused .node-label:not(.is-focus) { opacity: .08 !important; pointer-events: none; }
-#labels-layer.focused .node-label.is-focus {
-  filter: drop-shadow(0 0 14px currentColor) drop-shadow(0 0 28px currentColor);
-  transform: translate(-50%, -50%) scale(1.15);
-}
-.node-label.persona { color: var(--pink); font-size: 22px; }
-.node-label.agent   { color: var(--pink); font-size: 16px; }
-.node-label.system  { color: var(--cyan); font-size: 18px; }
-.node-label.moc     { color: var(--gold); font-size: 17px; }
-.node-label.project { color: var(--purple); font-size: 14px; }
-.node-label.note    { color: rgba(255,255,255,.85); font-size: 12px; font-weight: 500; }
-.node-label.video   { color: #ff8800; font-size: 13px; font-weight: 600; }
+.node-label.anchor { color: var(--cyan);   font-size: 22px; }
+.node-label.agent  { color: var(--pink);   font-size: 16px; }
+.node-label.video  { color: var(--orange); font-size: 13px; font-weight: 600; }
 .node-label .sub {
   display: block;
   font-size: 9px;
@@ -88,24 +70,30 @@ html, body {
   text-transform: uppercase;
 }
 
-/* === CRT scanline === */
+/* Focus mode */
+#labels-layer.focused .node-label:not(.is-focus) { opacity: .08 !important; pointer-events: none; }
+#labels-layer.focused .node-label.is-focus {
+  filter: drop-shadow(0 0 14px currentColor) drop-shadow(0 0 28px currentColor);
+  transform: translate(-50%, -50%) scale(1.15);
+}
+
+/* CRT scanline */
 #scanlines {
   position: fixed; inset: 0; z-index: 60; pointer-events: none;
   background: linear-gradient(180deg, transparent 50%, rgba(0,0,0,.5) 50%);
   background-size: 100% 3px;
-  opacity: .12;
+  opacity: .10;
   mix-blend-mode: multiply;
 }
 
-/* === 共用 panel === */
 .panel {
   background: var(--bg-panel);
   border: 1px solid rgba(0,240,255,.2);
-  border-radius: 14px;          /* 圓角方塊 */
+  border-radius: 14px;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   box-shadow: 0 0 30px rgba(0,0,0,.6), inset 0 0 16px rgba(0,240,255,.04);
-  overflow: hidden;             /* 讓內部 panel-h 圓角貼齊 */
+  overflow: hidden;
 }
 .panel-h {
   font-family: var(--mono);
@@ -117,16 +105,10 @@ html, body {
   text-transform: uppercase;
   font-weight: 700;
   background: rgba(255,61,138,.05);
-  border-top-left-radius: 14px;
-  border-top-right-radius: 14px;
 }
-.panel-h .badge {
-  float: right;
-  color: var(--dim);
-  font-weight: 400;
-}
+.panel-h .badge { float: right; color: var(--dim); font-weight: 400; }
 
-/* === Topbar === */
+/* Topbar */
 #topbar {
   position: fixed; top: 0; left: 0; right: 0;
   height: 42px;
@@ -151,140 +133,51 @@ html, body {
 .topbar-stats .stat {
   padding: 4px 14px;
   border: 1px solid rgba(0,240,255,.28);
-  border-radius: 999px;          /* pill 膠囊型 */
+  border-radius: 999px;
   color: var(--cyan);
   font-size: 10px;
   background: rgba(0,240,255,.04);
 }
+.topbar-stats .stat.video { color: var(--orange); border-color: rgba(255,136,0,.5); background: rgba(255,136,0,.05); }
+.topbar-stats .stat.period { color: var(--pink); border-color: rgba(255,61,138,.5); background: rgba(255,61,138,.05); }
 
-/* === Left panels === */
+/* Left panels (3 Dataview lists with REAL data) */
 #leftbar {
   position: fixed; top: 56px; left: 14px;
-  z-index: 10;
-  width: 240px;
-  display: flex; flex-direction: column; gap: 10px;
-}
-.dv-list { padding: 0 10px 10px; }
-.dv-row {
-  display: flex; justify-content: space-between; align-items: baseline;
-  padding: 5px 4px;
-  border-bottom: 1px dotted rgba(255,255,255,.06);
-  font-size: 11px;
-  transition: background .15s;
-}
-.dv-row { border-radius: 8px; }
-.dv-row:hover { background: rgba(0,240,255,.08); }
-.dv-row:last-child { border-bottom: 0; }
-.dv-row .name { color: var(--mid); }
-.dv-row .meta { color: var(--dim); font-family: var(--mono); font-size: 9px; }
-
-/* === Right panels === */
-#rightbar {
-  position: fixed; top: 56px; right: 14px;
   z-index: 10;
   width: 250px;
   display: flex; flex-direction: column; gap: 10px;
 }
-.moc-row {
+.dv-list { padding: 4px 8px 8px; }
+.dv-row {
   display: flex; justify-content: space-between; align-items: baseline;
-  padding: 5px 10px;
-  border-bottom: 1px dotted rgba(255,255,255,.06);
+  padding: 6px 8px;
+  border-radius: 8px;
   font-size: 11px;
-  transition: background .15s;
+  cursor: pointer;
+  transition: background .15s, transform .15s;
 }
-.moc-row { border-radius: 8px; margin: 0 4px; }
-.moc-row:hover { background: rgba(255,184,0,.12); }
-.moc-row:last-child { border-bottom: 0; }
-.moc-row .icon { color: var(--gold); margin-right: 6px; }
-.moc-row .cnt { color: var(--dim); font-family: var(--mono); font-size: 9px; }
+.dv-row:hover { background: rgba(0,240,255,.08); transform: translateX(2px); }
+.dv-row .name { color: var(--mid); }
+.dv-row .meta { color: var(--dim); font-family: var(--mono); font-size: 9px; }
+.dv-row .meta .pct { color: var(--gold); }
 
-/* Service grid */
-.svc-grid {
-  padding: 10px;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-}
-.svc-chip {
-  background: rgba(0,240,255,.05);
-  border: 1px solid rgba(0,240,255,.28);
-  padding: 8px 10px;
-  border-radius: 999px;          /* 圓 pill */
-  font-size: 10px;
-  text-align: center;
-  transition: all .2s;
-}
-.svc-chip:hover {
-  background: rgba(0,240,255,.15);
-  border-color: var(--cyan);
-  box-shadow: 0 0 12px rgba(0,240,255,.4);
-}
-.svc-chip .nm { color: var(--cyan); font-weight: 600; font-family: var(--mono); }
-.svc-chip .st { color: var(--green); font-size: 8px; letter-spacing: 1.5px; margin-top: 2px; }
-.svc-chip .st::before { content: '● '; }
-
-/* === Stock chart === */
-#stock-panel {
-  position: fixed; top: 56px; left: 270px;
-  z-index: 10;
-  width: 320px;
-  display: none;
-}
-#stock-panel.show { display: block; }
-.stock-head {
-  padding: 8px 12px;
-  display: flex; align-items: baseline; gap: 8px;
-  border-bottom: 1px solid rgba(255,184,0,.15);
-}
-.stock-head .sym { color: var(--gold); font-family: var(--mono); font-size: 12px; font-weight: 700; }
-.stock-head .name { color: var(--dim); font-size: 10px; }
-.stock-head .price { margin-left: auto; color: var(--hi); font-family: var(--mono); font-size: 18px; font-weight: 700; }
-.stock-head .chg.up { color: var(--green); font-family: var(--mono); font-size: 11px; }
-.stock-head .chg.down { color: var(--red); font-family: var(--mono); font-size: 11px; }
-#stock-chart { width: 100%; height: 100px; }
-
-/* === AI chat === */
-#ai-chat {
-  position: fixed; bottom: 14px; right: 14px;
-  z-index: 10;
-  width: 300px;
-}
-.chat-msg {
-  padding: 6px 12px;
-  font-size: 11px;
-  border-bottom: 1px dotted rgba(255,255,255,.05);
-  line-height: 1.5;
-}
-.chat-msg:last-of-type { border-bottom: 0; }
-.chat-msg .who { color: var(--pink); font-family: var(--mono); font-size: 10px; font-weight: 700; margin-right: 6px; }
-.chat-msg .who.jarvis { color: var(--cyan); }
-.chat-input {
-  padding: 8px 12px;
-  border-top: 1px solid rgba(0,240,255,.15);
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--dim);
-}
-.chat-input::before { content: '> '; color: var(--green); }
-.cursor { display: inline-block; width: 7px; height: 11px; background: var(--cyan); margin-left: 2px; animation: blink 1s infinite; }
-@keyframes blink { 0%,50% { opacity:1; } 51%,100% { opacity:0; } }
-
-/* === Detail panel === */
+/* Detail panel */
 #detail {
-  position: fixed; top: 50%; right: 280px;
+  position: fixed; top: 50%; right: 24px;
   transform: translateY(-50%);
   z-index: 20;
-  width: 290px;
+  width: 300px;
   display: none;
   animation: slideIn .25s ease;
 }
 @keyframes slideIn { from { opacity:0; transform:translateY(-50%) translateX(10px); } to { opacity:1; transform:translateY(-50%) translateX(0); } }
 #detail.show { display: block; }
-#detail .d-h { padding: 12px 16px; border-bottom: 1px solid rgba(255,61,138,.2); position: relative; }
-#detail .d-name { color: var(--pink); font-size: 15px; font-weight: 700; font-family: var(--mono); letter-spacing: 1px; }
-#detail .d-sub { color: var(--dim); font-size: 10px; letter-spacing: 2px; margin-top: 4px; text-transform: uppercase; }
-#detail .d-body { padding: 12px 16px; }
-#detail .d-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 11px; border-bottom: 1px dotted rgba(255,255,255,.06); }
+#detail .d-h { padding: 14px 18px; border-bottom: 1px solid rgba(255,61,138,.2); position: relative; }
+#detail .d-name { color: var(--pink); font-size: 15px; font-weight: 700; font-family: var(--mono); letter-spacing: 1px; word-break: break-all; line-height: 1.4; }
+#detail .d-sub { color: var(--dim); font-size: 10px; letter-spacing: 2px; margin-top: 6px; text-transform: uppercase; }
+#detail .d-body { padding: 12px 18px; }
+#detail .d-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 11px; border-bottom: 1px dotted rgba(255,255,255,.06); align-items: baseline; }
 #detail .d-row:last-child { border: 0; }
 #detail .d-row .l { color: var(--dim); letter-spacing: 1px; }
 #detail .d-row .v { color: var(--cyan); font-family: var(--mono); font-weight: 600; }
@@ -292,6 +185,7 @@ html, body {
 #detail .close:hover { color: var(--pink); border-color: var(--pink); }
 
 #hint { position: fixed; bottom: 6px; left: 50%; transform: translateX(-50%); z-index: 10; font-size: 9px; color: var(--dim); font-family: var(--mono); letter-spacing: 1.5px; }
+#gen-info { position: fixed; bottom: 6px; right: 14px; z-index: 10; font-size: 9px; color: var(--dim); font-family: var(--mono); letter-spacing: 1px; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/three@0.140.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.140.0/examples/js/controls/OrbitControls.js"></script>
@@ -305,63 +199,29 @@ html, body {
 
 <div id="topbar">
   <span class="brand">JARVIS-BRAIN</span>
-  <span class="sub-brand">// 神經中樞 3D · <span class="live-dot"></span>DATA STREAM</span>
+  <span class="sub-brand">// TZG 神經中樞 · <span class="live-dot"></span>DATA LIVE</span>
   <div class="topbar-stats">
     <span class="stat" id="t-rev">--</span>
     <span class="stat" id="t-ord">--</span>
     <span class="stat" id="t-cust">--</span>
-    <span class="stat" id="t-aov">--</span>
-    <span class="stat" style="color:var(--pink);" id="t-period">--</span>
+    <span class="stat video" id="t-plays">--</span>
+    <span class="stat period" id="t-period">--</span>
   </div>
 </div>
 
 <div id="leftbar">
   <div class="panel">
-    <div class="panel-h">AI 筆主 <span class="badge" id="b-ai">5</span></div>
-    <div class="dv-list" id="dv-ai"></div>
+    <div class="panel-h">熱門影片 // TOP PLAYS <span class="badge" style="color:var(--orange);">6</span></div>
+    <div class="dv-list" id="dv-videos"></div>
   </div>
   <div class="panel">
-    <div class="panel-h">彩寶指任 // PROJECTS <span class="badge">5</span></div>
-    <div class="dv-list" id="dv-proj"></div>
+    <div class="panel-h">TOP 業務 // BY 業績 <span class="badge" style="color:var(--pink);">6</span></div>
+    <div class="dv-list" id="dv-agents"></div>
   </div>
   <div class="panel">
-    <div class="panel-h">熱門影片 // TOP PLAYS <span class="badge" style="color:#ff8800;">5</span></div>
-    <div class="dv-list" id="dv-rec"></div>
+    <div class="panel-h">UTM 渠道 // CHANNEL MIX</div>
+    <div class="dv-list" id="dv-utm"></div>
   </div>
-</div>
-
-<div id="rightbar">
-  <div class="panel">
-    <div class="panel-h">MOC 階層 // TOP <span class="badge" id="b-moc">7</span></div>
-    <div id="moc-list"></div>
-  </div>
-  <div class="panel">
-    <div class="panel-h">系統狀態 // SERVICES</div>
-    <div class="svc-grid">
-      <div class="svc-chip"><div class="nm">POS</div><div class="st">啟用中</div></div>
-      <div class="svc-chip"><div class="nm">1SHOP</div><div class="st">啟用中</div></div>
-      <div class="svc-chip"><div class="nm">LINE</div><div class="st">啟用中</div></div>
-      <div class="svc-chip"><div class="nm">GBP</div><div class="st">啟用中</div></div>
-      <div class="svc-chip"><div class="nm">Shopline</div><div class="st">啟用中</div></div>
-      <div class="svc-chip"><div class="nm">Meta</div><div class="st">啟用中</div></div>
-    </div>
-  </div>
-</div>
-
-<div id="stock-panel" class="panel show">
-  <div class="stock-head">
-    <span class="sym" id="s-sym">--</span>
-    <span class="name" id="s-name">--</span>
-    <span class="price" id="s-price">--</span>
-    <span class="chg" id="s-chg">--</span>
-  </div>
-  <canvas id="stock-chart"></canvas>
-</div>
-
-<div id="ai-chat" class="panel">
-  <div class="panel-h">JARVIS // CHAT <span class="badge"><span class="live-dot" style="margin-right:2px;"></span>LIVE</span></div>
-  <div id="chat-body"></div>
-  <div class="chat-input">輸入指令<span class="cursor"></span></div>
 </div>
 
 <div id="detail" class="panel">
@@ -374,21 +234,20 @@ html, body {
 </div>
 
 <div id="hint">DRAG · ZOOM · CLICK NODE = INSPECT</div>
+<div id="gen-info">SYS://generated <span id="gen-at">--</span></div>
 
 <script>
-const DATA = {"nodes": [{"id": "p:CMO_xiaowang", "name": "小王", "type": "persona", "sub": "CMO · Mac mini", "tier": 1}, {"id": "p:COO_yanxiong", "name": "炎兄", "type": "persona", "sub": "COO · MacBook", "tier": 1}, {"id": "p:UI_damaluo", "name": "大瑪螺", "type": "persona", "sub": "UI/UX · Drone", "tier": 2}, {"id": "p:AI_jarvis", "name": "JARVIS", "type": "persona", "sub": "AI Core", "tier": 1}, {"id": "p:AI_claude", "name": "Claude", "type": "persona", "sub": "AI 群體組合 · LLM", "tier": 2}, {"id": "p:AI_gpt", "name": "GPT-5", "type": "persona", "sub": "AI 群體組合", "tier": 3}, {"id": "p:dev_aiko", "name": "愛克", "type": "persona", "sub": "AI 助理 · 代理", "tier": 2}, {"id": "s:POS", "name": "POS 機", "type": "system", "sub": "門市結帳", "tier": 1, "status": "啟用中"}, {"id": "s:1SHOP", "name": "1SHOP", "type": "system", "sub": "官網", "tier": 1, "status": "啟用中"}, {"id": "s:LINE", "name": "LINE 社群", "type": "system", "sub": "OA + 群組", "tier": 1, "status": "啟用中"}, {"id": "s:GBP", "name": "GBP 雙店", "type": "system", "sub": "Google 商家", "tier": 2, "status": "啟用中"}, {"id": "s:Shopline", "name": "Shopline", "type": "system", "sub": "訂單系統", "tier": 1, "status": "啟用中"}, {"id": "s:Meta", "name": "Meta Ads", "type": "system", "sub": "FB + IG 廣告", "tier": 2, "status": "啟用中"}, {"id": "s:GitHub", "name": "GitHub", "type": "system", "sub": "Code · Pages", "tier": 2, "status": "啟用中"}, {"id": "s:Slack", "name": "Slack", "type": "system", "sub": "溝通", "tier": 3, "status": "啟用中"}, {"id": "m:BRAIN", "name": "MOC_BRAIN", "type": "moc", "sub": "主圖譜", "tier": 1}, {"id": "m:THINK", "name": "MOC_思路鏈", "type": "moc", "sub": "Reasoning", "tier": 2}, {"id": "m:FEED", "name": "feedback-na-app", "type": "moc", "sub": "產品回饋", "tier": 2}, {"id": "m:MASTER", "name": "/master 整理東西處", "type": "moc", "sub": "A-Z", "tier": 2}, {"id": "m:UX", "name": "用戶體驗", "type": "moc", "sub": "UX Notes", "tier": 3}, {"id": "m:BIZ", "name": "視性回應", "type": "moc", "sub": "訪談", "tier": 3}, {"id": "pj:POS_intg", "name": "POS 整合", "type": "project", "sub": "開發中", "tier": 2}, {"id": "pj:1SHOP_v3", "name": "1SHOP v3", "type": "project", "sub": "籌備中", "tier": 2}, {"id": "pj:LINE_auto", "name": "LINE 自動化", "type": "project", "sub": "進行中", "tier": 2}, {"id": "pj:GBP_local", "name": "GBP 本地化", "type": "project", "sub": "籌備中", "tier": 3}, {"id": "pj:Dashboard_v2", "name": "Dashboard v2", "type": "project", "sub": "進行中", "tier": 2}, {"id": "n:彩寶指任", "name": "彩寶指任", "type": "note", "sub": "商品分類", "tier": 3}, {"id": "n:寵粉策略", "name": "寵粉策略", "type": "note", "sub": "行銷", "tier": 3}, {"id": "n:LINE_OA", "name": "LINE OA 分析", "type": "note", "sub": "通路", "tier": 3}, {"id": "n:會員等級", "name": "會員等級設計", "type": "note", "sub": "CRM", "tier": 3}, {"id": "n:庫存週轉", "name": "庫存週轉", "type": "note", "sub": "營運", "tier": 3}, {"id": "agent:業務 /江瑩/ 深圳", "name": "業務", "type": "agent", "sub": "業務 /江瑩/ 深圳", "tier": 2, "rev": 1668042, "orders": 70, "customers": 62}, {"id": "agent:客服跟單/陳怡萍/深圳", "name": "客服跟單", "type": "agent", "sub": "客服跟單/陳怡萍/深圳", "tier": 2, "rev": 952918, "orders": 53, "customers": 47}, {"id": "agent:業務/以恩/彰化", "name": "業務", "type": "agent", "sub": "業務/以恩/彰化", "tier": 2, "rev": 314196, "orders": 44, "customers": 41}, {"id": "agent:業務/均睿/彰化", "name": "業務", "type": "agent", "sub": "業務/均睿/彰化", "tier": 2, "rev": 168766, "orders": 10, "customers": 10}, {"id": "agent:中控 /徐炳昌 /深圳", "name": "中控", "type": "agent", "sub": "中控 /徐炳昌 /深圳", "tier": 2, "rev": 166784, "orders": 13, "customers": 13}, {"id": "agent:代理/楊淑錚/台北", "name": "代理", "type": "agent", "sub": "代理/楊淑錚/台北", "tier": 2, "rev": 139000, "orders": 1, "customers": 1}, {"id": "agent:行政文書助理/蔡宇綾/彰化總部", "name": "行政文書助理", "type": "agent", "sub": "行政文書助理/蔡宇綾/彰化總部", "tier": 2, "rev": 82101, "orders": 4, "customers": 4}, {"id": "agent:店務客服/朱柏境/彰化", "name": "店務客服", "type": "agent", "sub": "店務客服/朱柏境/彰化", "tier": 2, "rev": 37800, "orders": 4, "customers": 4}, {"id": "agent:客服/尤藝/彰化", "name": "客服", "type": "agent", "sub": "客服/尤藝/彰化", "tier": 2, "rev": 25000, "orders": 2, "customers": 2}, {"id": "agent:B級代理/ 甘秀薇 / 新北市", "name": "B級代理", "type": "agent", "sub": "B級代理/ 甘秀薇 / 新北市", "tier": 2, "rev": 24987, "orders": 1, "customers": 1}, {"id": "agent:代理/楊依靈/台南", "name": "代理", "type": "agent", "sub": "代理/楊依靈/台南", "tier": 2, "rev": 20640, "orders": 2, "customers": 2}, {"id": "agent:代理/林志娟/台中", "name": "代理", "type": "agent", "sub": "代理/林志娟/台中", "tier": 2, "rev": 6760, "orders": 1, "customers": 1}, {"id": "v:17848129185696999", "name": "突然破水 是嚇到", "fullName": "突然破水 是嚇到 但沒有辦法綁住我 😂 確認母女沒生命危險 ，立馬在病床上開工 😆 老公說 真服了you 💪💪💪 我只知道 我熱愛生命 熱愛我的事業 熱愛我的使命  除非一天我的心不跳了 ， 不然沒有什麼事情可以讓我停下 🥰  粉絲們 告訴我 什麼能阻擋你的願力？  #首頁連結加入溱姐寵粉社群 #珠寶 #破水 #熱愛 #事業", "type": "video", "sub": "IG · 318,973 播放", "tier": 3, "platform": "IG", "plays": 318973, "reach": 213499, "shares": 158, "comments": 39, "likes": 5307, "length_sec": 0, "created_date": "2026-04-26"}, {"id": "v:1685331449569077", "name": "你以為綠松石跟蜜", "fullName": "你以為綠松石跟蜜蠟很便宜嗎 ？@ 遊牧民族的移動資產 ， 你不要看這些藏族的小孩子滿臉是土 ，身上佩戴的傳家寶平安貴石我們來算一算到底是多少錢？  #首頁連結加入溱姐寵粉社群 #珠寶 #傳家 #蜜蠟#綠松", "type": "video", "sub": "FB · 276,104 播放", "tier": 3, "platform": "FB", "plays": 276104, "reach": 321896, "shares": 290, "comments": 64, "likes": 4206, "length_sec": 85, "created_date": "2026-04-24"}, {"id": "v:867735193013841", "name": "懷孕 很想吃臭豆", "fullName": "懷孕 很想吃臭豆腐 感謝 老公怕的要死 還幫我買   #首頁連結加入溱姐寵粉社群 #珠寶  #異國夫婦 #日常", "type": "video", "sub": "FB · 224,644 播放", "tier": 3, "platform": "FB", "plays": 224644, "reach": 256373, "shares": 19, "comments": 38, "likes": 2445, "length_sec": 28, "created_date": "2026-04-30"}, {"id": "v:2199022047515003", "name": "在台灣，你看不出", "fullName": "在台灣，你看不出有錢跟窮 因為⋯  #首頁連結加入溱姐寵粉社群 #珠寶 #外國人在台灣 #文化", "type": "video", "sub": "FB · 152,720 播放", "tier": 3, "platform": "FB", "plays": 152720, "reach": 317085, "shares": 51, "comments": 68, "likes": 955, "length_sec": 45, "created_date": "2026-04-22"}, {"id": "v:2057824875115921", "name": "用美琪肥皂就可以", "fullName": "用美琪肥皂就可以試試925銀真假！ #首頁連結加入溱姐寵粉社群 #銀飾品", "type": "video", "sub": "FB · 133,111 播放", "tier": 3, "platform": "FB", "plays": 133111, "reach": 128608, "shares": 621, "comments": 42, "likes": 3277, "length_sec": 44, "created_date": "2026-05-09"}, {"id": "v:18096262501848768", "name": "蘇珊娜，身價千億", "fullName": "蘇珊娜，身價千億的 BMW 女老闆。 她遇到的「殺豬盤」，比任何電影都驚悚。 但她教會所有女性最重要的一課：【止損的狠勁】。 很多時候，我們不報警、不離開，不是因為愛，是因為「不敢面對」。 但蘇珊娜告訴我們：給風險標價的膽量，妳一直都有。 #首頁連結加入溱姐寵粉社群 #BMW女老闆 #女性成長 #止損 #蘇珊娜", "type": "video", "sub": "IG · 122,339 播放", "tier": 3, "platform": "IG", "plays": 122339, "reach": 88674, "shares": 678, "comments": 33, "likes": 2943, "length_sec": 0, "created_date": "2026-04-10"}, {"id": "v:1508945813450752", "name": "當你想同時帶兩條", "fullName": "當你想同時帶兩條項鍊，但不想打結或重戴 #首頁連結加入溱姐寵粉社群 #珠寶 #項鏈#首飾", "type": "video", "sub": "FB · 117,882 播放", "tier": 3, "platform": "FB", "plays": 117882, "reach": 116228, "shares": 65, "comments": 6, "likes": 584, "length_sec": 19, "created_date": "2026-05-29"}, {"id": "v:1628347578388104", "name": "外國人 第一次 ", "fullName": "外國人 第一次 到用筷子的國家 ⋯  #首頁連結加入溱姐寵粉社群 #外國人在台灣 #異國婚姻", "type": "video", "sub": "FB · 117,391 播放", "tier": 3, "platform": "FB", "plays": 117391, "reach": 120696, "shares": 16, "comments": 31, "likes": 1653, "length_sec": 14, "created_date": "2026-05-10"}, {"id": "v:754034477675498", "name": "一件高訂禮服沒有", "fullName": "一件高訂禮服沒有經過客人的同意，就直接讓模特穿出亮相，真的是直接毁了這個品牌 😱  太不尊重客人了，這個是百萬專屬高訂，不是熱銷品 你認同嗎？   #首頁連結加入溱姐寵粉社群 #珠寶 #高訂", "type": "video", "sub": "FB · 113,057 播放", "tier": 3, "platform": "FB", "plays": 113057, "reach": 244648, "shares": 49, "comments": 30, "likes": 774, "length_sec": 113, "created_date": "2026-04-13"}, {"id": "v:977413211655428", "name": "婚後的家庭地位：", "fullName": "婚後的家庭地位：現在我都是最後一個  #首頁連結加入溱姐寵粉社群   #珠寶#家庭#異國婚姻#泰熙爾汗", "type": "video", "sub": "FB · 111,838 播放", "tier": 3, "platform": "FB", "plays": 111838, "reach": 118338, "shares": 3, "comments": 12, "likes": 1114, "length_sec": 9, "created_date": "2026-05-30"}, {"id": "v:18095416114858893", "name": "沒有雞湯 只能說", "fullName": "沒有雞湯 只能說開掛前的路是孤獨的 ！ 請學會自洽 與自愈的能力 。 💪💪💪💪  鼓勵跟我一樣在創業路上不斷披荊斬棘的孤勇者 ！   #用加盟奶茶店的錢讓你輕鬆入局成為珠寶店老闆", "type": "video", "sub": "IG · 111,691 播放", "tier": 3, "platform": "IG", "plays": 111691, "reach": 72539, "shares": 51, "comments": 45, "likes": 1618, "length_sec": 0, "created_date": "2026-04-08"}, {"id": "v:17858628633626189", "name": "這集解密中亞 中", "fullName": "這集解密中亞 中東人 眼睫毛長的秘密  #首頁連結加入溱姐寵粉社群 #珠寶 #異國婚姻", "type": "video", "sub": "IG · 106,137 播放", "tier": 3, "platform": "IG", "plays": 106137, "reach": 74457, "shares": 628, "comments": 247, "likes": 2232, "length_sec": 0, "created_date": "2026-04-09"}, {"id": "v:18383852881094804", "name": "想賺到真正的財富", "fullName": "想賺到真正的財富，請看完這7部片 ！ 提早了解學校跟父母都沒教你的財富真相 #首頁鏈接加入溱姐寵粉社群 #珠寶#致富邏輯 #階級翻轉#翻身", "type": "video", "sub": "IG · 101,897 播放", "tier": 3, "platform": "IG", "plays": 101897, "reach": 81171, "shares": 2449, "comments": 4, "likes": 2512, "length_sec": 0, "created_date": "2026-03-23"}, {"id": "v:18085696079196386", "name": "異國文化大衝擊 ", "fullName": "異國文化大衝擊  為什麼中東女生要包那麼緊？  #首頁連結加入溱姐寵粉社群 #異國婚姻 #異國文化", "type": "video", "sub": "IG · 101,706 播放", "tier": 3, "platform": "IG", "plays": 101706, "reach": 82051, "shares": 190, "comments": 52, "likes": 2290, "length_sec": 0, "created_date": "2026-03-31"}, {"id": "v:2423091614769057", "name": "我娶老婆的真正原", "fullName": "我娶老婆的真正原因  首頁連結加入溱姐寵粉社群#珠寶  #異國婚姻 #泰熙爾汗#結婚", "type": "video", "sub": "FB · 94,871 播放", "tier": 3, "platform": "FB", "plays": 94871, "reach": 114329, "shares": 8, "comments": 38, "likes": 1213, "length_sec": 13, "created_date": "2026-06-11"}, {"id": "v:17945036784159116", "name": "假裝親老公⋯ 🤣", "fullName": "假裝親老公⋯ 🤣😂😅  其實泰熙爾汗 配合度真的很高 🥰 #首頁連結加入溱姐寵粉社群 #異國婚姻 #夫妻日常", "type": "video", "sub": "IG · 87,924 播放", "tier": 3, "platform": "IG", "plays": 87924, "reach": 50640, "shares": 45, "comments": 18, "likes": 1360, "length_sec": 0, "created_date": "2026-04-17"}, {"id": "v:17854731216634052", "name": "這次為12星座設", "fullName": "這次為12星座設計了加強版能量手串。  精準對應財運、桃花與個人磁場。  每個星座限量50條。  市價2000元，寵粉價800元。  兩人同行1100，直接折扣500 活動至 4月5日晚上11:59截止。 留言 星座 發給您相關資訊！ #首頁鏈接加入溱姐寵粉社群 #珠寶 #宇宙能量＃星座#溱姐寵粉", "type": "video", "sub": "IG · 83,587 播放", "tier": 3, "platform": "IG", "plays": 83587, "reach": 49332, "shares": 209, "comments": 2620, "likes": 1442, "length_sec": 0, "created_date": "2026-03-28"}, {"id": "v:1312907507434093", "name": "記住這個配戴法則", "fullName": "記住這個配戴法則 能讓水晶能量發揮最大作用！ #首頁鏈接加入溱姐寵粉社區 #珠寶#水晶佩戴＃珠寶知識", "type": "video", "sub": "FB · 73,809 播放", "tier": 3, "platform": "FB", "plays": 73809, "reach": 73771, "shares": 156, "comments": 7, "likes": 1094, "length_sec": 29, "created_date": "2026-05-06"}, {"id": "v:18102135334945462", "name": "懷孕 很想吃臭豆", "fullName": "懷孕 很想吃臭豆腐 感謝 老公怕的要死 還幫我買   #首頁連結加入溱姐寵粉社群 #珠寶  #異國夫婦 #日常", "type": "video", "sub": "IG · 72,199 播放", "tier": 3, "platform": "IG", "plays": 72199, "reach": 41809, "shares": 45, "comments": 19, "likes": 1265, "length_sec": 0, "created_date": "2026-04-30"}, {"id": "v:18017984537667375", "name": "工作再忙 也有1", "fullName": "工作再忙 也有100種方法寵老媽  錢賺了就是花在自己愛的人身上  #首頁連結加入溱姐寵粉社群#珠寶#母親節", "type": "video", "sub": "IG · 66,778 播放", "tier": 3, "platform": "IG", "plays": 66778, "reach": 44104, "shares": 23, "comments": 1, "likes": 889, "length_sec": 0, "created_date": "2026-04-10"}, {"id": "v:2218170812321971", "name": "100 坪別墅 ", "fullName": "100 坪別墅  巴基斯坦跟台灣的房價差多少？  #首頁連結加入溱姐寵粉社群#珠寶 #外國人在台灣", "type": "video", "sub": "FB · 65,834 播放", "tier": 3, "platform": "FB", "plays": 65834, "reach": 101461, "shares": 32, "comments": 62, "likes": 749, "length_sec": 41, "created_date": "2026-04-13"}, {"id": "v:1738930170912637", "name": "嫁給外國老公會不", "fullName": "嫁給外國老公會不會哭？不會，只會變胖！  #首頁連結加入溱姐寵粉社群 #異國婚姻 #幸福肥 #夫妻日常 #婚姻", "type": "video", "sub": "FB · 63,465 播放", "tier": 3, "platform": "FB", "plays": 63465, "reach": 82530, "shares": 14, "comments": 36, "likes": 869, "length_sec": 41, "created_date": "2026-05-22"}, {"id": "v:2671660139876729", "name": "嫌老婆胖的結果…", "fullName": "嫌老婆胖的結果…  #首頁連結加入溱姐寵粉社群 #珠寶#異國婚姻", "type": "video", "sub": "FB · 61,720 播放", "tier": 3, "platform": "FB", "plays": 61720, "reach": 76251, "shares": 9, "comments": 35, "likes": 1462, "length_sec": 19, "created_date": "2026-04-21"}, {"id": "v:18078111407410101", "name": "我10年前去巴基", "fullName": "我10年前去巴基斯坦挖礦， 時遇到最尷尬的文化衝擊 ！ 至今都覺得台灣女性友善程度非常幸福 #首頁連結加入溱姐寵粉社群 #珠寶＃巴基斯坦＃異國文化", "type": "video", "sub": "IG · 61,206 播放", "tier": 3, "platform": "IG", "plays": 61206, "reach": 36021, "shares": 321, "comments": 29, "likes": 1031, "length_sec": 0, "created_date": "2026-04-12"}, {"id": "v:18121638082615599", "name": "看一下哪些寶石不", "fullName": "看一下哪些寶石不建議帶 12月份出生 不適合帶的寶石  你知道 六月跟一月出生的不適合帶什麼？  #首頁連結加入溱姐寵粉社群 #珠寶", "type": "video", "sub": "IG · 60,462 播放", "tier": 3, "platform": "IG", "plays": 60462, "reach": 36481, "shares": 87, "comments": 52, "likes": 466, "length_sec": 0, "created_date": "2026-04-02"}], "links": [{"source": "m:BRAIN", "target": "m:THINK"}, {"source": "m:BRAIN", "target": "m:FEED"}, {"source": "m:BRAIN", "target": "m:MASTER"}, {"source": "m:BRAIN", "target": "m:UX"}, {"source": "m:BRAIN", "target": "m:BIZ"}, {"source": "m:BRAIN", "target": "p:AI_jarvis"}, {"source": "p:CMO_xiaowang", "target": "p:COO_yanxiong"}, {"source": "p:COO_yanxiong", "target": "p:UI_damaluo"}, {"source": "p:CMO_xiaowang", "target": "p:AI_jarvis"}, {"source": "p:COO_yanxiong", "target": "p:AI_jarvis"}, {"source": "p:AI_jarvis", "target": "p:AI_claude"}, {"source": "p:AI_jarvis", "target": "p:AI_gpt"}, {"source": "p:AI_jarvis", "target": "p:dev_aiko"}, {"source": "p:CMO_xiaowang", "target": "s:Meta"}, {"source": "p:CMO_xiaowang", "target": "s:LINE"}, {"source": "p:COO_yanxiong", "target": "s:Shopline"}, {"source": "p:COO_yanxiong", "target": "s:GitHub"}, {"source": "p:UI_damaluo", "target": "s:1SHOP"}, {"source": "p:UI_damaluo", "target": "s:GBP"}, {"source": "p:dev_aiko", "target": "s:Slack"}, {"source": "p:dev_aiko", "target": "s:GitHub"}, {"source": "s:Shopline", "target": "s:POS"}, {"source": "s:Shopline", "target": "s:1SHOP"}, {"source": "s:Shopline", "target": "s:LINE"}, {"source": "s:Meta", "target": "s:LINE"}, {"source": "s:Meta", "target": "s:1SHOP"}, {"source": "s:Meta", "target": "s:Shopline"}, {"source": "pj:POS_intg", "target": "s:POS"}, {"source": "pj:POS_intg", "target": "s:Shopline"}, {"source": "pj:1SHOP_v3", "target": "s:1SHOP"}, {"source": "pj:LINE_auto", "target": "s:LINE"}, {"source": "pj:LINE_auto", "target": "s:Meta"}, {"source": "pj:GBP_local", "target": "s:GBP"}, {"source": "pj:Dashboard_v2", "target": "s:GitHub"}, {"source": "pj:Dashboard_v2", "target": "s:Shopline"}, {"source": "n:彩寶指任", "target": "m:MASTER"}, {"source": "n:寵粉策略", "target": "m:FEED"}, {"source": "n:LINE_OA", "target": "m:THINK"}, {"source": "n:會員等級", "target": "m:UX"}, {"source": "n:庫存週轉", "target": "m:BIZ"}, {"source": "n:LINE_OA", "target": "s:LINE"}, {"source": "n:LINE_OA", "target": "s:Meta"}, {"source": "n:寵粉策略", "target": "p:CMO_xiaowang"}, {"source": "n:會員等級", "target": "s:Shopline"}, {"source": "agent:中控 /徐炳昌 /深圳", "target": "agent:業務 /江瑩/ 深圳"}, {"source": "agent:客服跟單/陳怡萍/深圳", "target": "agent:業務/以恩/彰化"}, {"source": "agent:客服跟單/陳怡萍/深圳", "target": "agent:業務 /江瑩/ 深圳"}, {"source": "agent:業務 /江瑩/ 深圳", "target": "agent:業務/以恩/彰化"}, {"source": "v:17848129185696999", "target": "s:Meta"}, {"source": "v:1685331449569077", "target": "s:Meta"}, {"source": "v:867735193013841", "target": "s:Meta"}, {"source": "v:2199022047515003", "target": "s:Meta"}, {"source": "v:2057824875115921", "target": "s:Meta"}, {"source": "v:18096262501848768", "target": "s:Meta"}, {"source": "v:1508945813450752", "target": "s:Meta"}, {"source": "v:1628347578388104", "target": "s:Meta"}, {"source": "v:754034477675498", "target": "s:Meta"}, {"source": "v:977413211655428", "target": "s:Meta"}, {"source": "v:18095416114858893", "target": "s:Meta"}, {"source": "v:17858628633626189", "target": "s:Meta"}, {"source": "v:18383852881094804", "target": "s:Meta"}, {"source": "v:18085696079196386", "target": "s:Meta"}, {"source": "v:2423091614769057", "target": "s:Meta"}, {"source": "v:17945036784159116", "target": "s:Meta"}, {"source": "v:17854731216634052", "target": "s:Meta"}, {"source": "v:1312907507434093", "target": "s:Meta"}, {"source": "v:18102135334945462", "target": "s:Meta"}, {"source": "v:18017984537667375", "target": "s:Meta"}, {"source": "v:2218170812321971", "target": "s:Meta"}, {"source": "v:1738930170912637", "target": "s:Meta"}, {"source": "v:2671660139876729", "target": "s:Meta"}, {"source": "v:18078111407410101", "target": "s:Meta"}, {"source": "v:18121638082615599", "target": "s:Meta"}, {"source": "agent:業務 /江瑩/ 深圳", "target": "s:Shopline"}, {"source": "agent:客服跟單/陳怡萍/深圳", "target": "s:Shopline"}, {"source": "agent:業務/以恩/彰化", "target": "s:Shopline"}, {"source": "agent:業務/均睿/彰化", "target": "s:Shopline"}, {"source": "agent:中控 /徐炳昌 /深圳", "target": "s:Shopline"}, {"source": "agent:代理/楊淑錚/台北", "target": "s:Shopline"}, {"source": "agent:行政文書助理/蔡宇綾/彰化總部", "target": "s:Shopline"}, {"source": "agent:店務客服/朱柏境/彰化", "target": "s:Shopline"}, {"source": "agent:客服/尤藝/彰化", "target": "s:Shopline"}, {"source": "agent:B級代理/ 甘秀薇 / 新北市", "target": "s:Shopline"}, {"source": "agent:代理/楊依靈/台南", "target": "s:Shopline"}, {"source": "agent:代理/林志娟/台中", "target": "s:Shopline"}], "kpi": {"total_rev": 10280617, "total_orders": 1422, "total_customers": 1078, "avg_aov": 7229, "period_label": "近 60 天"}, "moc_tree": [{"name": "MOC_BRAIN", "children_count": 8, "tag": "core"}, {"name": "MOC_思路鏈", "children_count": 5, "tag": "reason"}, {"name": "feedback-na-app...", "children_count": 3, "tag": "fb"}, {"name": "/master 整理東西處 A-Z", "children_count": 26, "tag": "org"}, {"name": "視性回應", "children_count": 4, "tag": "biz"}, {"name": "用戶體驗", "children_count": 6, "tag": "ux"}, {"name": "1Shop", "children_count": 7, "tag": "sys"}], "dataview": {"ai_brain": [{"name": "AI Core / JARVIS", "tag": "#ai #core", "mtime": "2026-06-18"}, {"name": "Claude 4.7 prompt 模板", "tag": "#ai #prompt", "mtime": "2026-06-17"}, {"name": "GPT-5 function call", "tag": "#ai #tool", "mtime": "2026-06-15"}, {"name": "Agent SDK pipeline", "tag": "#ai #dev", "mtime": "2026-06-12"}, {"name": "對話歷史庫設計", "tag": "#ai #memory", "mtime": "2026-06-10"}], "projects": [{"name": "彩寶指任", "tag": "開發中", "mtime": "2026-06-18"}, {"name": "POS 整合", "tag": "開發中", "mtime": "2026-06-17"}, {"name": "LINE 自動化", "tag": "進行中", "mtime": "2026-06-15"}, {"name": "1SHOP v3", "tag": "籌備中", "mtime": "2026-06-10"}, {"name": "Dashboard v2", "tag": "進行中", "mtime": "2026-06-18"}], "recent_notes": [{"name": "突然破水 是嚇到 但沒有辦法綁住我 ", "tag": "IG · 318K", "mtime": "2026-04-26"}, {"name": "你以為綠松石跟蜜蠟很便宜嗎 ？@ 遊", "tag": "FB · 276K", "mtime": "2026-04-24"}, {"name": "懷孕 很想吃臭豆腐 感謝 老公怕的要", "tag": "FB · 224K", "mtime": "2026-04-30"}, {"name": "在台灣，你看不出有錢跟窮 因為⋯  ", "tag": "FB · 152K", "mtime": "2026-04-22"}, {"name": "用美琪肥皂就可以試試925銀真假！ ", "tag": "FB · 133K", "mtime": "2026-05-09"}]}, "stock": {"symbol": "2330.TW", "name": "台積電", "price": 1075.0, "change": 12.0, "pct": 1.13}, "ai_chat": [{"who": "JARVIS", "msg": "本月 LINE OA 業績已達 NT$ 506K，扣寵粉後 NT$ 240K"}, {"who": "小王", "msg": "近 7 天日均下滑，建議減少 g 系列投放"}, {"who": "JARVIS", "msg": "已分析 f24fb 廣告轉換率最高，建議追加預算 30%"}], "generated_at": "2026-06-18 22:16"};
+const DATA = {"nodes": [{"id": "s:Meta", "name": "Meta", "type": "anchor", "sub": "FB + IG 影音流量入口", "tier": 1}, {"id": "s:Shopline", "name": "Shopline", "type": "anchor", "sub": "訂單成交系統", "tier": 1}, {"id": "agent:業務 /江瑩/ 深圳", "name": "業務", "fullName": "業務 /江瑩/ 深圳", "type": "agent", "sub": "業務 /江瑩/ 深圳", "tier": 2, "rev": 1668042, "orders": 70, "customers": 62, "aov": 23829}, {"id": "agent:客服跟單/陳怡萍/深圳", "name": "客服跟單", "fullName": "客服跟單/陳怡萍/深圳", "type": "agent", "sub": "客服跟單/陳怡萍/深圳", "tier": 2, "rev": 952918, "orders": 53, "customers": 47, "aov": 17979}, {"id": "agent:業務/以恩/彰化", "name": "業務", "fullName": "業務/以恩/彰化", "type": "agent", "sub": "業務/以恩/彰化", "tier": 2, "rev": 314196, "orders": 44, "customers": 41, "aov": 7140}, {"id": "agent:業務/均睿/彰化", "name": "業務", "fullName": "業務/均睿/彰化", "type": "agent", "sub": "業務/均睿/彰化", "tier": 2, "rev": 168766, "orders": 10, "customers": 10, "aov": 16876}, {"id": "agent:中控 /徐炳昌 /深圳", "name": "中控", "fullName": "中控 /徐炳昌 /深圳", "type": "agent", "sub": "中控 /徐炳昌 /深圳", "tier": 2, "rev": 166784, "orders": 13, "customers": 13, "aov": 12829}, {"id": "agent:代理/楊淑錚/台北", "name": "代理", "fullName": "代理/楊淑錚/台北", "type": "agent", "sub": "代理/楊淑錚/台北", "tier": 2, "rev": 139000, "orders": 1, "customers": 1, "aov": 139000}, {"id": "agent:行政文書助理/蔡宇綾/彰化總部", "name": "行政文書助理", "fullName": "行政文書助理/蔡宇綾/彰化總部", "type": "agent", "sub": "行政文書助理/蔡宇綾/彰化總部", "tier": 2, "rev": 82101, "orders": 4, "customers": 4, "aov": 20525}, {"id": "agent:店務客服/朱柏境/彰化", "name": "店務客服", "fullName": "店務客服/朱柏境/彰化", "type": "agent", "sub": "店務客服/朱柏境/彰化", "tier": 2, "rev": 37800, "orders": 4, "customers": 4, "aov": 9450}, {"id": "agent:客服/尤藝/彰化", "name": "客服", "fullName": "客服/尤藝/彰化", "type": "agent", "sub": "客服/尤藝/彰化", "tier": 2, "rev": 25000, "orders": 2, "customers": 2, "aov": 12500}, {"id": "agent:B級代理/ 甘秀薇 / 新北市", "name": "B級代理", "fullName": "B級代理/ 甘秀薇 / 新北市", "type": "agent", "sub": "B級代理/ 甘秀薇 / 新北市", "tier": 2, "rev": 24987, "orders": 1, "customers": 1, "aov": 24987}, {"id": "agent:代理/楊依靈/台南", "name": "代理", "fullName": "代理/楊依靈/台南", "type": "agent", "sub": "代理/楊依靈/台南", "tier": 2, "rev": 20640, "orders": 2, "customers": 2, "aov": 10320}, {"id": "agent:代理/林志娟/台中", "name": "代理", "fullName": "代理/林志娟/台中", "type": "agent", "sub": "代理/林志娟/台中", "tier": 2, "rev": 6760, "orders": 1, "customers": 1, "aov": 6760}, {"id": "agent:店務/沛珊2/台中文心", "name": "店務", "fullName": "店務/沛珊2/台中文心", "type": "agent", "sub": "店務/沛珊2/台中文心", "tier": 2, "rev": 4660, "orders": 2, "customers": 2, "aov": 2330}, {"id": "v:17848129185696999", "name": "突然破水 是嚇到", "fullName": "突然破水 是嚇到 但沒有辦法綁住我 😂 確認母女沒生命危險 ，立馬在病床上開工 😆 老公說 真服了you 💪💪💪 我只知道 我熱愛生命 熱愛我的事業 熱愛我的使命  除非一天我的心不跳了 ， 不然沒有什麼事情可以讓我停下 🥰  粉絲們 告訴我 什麼能阻擋你的願力？  #首頁連結加入溱姐寵粉社群 #珠寶 #破水 #熱愛 #事業", "type": "video", "sub": "IG · 318,973 播放", "tier": 3, "platform": "IG", "plays": 318973, "reach": 213499, "shares": 158, "comments": 39, "likes": 5307, "length_sec": 0, "created_date": "2026-04-26"}, {"id": "v:1685331449569077", "name": "你以為綠松石跟蜜", "fullName": "你以為綠松石跟蜜蠟很便宜嗎 ？@ 遊牧民族的移動資產 ， 你不要看這些藏族的小孩子滿臉是土 ，身上佩戴的傳家寶平安貴石我們來算一算到底是多少錢？  #首頁連結加入溱姐寵粉社群 #珠寶 #傳家 #蜜蠟#綠松", "type": "video", "sub": "FB · 276,104 播放", "tier": 3, "platform": "FB", "plays": 276104, "reach": 321896, "shares": 290, "comments": 64, "likes": 4206, "length_sec": 85, "created_date": "2026-04-24"}, {"id": "v:867735193013841", "name": "懷孕 很想吃臭豆", "fullName": "懷孕 很想吃臭豆腐 感謝 老公怕的要死 還幫我買   #首頁連結加入溱姐寵粉社群 #珠寶  #異國夫婦 #日常", "type": "video", "sub": "FB · 224,644 播放", "tier": 3, "platform": "FB", "plays": 224644, "reach": 256373, "shares": 19, "comments": 38, "likes": 2445, "length_sec": 28, "created_date": "2026-04-30"}, {"id": "v:2199022047515003", "name": "在台灣，你看不出", "fullName": "在台灣，你看不出有錢跟窮 因為⋯  #首頁連結加入溱姐寵粉社群 #珠寶 #外國人在台灣 #文化", "type": "video", "sub": "FB · 152,720 播放", "tier": 3, "platform": "FB", "plays": 152720, "reach": 317085, "shares": 51, "comments": 68, "likes": 955, "length_sec": 45, "created_date": "2026-04-22"}, {"id": "v:2057824875115921", "name": "用美琪肥皂就可以", "fullName": "用美琪肥皂就可以試試925銀真假！ #首頁連結加入溱姐寵粉社群 #銀飾品", "type": "video", "sub": "FB · 133,111 播放", "tier": 3, "platform": "FB", "plays": 133111, "reach": 128608, "shares": 621, "comments": 42, "likes": 3277, "length_sec": 44, "created_date": "2026-05-09"}, {"id": "v:18096262501848768", "name": "蘇珊娜，身價千億", "fullName": "蘇珊娜，身價千億的 BMW 女老闆。 她遇到的「殺豬盤」，比任何電影都驚悚。 但她教會所有女性最重要的一課：【止損的狠勁】。 很多時候，我們不報警、不離開，不是因為愛，是因為「不敢面對」。 但蘇珊娜告訴我們：給風險標價的膽量，妳一直都有。 #首頁連結加入溱姐寵粉社群 #BMW女老闆 #女性成長 #止損 #蘇珊娜", "type": "video", "sub": "IG · 122,339 播放", "tier": 3, "platform": "IG", "plays": 122339, "reach": 88674, "shares": 678, "comments": 33, "likes": 2943, "length_sec": 0, "created_date": "2026-04-10"}, {"id": "v:1508945813450752", "name": "當你想同時帶兩條", "fullName": "當你想同時帶兩條項鍊，但不想打結或重戴 #首頁連結加入溱姐寵粉社群 #珠寶 #項鏈#首飾", "type": "video", "sub": "FB · 117,882 播放", "tier": 3, "platform": "FB", "plays": 117882, "reach": 116228, "shares": 65, "comments": 6, "likes": 584, "length_sec": 19, "created_date": "2026-05-29"}, {"id": "v:1628347578388104", "name": "外國人 第一次 ", "fullName": "外國人 第一次 到用筷子的國家 ⋯  #首頁連結加入溱姐寵粉社群 #外國人在台灣 #異國婚姻", "type": "video", "sub": "FB · 117,391 播放", "tier": 3, "platform": "FB", "plays": 117391, "reach": 120696, "shares": 16, "comments": 31, "likes": 1653, "length_sec": 14, "created_date": "2026-05-10"}, {"id": "v:754034477675498", "name": "一件高訂禮服沒有", "fullName": "一件高訂禮服沒有經過客人的同意，就直接讓模特穿出亮相，真的是直接毁了這個品牌 😱  太不尊重客人了，這個是百萬專屬高訂，不是熱銷品 你認同嗎？   #首頁連結加入溱姐寵粉社群 #珠寶 #高訂", "type": "video", "sub": "FB · 113,057 播放", "tier": 3, "platform": "FB", "plays": 113057, "reach": 244648, "shares": 49, "comments": 30, "likes": 774, "length_sec": 113, "created_date": "2026-04-13"}, {"id": "v:977413211655428", "name": "婚後的家庭地位：", "fullName": "婚後的家庭地位：現在我都是最後一個  #首頁連結加入溱姐寵粉社群   #珠寶#家庭#異國婚姻#泰熙爾汗", "type": "video", "sub": "FB · 111,838 播放", "tier": 3, "platform": "FB", "plays": 111838, "reach": 118338, "shares": 3, "comments": 12, "likes": 1114, "length_sec": 9, "created_date": "2026-05-30"}, {"id": "v:18095416114858893", "name": "沒有雞湯 只能說", "fullName": "沒有雞湯 只能說開掛前的路是孤獨的 ！ 請學會自洽 與自愈的能力 。 💪💪💪💪  鼓勵跟我一樣在創業路上不斷披荊斬棘的孤勇者 ！   #用加盟奶茶店的錢讓你輕鬆入局成為珠寶店老闆", "type": "video", "sub": "IG · 111,691 播放", "tier": 3, "platform": "IG", "plays": 111691, "reach": 72539, "shares": 51, "comments": 45, "likes": 1618, "length_sec": 0, "created_date": "2026-04-08"}, {"id": "v:17858628633626189", "name": "這集解密中亞 中", "fullName": "這集解密中亞 中東人 眼睫毛長的秘密  #首頁連結加入溱姐寵粉社群 #珠寶 #異國婚姻", "type": "video", "sub": "IG · 106,137 播放", "tier": 3, "platform": "IG", "plays": 106137, "reach": 74457, "shares": 628, "comments": 247, "likes": 2232, "length_sec": 0, "created_date": "2026-04-09"}, {"id": "v:18383852881094804", "name": "想賺到真正的財富", "fullName": "想賺到真正的財富，請看完這7部片 ！ 提早了解學校跟父母都沒教你的財富真相 #首頁鏈接加入溱姐寵粉社群 #珠寶#致富邏輯 #階級翻轉#翻身", "type": "video", "sub": "IG · 101,897 播放", "tier": 3, "platform": "IG", "plays": 101897, "reach": 81171, "shares": 2449, "comments": 4, "likes": 2512, "length_sec": 0, "created_date": "2026-03-23"}, {"id": "v:18085696079196386", "name": "異國文化大衝擊 ", "fullName": "異國文化大衝擊  為什麼中東女生要包那麼緊？  #首頁連結加入溱姐寵粉社群 #異國婚姻 #異國文化", "type": "video", "sub": "IG · 101,706 播放", "tier": 3, "platform": "IG", "plays": 101706, "reach": 82051, "shares": 190, "comments": 52, "likes": 2290, "length_sec": 0, "created_date": "2026-03-31"}, {"id": "v:2423091614769057", "name": "我娶老婆的真正原", "fullName": "我娶老婆的真正原因  首頁連結加入溱姐寵粉社群#珠寶  #異國婚姻 #泰熙爾汗#結婚", "type": "video", "sub": "FB · 94,871 播放", "tier": 3, "platform": "FB", "plays": 94871, "reach": 114329, "shares": 8, "comments": 38, "likes": 1213, "length_sec": 13, "created_date": "2026-06-11"}, {"id": "v:17945036784159116", "name": "假裝親老公⋯ 🤣", "fullName": "假裝親老公⋯ 🤣😂😅  其實泰熙爾汗 配合度真的很高 🥰 #首頁連結加入溱姐寵粉社群 #異國婚姻 #夫妻日常", "type": "video", "sub": "IG · 87,924 播放", "tier": 3, "platform": "IG", "plays": 87924, "reach": 50640, "shares": 45, "comments": 18, "likes": 1360, "length_sec": 0, "created_date": "2026-04-17"}, {"id": "v:17854731216634052", "name": "這次為12星座設", "fullName": "這次為12星座設計了加強版能量手串。  精準對應財運、桃花與個人磁場。  每個星座限量50條。  市價2000元，寵粉價800元。  兩人同行1100，直接折扣500 活動至 4月5日晚上11:59截止。 留言 星座 發給您相關資訊！ #首頁鏈接加入溱姐寵粉社群 #珠寶 #宇宙能量＃星座#溱姐寵粉", "type": "video", "sub": "IG · 83,587 播放", "tier": 3, "platform": "IG", "plays": 83587, "reach": 49332, "shares": 209, "comments": 2620, "likes": 1442, "length_sec": 0, "created_date": "2026-03-28"}, {"id": "v:1312907507434093", "name": "記住這個配戴法則", "fullName": "記住這個配戴法則 能讓水晶能量發揮最大作用！ #首頁鏈接加入溱姐寵粉社區 #珠寶#水晶佩戴＃珠寶知識", "type": "video", "sub": "FB · 73,809 播放", "tier": 3, "platform": "FB", "plays": 73809, "reach": 73771, "shares": 156, "comments": 7, "likes": 1094, "length_sec": 29, "created_date": "2026-05-06"}, {"id": "v:18102135334945462", "name": "懷孕 很想吃臭豆", "fullName": "懷孕 很想吃臭豆腐 感謝 老公怕的要死 還幫我買   #首頁連結加入溱姐寵粉社群 #珠寶  #異國夫婦 #日常", "type": "video", "sub": "IG · 72,199 播放", "tier": 3, "platform": "IG", "plays": 72199, "reach": 41809, "shares": 45, "comments": 19, "likes": 1265, "length_sec": 0, "created_date": "2026-04-30"}, {"id": "v:18017984537667375", "name": "工作再忙 也有1", "fullName": "工作再忙 也有100種方法寵老媽  錢賺了就是花在自己愛的人身上  #首頁連結加入溱姐寵粉社群#珠寶#母親節", "type": "video", "sub": "IG · 66,778 播放", "tier": 3, "platform": "IG", "plays": 66778, "reach": 44104, "shares": 23, "comments": 1, "likes": 889, "length_sec": 0, "created_date": "2026-04-10"}, {"id": "v:2218170812321971", "name": "100 坪別墅 ", "fullName": "100 坪別墅  巴基斯坦跟台灣的房價差多少？  #首頁連結加入溱姐寵粉社群#珠寶 #外國人在台灣", "type": "video", "sub": "FB · 65,834 播放", "tier": 3, "platform": "FB", "plays": 65834, "reach": 101461, "shares": 32, "comments": 62, "likes": 749, "length_sec": 41, "created_date": "2026-04-13"}, {"id": "v:1738930170912637", "name": "嫁給外國老公會不", "fullName": "嫁給外國老公會不會哭？不會，只會變胖！  #首頁連結加入溱姐寵粉社群 #異國婚姻 #幸福肥 #夫妻日常 #婚姻", "type": "video", "sub": "FB · 63,465 播放", "tier": 3, "platform": "FB", "plays": 63465, "reach": 82530, "shares": 14, "comments": 36, "likes": 869, "length_sec": 41, "created_date": "2026-05-22"}, {"id": "v:2671660139876729", "name": "嫌老婆胖的結果…", "fullName": "嫌老婆胖的結果…  #首頁連結加入溱姐寵粉社群 #珠寶#異國婚姻", "type": "video", "sub": "FB · 61,720 播放", "tier": 3, "platform": "FB", "plays": 61720, "reach": 76251, "shares": 9, "comments": 35, "likes": 1462, "length_sec": 19, "created_date": "2026-04-21"}, {"id": "v:18078111407410101", "name": "我10年前去巴基", "fullName": "我10年前去巴基斯坦挖礦， 時遇到最尷尬的文化衝擊 ！ 至今都覺得台灣女性友善程度非常幸福 #首頁連結加入溱姐寵粉社群 #珠寶＃巴基斯坦＃異國文化", "type": "video", "sub": "IG · 61,206 播放", "tier": 3, "platform": "IG", "plays": 61206, "reach": 36021, "shares": 321, "comments": 29, "likes": 1031, "length_sec": 0, "created_date": "2026-04-12"}, {"id": "v:18121638082615599", "name": "看一下哪些寶石不", "fullName": "看一下哪些寶石不建議帶 12月份出生 不適合帶的寶石  你知道 六月跟一月出生的不適合帶什麼？  #首頁連結加入溱姐寵粉社群 #珠寶", "type": "video", "sub": "IG · 60,462 播放", "tier": 3, "platform": "IG", "plays": 60462, "reach": 36481, "shares": 87, "comments": 52, "likes": 466, "length_sec": 0, "created_date": "2026-04-02"}, {"id": "v:18155946157397922", "name": "一件高訂禮服沒有", "fullName": "一件高訂禮服沒有經過客人的同意，就直接讓模特穿出亮相，真的是直接毁了這個品牌 😱  太不尊重客人了，這個是百萬專屬高訂，不是熱銷品 你認同嗎？   #首頁連結加入溱姐寵粉社群 #珠寶 #高訂", "type": "video", "sub": "IG · 58,046 播放", "tier": 3, "platform": "IG", "plays": 58046, "reach": 44631, "shares": 35, "comments": 0, "likes": 996, "length_sec": 0, "created_date": "2026-04-13"}, {"id": "v:18060319211405167", "name": "我們這一家  每", "fullName": "我們這一家  每一個孩子都有一顆屬於自己的寶石，雖然老大不在了，但是他永遠都在我的手上陪伴著我，沒錯就是你們看到的這一顆祖母綠戒指 把它叫做「上帝之吻 」 「阿拉之吻」   你可以跟我一樣把新上面的傷痛或者懷念做成有意義的珠寶長伴你左右 ❤️  #首頁連結加入溱姐寵粉社群 #混血寶寶 #異國婚姻 #珠寶#紀念", "type": "video", "sub": "IG · 55,642 播放", "tier": 3, "platform": "IG", "plays": 55642, "reach": 35299, "shares": 18, "comments": 1, "likes": 941, "length_sec": 0, "created_date": "2026-04-04"}, {"id": "v:1244556247419577", "name": "假裝親老公⋯ 🤣", "fullName": "假裝親老公⋯ 🤣😂😅  其實泰熙爾汗 配合度真的很高 🥰 #首頁連結加入溱姐寵粉社群 #異國婚姻 #夫妻日常", "type": "video", "sub": "FB · 53,073 播放", "tier": 3, "platform": "FB", "plays": 53073, "reach": 59997, "shares": 0, "comments": 16, "likes": 698, "length_sec": 23, "created_date": "2026-04-17"}, {"id": "v:4342797209371871", "name": "我學了新中文 要", "fullName": "我學了新中文 要來套路老婆 哈哈😂 說完快跑 ⋯ 不然會被揍  #首頁連結加入溱姐寵粉社群 #異國婚姻 #老外學中文", "type": "video", "sub": "FB · 50,835 播放", "tier": 3, "platform": "FB", "plays": 50835, "reach": 51556, "shares": 4, "comments": 15, "likes": 936, "length_sec": 9, "created_date": "2026-04-18"}, {"id": "v:18065562578662497", "name": "一眼就愛上 ”溱", "fullName": "一眼就愛上 ”溱姐與泰熙爾汗的 相遇  確認過眼神 感覺不像神經病 但說出來的話  有點不受控  遇到戀愛腦 的老公 真的有點瘋狂   一眼就要娶回家 😂 真的是神經病 般的故事劇情 ！  #首頁連結加入溱姐寵粉社群 #珠寶#異國婚姻#愛情故事", "type": "video", "sub": "IG · 50,028 播放", "tier": 3, "platform": "IG", "plays": 50028, "reach": 34383, "shares": 48, "comments": 3, "likes": 656, "length_sec": 0, "created_date": "2026-04-01"}], "links": [{"source": "s:Meta", "target": "s:Shopline"}, {"source": "agent:中控 /徐炳昌 /深圳", "target": "agent:業務 /江瑩/ 深圳"}, {"source": "agent:客服跟單/陳怡萍/深圳", "target": "agent:業務/以恩/彰化"}, {"source": "agent:客服跟單/陳怡萍/深圳", "target": "agent:業務 /江瑩/ 深圳"}, {"source": "agent:業務 /江瑩/ 深圳", "target": "agent:業務/以恩/彰化"}, {"source": "v:17848129185696999", "target": "s:Meta"}, {"source": "v:1685331449569077", "target": "s:Meta"}, {"source": "v:867735193013841", "target": "s:Meta"}, {"source": "v:2199022047515003", "target": "s:Meta"}, {"source": "v:2057824875115921", "target": "s:Meta"}, {"source": "v:18096262501848768", "target": "s:Meta"}, {"source": "v:1508945813450752", "target": "s:Meta"}, {"source": "v:1628347578388104", "target": "s:Meta"}, {"source": "v:754034477675498", "target": "s:Meta"}, {"source": "v:977413211655428", "target": "s:Meta"}, {"source": "v:18095416114858893", "target": "s:Meta"}, {"source": "v:17858628633626189", "target": "s:Meta"}, {"source": "v:18383852881094804", "target": "s:Meta"}, {"source": "v:18085696079196386", "target": "s:Meta"}, {"source": "v:2423091614769057", "target": "s:Meta"}, {"source": "v:17945036784159116", "target": "s:Meta"}, {"source": "v:17854731216634052", "target": "s:Meta"}, {"source": "v:1312907507434093", "target": "s:Meta"}, {"source": "v:18102135334945462", "target": "s:Meta"}, {"source": "v:18017984537667375", "target": "s:Meta"}, {"source": "v:2218170812321971", "target": "s:Meta"}, {"source": "v:1738930170912637", "target": "s:Meta"}, {"source": "v:2671660139876729", "target": "s:Meta"}, {"source": "v:18078111407410101", "target": "s:Meta"}, {"source": "v:18121638082615599", "target": "s:Meta"}, {"source": "v:18155946157397922", "target": "s:Meta"}, {"source": "v:18060319211405167", "target": "s:Meta"}, {"source": "v:1244556247419577", "target": "s:Meta"}, {"source": "v:4342797209371871", "target": "s:Meta"}, {"source": "v:18065562578662497", "target": "s:Meta"}, {"source": "agent:業務 /江瑩/ 深圳", "target": "s:Shopline"}, {"source": "agent:客服跟單/陳怡萍/深圳", "target": "s:Shopline"}, {"source": "agent:業務/以恩/彰化", "target": "s:Shopline"}, {"source": "agent:業務/均睿/彰化", "target": "s:Shopline"}, {"source": "agent:中控 /徐炳昌 /深圳", "target": "s:Shopline"}, {"source": "agent:代理/楊淑錚/台北", "target": "s:Shopline"}, {"source": "agent:行政文書助理/蔡宇綾/彰化總部", "target": "s:Shopline"}, {"source": "agent:店務客服/朱柏境/彰化", "target": "s:Shopline"}, {"source": "agent:客服/尤藝/彰化", "target": "s:Shopline"}, {"source": "agent:B級代理/ 甘秀薇 / 新北市", "target": "s:Shopline"}, {"source": "agent:代理/楊依靈/台南", "target": "s:Shopline"}, {"source": "agent:代理/林志娟/台中", "target": "s:Shopline"}, {"source": "agent:店務/沛珊2/台中文心", "target": "s:Shopline"}], "kpi": {"total_rev": 10280617, "total_orders": 1422, "total_customers": 1078, "avg_aov": 7229, "period_label": "近 60 天", "total_plays": 3168969, "video_count": 607, "video_updated_at": "2026-06-18T13:54:09.630070"}, "dataview": {"top_videos": [{"name": "突然破水 是嚇到 但沒有辦法綁住我 ", "tag": "IG · 318K", "mtime": "2026-04-26"}, {"name": "你以為綠松石跟蜜蠟很便宜嗎 ？@ 遊", "tag": "FB · 276K", "mtime": "2026-04-24"}, {"name": "懷孕 很想吃臭豆腐 感謝 老公怕的要", "tag": "FB · 224K", "mtime": "2026-04-30"}, {"name": "在台灣，你看不出有錢跟窮 因為⋯  ", "tag": "FB · 152K", "mtime": "2026-04-22"}, {"name": "用美琪肥皂就可以試試925銀真假！ ", "tag": "FB · 133K", "mtime": "2026-05-09"}, {"name": "蘇珊娜，身價千億的 BMW 女老闆。", "tag": "IG · 122K", "mtime": "2026-04-10"}], "top_agents": [{"name": "業務 /江瑩/ 深圳", "tag": "NT$ 1,668K", "mtime": "70 單"}, {"name": "客服跟單/陳怡萍/深圳", "tag": "NT$ 952K", "mtime": "53 單"}, {"name": "業務/以恩/彰化", "tag": "NT$ 314K", "mtime": "44 單"}, {"name": "業務/均睿/彰化", "tag": "NT$ 168K", "mtime": "10 單"}, {"name": "中控 /徐炳昌 /深圳", "tag": "NT$ 166K", "mtime": "13 單"}, {"name": "代理/楊淑錚/台北", "tag": "NT$ 139K", "mtime": "1 單"}], "utm_channels": []}, "generated_at": "2026-06-18 22:51"};
 
 const TYPE_COLOR = {
-  persona: 0xff3d8a, agent: 0xff66a8,
-  system: 0x00f0ff, moc: 0xffb800,
-  project: 0x9b5cff, note: 0xddddff,
-  video: 0xff8800,                  // 影音橘色
+  anchor: 0x00f0ff,
+  agent:  0xff3d8a,
+  video:  0xff8800,
 };
 const TYPE_LABEL_NAME = {
-  persona: 'PERSONA', agent: 'BUSINESS AGENT',
-  system: 'SYSTEM', moc: 'MAP OF CONTENT',
-  project: 'PROJECT', note: 'NOTE',
-  video: 'SHORT VIDEO',
+  anchor: 'SYSTEM ANCHOR',
+  agent:  'BUSINESS AGENT',
+  video:  'SHORT VIDEO',
 };
 
 function fmtN(n) { return (n||0).toLocaleString(); }
@@ -399,93 +258,30 @@ function fmtF(n) {
   return 'NT$' + n;
 }
 
-// ─── HUD ───
+// Topbar KPI
 const k = DATA.kpi || {};
 document.getElementById('t-rev').textContent  = fmtF(k.total_rev);
-document.getElementById('t-ord').textContent  = (k.total_orders||0) + ' ORD';
-document.getElementById('t-cust').textContent = (k.total_customers||0) + ' CUS';
-document.getElementById('t-aov').textContent  = 'AOV ' + fmtN(k.avg_aov);
+document.getElementById('t-ord').textContent  = (k.total_orders||0) + ' 訂單';
+document.getElementById('t-cust').textContent = (k.total_customers||0) + ' 客戶';
+document.getElementById('t-plays').textContent = '▶ ' + (((k.total_plays||0)/1000) | 0) + 'K 播放';
 document.getElementById('t-period').textContent = k.period_label || '近 60 天';
-
-const st = DATA.stock || {};
-document.getElementById('s-sym').textContent = st.symbol || '--';
-document.getElementById('s-name').textContent = st.name || '';
-document.getElementById('s-price').textContent = (st.price||0).toFixed(1);
-const chgEl = document.getElementById('s-chg');
-const isUp = (st.change||0) >= 0;
-chgEl.className = 'chg ' + (isUp?'up':'down');
-chgEl.textContent = (isUp?'▲ +':'▼ ') + Math.abs(st.change||0).toFixed(1) + ' (' + (isUp?'+':'') + (st.pct||0).toFixed(2) + '%)';
+document.getElementById('gen-at').textContent = DATA.generated_at || '';
 
 function renderDv(el, items) {
-  el.innerHTML = items.map(i => `<div class="dv-row"><span class="name">${i.name}</span><span class="meta">${i.tag||''} · ${i.mtime||''}</span></div>`).join('');
+  el.innerHTML = items.map(i => `
+    <div class="dv-row">
+      <span class="name">${i.name}</span>
+      <span class="meta">${i.tag||''} <span class="pct">${i.mtime||''}</span></span>
+    </div>
+  `).join('');
 }
-renderDv(document.getElementById('dv-ai'),   (DATA.dataview||{}).ai_brain || []);
-renderDv(document.getElementById('dv-proj'), (DATA.dataview||{}).projects || []);
-renderDv(document.getElementById('dv-rec'),  (DATA.dataview||{}).recent_notes || []);
-
-const mocEl = document.getElementById('moc-list');
-(DATA.moc_tree || []).forEach(m => {
-  const div = document.createElement('div');
-  div.className = 'moc-row';
-  div.innerHTML = `<span><span class="icon">▶</span>${m.name}</span><span class="cnt">${m.children_count||0}</span>`;
-  mocEl.appendChild(div);
-});
-
-const chatBody = document.getElementById('chat-body');
-(DATA.ai_chat || []).forEach(m => {
-  const div = document.createElement('div');
-  div.className = 'chat-msg';
-  const cls = m.who === 'JARVIS' ? 'who jarvis' : 'who';
-  div.innerHTML = `<span class="${cls}">${m.who} ›</span>${m.msg}`;
-  chatBody.appendChild(div);
-});
-
-// ─── Stock mini chart (fake candlesticks) ───
-function drawStockChart() {
-  const cv = document.getElementById('stock-chart');
-  const ctx = cv.getContext('2d');
-  const W = cv.width = cv.clientWidth * devicePixelRatio;
-  const H = cv.height = 100 * devicePixelRatio;
-  ctx.scale(devicePixelRatio, devicePixelRatio);
-  const w = cv.clientWidth, h = 100;
-  // 60 fake bars
-  const bars = [];
-  let p = (st.price || 1000) * 0.95;
-  for (let i = 0; i < 60; i++) {
-    const o = p;
-    const c = o + (Math.random()-0.48) * (st.price||1000) * 0.012;
-    const hi = Math.max(o,c) + Math.random() * (st.price||1000) * 0.006;
-    const lo = Math.min(o,c) - Math.random() * (st.price||1000) * 0.006;
-    bars.push({o, c, hi, lo});
-    p = c;
-  }
-  const lows = bars.map(b=>b.lo);
-  const his  = bars.map(b=>b.hi);
-  const minP = Math.min(...lows);
-  const maxP = Math.max(...his);
-  const range = maxP - minP || 1;
-  const bw = w / bars.length;
-  bars.forEach((b, i) => {
-    const x = i * bw + bw/2;
-    const yO = h - ((b.o - minP) / range) * (h - 20) - 10;
-    const yC = h - ((b.c - minP) / range) * (h - 20) - 10;
-    const yH = h - ((b.hi - minP) / range) * (h - 20) - 10;
-    const yL = h - ((b.lo - minP) / range) * (h - 20) - 10;
-    const up = b.c >= b.o;
-    ctx.strokeStyle = up ? '#00ff88' : '#ff3d3d';
-    ctx.fillStyle   = up ? '#00ff88' : '#ff3d3d';
-    ctx.beginPath();
-    ctx.moveTo(x, yH); ctx.lineTo(x, yL); ctx.stroke();
-    const bodyW = Math.max(2, bw * 0.6);
-    ctx.fillRect(x - bodyW/2, Math.min(yO,yC), bodyW, Math.abs(yC-yO) || 1);
-  });
-}
-setTimeout(drawStockChart, 100);
+renderDv(document.getElementById('dv-videos'), (DATA.dataview||{}).top_videos  || []);
+renderDv(document.getElementById('dv-agents'), (DATA.dataview||{}).top_agents  || []);
+renderDv(document.getElementById('dv-utm'),    (DATA.dataview||{}).utm_channels || []);
 
 // ═══════════════════════════════════════════════════════════
 // THREE.JS 3D 場景
 // ═══════════════════════════════════════════════════════════
-
 const canvas = document.getElementById('scene-canvas');
 const W = () => window.innerWidth;
 const H = () => window.innerHeight;
@@ -495,12 +291,11 @@ renderer.setSize(W(), H());
 renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
 
 const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0x02010a, 0.0007);   // 降低 fog 強度，中央更清楚
+scene.fog = new THREE.FogExp2(0x02010a, 0.0007);
 
 const camera = new THREE.PerspectiveCamera(60, W()/H(), 0.1, 3000);
 camera.position.set(0, 60, 480);
 
-// OrbitControls：若 CDN 沒載入成功，做 fallback（手動拖拉旋轉）
 let controls = null;
 if (typeof THREE.OrbitControls === 'function') {
   controls = new THREE.OrbitControls(camera, canvas);
@@ -510,11 +305,9 @@ if (typeof THREE.OrbitControls === 'function') {
   controls.autoRotateSpeed = 0.35;
   controls.minDistance = 200;
   controls.maxDistance = 900;
-} else {
-  console.warn('[JARVIS] OrbitControls 未載入，使用 fallback 旋轉');
 }
 let cameraAngle = 0;
-let autoRotate = controls ? false : true;  // fallback 模式直接自動轉
+let autoRotate = controls ? false : true;
 let isDragging = false, dragStartX = 0, dragStartY = 0, dragAngleX = 0, dragAngleY = 0;
 if (!controls) {
   canvas.addEventListener('pointerdown', e => { isDragging = true; dragStartX = e.clientX; dragStartY = e.clientY; autoRotate = false; });
@@ -533,42 +326,28 @@ if (!controls) {
   }, { passive: false });
 }
 
-// ─── 中央 wireframe sphere（多層） ───
+// Core sphere
 const coreGroup = new THREE.Group();
 scene.add(coreGroup);
-
-// 外層 icosahedron wireframe（強化能見度）
 const icoGeo = new THREE.IcosahedronGeometry(140, 3);
-const icoWire = new THREE.WireframeGeometry(icoGeo);
-const icoLines = new THREE.LineSegments(icoWire, new THREE.LineBasicMaterial({
+const icoLines = new THREE.LineSegments(new THREE.WireframeGeometry(icoGeo), new THREE.LineBasicMaterial({
   color: 0x00f0ff, transparent: true, opacity: 0.65, depthWrite: false,
 }));
 coreGroup.add(icoLines);
-
-// 第二層 icosahedron（不同細度，疊出網狀）
 const icoGeo2 = new THREE.IcosahedronGeometry(155, 2);
-const icoWire2 = new THREE.WireframeGeometry(icoGeo2);
-const icoLines2 = new THREE.LineSegments(icoWire2, new THREE.LineBasicMaterial({
+const icoLines2 = new THREE.LineSegments(new THREE.WireframeGeometry(icoGeo2), new THREE.LineBasicMaterial({
   color: 0xff3d8a, transparent: true, opacity: 0.30, depthWrite: false,
 }));
 coreGroup.add(icoLines2);
-
-// 內層 sphere with backside emissive（提高透明度讓內光可見）
-const innerGeo = new THREE.SphereGeometry(115, 32, 32);
-const innerMat = new THREE.MeshBasicMaterial({
+const innerSphere = new THREE.Mesh(new THREE.SphereGeometry(115, 32, 32), new THREE.MeshBasicMaterial({
   color: 0xff3d8a, transparent: true, opacity: 0.18, side: THREE.BackSide, depthWrite: false,
-});
-const innerSphere = new THREE.Mesh(innerGeo, innerMat);
+}));
 coreGroup.add(innerSphere);
-
-// 內核 sphere with frontside emissive（更顯眼的核心）
-const coreCore = new THREE.Mesh(
-  new THREE.SphereGeometry(40, 24, 24),
-  new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.18 })
-);
+const coreCore = new THREE.Mesh(new THREE.SphereGeometry(40, 24, 24), new THREE.MeshBasicMaterial({
+  color: 0xffffff, transparent: true, opacity: 0.18,
+}));
 coreGroup.add(coreCore);
 
-// 中心點光暈 (sprite)
 function makeGlowTexture(color) {
   const cv = document.createElement('canvas');
   cv.width = cv.height = 128;
@@ -581,15 +360,13 @@ function makeGlowTexture(color) {
   return new THREE.CanvasTexture(cv);
 }
 const coreGlow = new THREE.Sprite(new THREE.SpriteMaterial({
-  map: makeGlowTexture('rgb(255,61,138)'),
-  blending: THREE.AdditiveBlending,
-  transparent: true,
-  depthWrite: false,
+  map: makeGlowTexture('rgb(255,61,138)'), blending: THREE.AdditiveBlending,
+  transparent: true, depthWrite: false,
 }));
 coreGlow.scale.set(280, 280, 1);
 coreGroup.add(coreGlow);
 
-// ─── 背景粒子場（3 層）───
+// 粒子場
 function makeParticles(count, rMin, rMax, baseSize, colorMix) {
   const pos = new Float32Array(count * 3);
   const col = new Float32Array(count * 3);
@@ -609,22 +386,52 @@ function makeParticles(count, rMin, rMax, baseSize, colorMix) {
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-  const mat = new THREE.PointsMaterial({
+  return new THREE.Points(geo, new THREE.PointsMaterial({
     size: baseSize, transparent: true, opacity: 0.85,
-    vertexColors: true,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-    sizeAttenuation: true,
-  });
-  return new THREE.Points(geo, mat);
+    vertexColors: true, blending: THREE.AdditiveBlending,
+    depthWrite: false, sizeAttenuation: true,
+  }));
 }
 const farStars  = makeParticles(3500, 800, 1600, 2.0, {white:0.85, pink:0.07, cyan:0.05, purple:0.03});
 const midStars  = makeParticles(1500, 400, 800,  2.2, {white:0.55, pink:0.20, cyan:0.15, purple:0.10});
 const nearGlow  = makeParticles(500,  180, 380,  3.5, {white:0.30, pink:0.30, cyan:0.20, purple:0.20});
 scene.add(farStars, midStars, nearGlow);
 
-// ─── 螺旋星系（spiral galaxy）───
-// 用對數螺旋公式分布粒子，做出真實銀河旋臂結構
+// 星雲
+function makeNebulaTexture(c1, c2) {
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = 256;
+  const ctx = cv.getContext('2d');
+  const g = ctx.createRadialGradient(128, 128, 10, 128, 128, 128);
+  g.addColorStop(0, c1); g.addColorStop(0.35, c2); g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 256, 256);
+  return new THREE.CanvasTexture(cv);
+}
+const nebulaPalettes = [
+  ['rgba(255,61,138,.55)', 'rgba(155,92,255,.20)'],
+  ['rgba(0,240,255,.50)',  'rgba(155,92,255,.18)'],
+  ['rgba(255,184,0,.45)',  'rgba(255,61,138,.15)'],
+  ['rgba(155,92,255,.50)', 'rgba(0,240,255,.15)'],
+];
+const nebulas = [];
+for (let i = 0; i < 7; i++) {
+  const pal = nebulaPalettes[i % nebulaPalettes.length];
+  const mat = new THREE.SpriteMaterial({
+    map: makeNebulaTexture(pal[0], pal[1]), blending: THREE.AdditiveBlending,
+    transparent: true, depthWrite: false, opacity: 0.8,
+  });
+  const sprite = new THREE.Sprite(mat);
+  const size = 450 + Math.random() * 350;
+  sprite.scale.set(size, size, 1);
+  const r = 700 + Math.random() * 500;
+  const theta = Math.random() * Math.PI * 2;
+  const phi = Math.acos(2 * Math.random() - 1);
+  sprite.position.set(r*Math.sin(phi)*Math.cos(theta), r*Math.sin(phi)*Math.sin(theta)*0.6, r*Math.cos(phi));
+  sprite.userData = { baseOp: 0.8 };
+  scene.add(sprite); nebulas.push(sprite);
+}
+
+// 螺旋星系
 function makeSpiralGalaxy(count, radius, arms = 3, palette = 'pink') {
   const pos = new Float32Array(count * 3);
   const col = new Float32Array(count * 3);
@@ -632,113 +439,36 @@ function makeSpiralGalaxy(count, radius, arms = 3, palette = 'pink') {
     const t = i / count;
     const armIndex = i % arms;
     const armOffset = (armIndex / arms) * Math.PI * 2;
-    // 對數螺旋 + 隨機抖動讓旋臂有厚度
     const angle = t * Math.PI * 5.5 + armOffset + (Math.random() - 0.5) * 0.6;
-    const r = Math.pow(t, 0.55) * radius;            // sqrt-ish，核心密集
+    const r = Math.pow(t, 0.55) * radius;
     const jitter = (Math.random() - 0.5) * radius * 0.04;
     pos[i*3]   = (r + jitter) * Math.cos(angle);
-    pos[i*3+1] = (Math.random() - 0.5) * radius * 0.06;  // 銀河盤面薄
+    pos[i*3+1] = (Math.random() - 0.5) * radius * 0.06;
     pos[i*3+2] = (r + jitter) * Math.sin(angle);
-
-    // 顏色：核心暖白黃、旋臂依 palette、邊緣冷藍
-    if (t < 0.18) {
-      col[i*3]=1; col[i*3+1]=0.92; col[i*3+2]=0.72;   // 核心 warm
-    } else if (t < 0.65) {
+    if (t < 0.18) { col[i*3]=1; col[i*3+1]=0.92; col[i*3+2]=0.72; }
+    else if (t < 0.65) {
       if (palette === 'pink')  { col[i*3]=1;   col[i*3+1]=0.42; col[i*3+2]=0.72; }
       if (palette === 'cyan')  { col[i*3]=0.2; col[i*3+1]=0.85; col[i*3+2]=1; }
       if (palette === 'purple'){ col[i*3]=0.7; col[i*3+1]=0.4;  col[i*3+2]=1; }
-    } else {
-      col[i*3]=0.55; col[i*3+1]=0.72; col[i*3+2]=1;   // 邊緣 cold blue
-    }
+    } else { col[i*3]=0.55; col[i*3+1]=0.72; col[i*3+2]=1; }
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-  const mat = new THREE.PointsMaterial({
+  const galaxy = new THREE.Points(geo, new THREE.PointsMaterial({
     size: 2.2, transparent: true, opacity: 0.85,
-    vertexColors: true,
-    blending: THREE.AdditiveBlending,
+    vertexColors: true, blending: THREE.AdditiveBlending,
     depthWrite: false, sizeAttenuation: true,
-  });
-  const galaxy = new THREE.Points(geo, mat);
+  }));
   galaxy.userData = { baseOp: 0.85, autoRotateSpeed: 0.0008 };
   return galaxy;
 }
-
-// 3 個遠景螺旋星系，不同方位、角度、配色
 const galaxies = [];
-const galaxyA = makeSpiralGalaxy(3500, 750, 3, 'pink');
-galaxyA.position.set(-1100, 250, -700);
-galaxyA.rotation.set(0.55, 0.35, 0);
-scene.add(galaxyA); galaxies.push(galaxyA);
+const gA = makeSpiralGalaxy(3500, 750, 3, 'pink'); gA.position.set(-1100, 250, -700); gA.rotation.set(0.55, 0.35, 0); scene.add(gA); galaxies.push(gA);
+const gB = makeSpiralGalaxy(2500, 580, 4, 'cyan'); gB.position.set(950, -350, -850); gB.rotation.set(-0.45, 1.1, 0.2); scene.add(gB); galaxies.push(gB);
+const gC = makeSpiralGalaxy(1800, 480, 2, 'purple'); gC.position.set(150, 700, -1100); gC.rotation.set(1.0, 0.6, -0.3); scene.add(gC); galaxies.push(gC);
 
-const galaxyB = makeSpiralGalaxy(2500, 580, 4, 'cyan');
-galaxyB.position.set(950, -350, -850);
-galaxyB.rotation.set(-0.45, 1.1, 0.2);
-scene.add(galaxyB); galaxies.push(galaxyB);
-
-const galaxyC = makeSpiralGalaxy(1800, 480, 2, 'purple');
-galaxyC.position.set(150, 700, -1100);
-galaxyC.rotation.set(1.0, 0.6, -0.3);
-scene.add(galaxyC); galaxies.push(galaxyC);
-
-// ─── 星雲 nebula sprites（6 個大型彩色光暈雲）───
-function makeNebulaTexture(c1, c2) {
-  const cv = document.createElement('canvas');
-  cv.width = cv.height = 256;
-  const ctx = cv.getContext('2d');
-  const g = ctx.createRadialGradient(128, 128, 10, 128, 128, 128);
-  g.addColorStop(0, c1);
-  g.addColorStop(0.35, c2);
-  g.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, 256, 256);
-  return new THREE.CanvasTexture(cv);
-}
-const nebulaPalettes = [
-  ['rgba(255,61,138,.55)', 'rgba(155,92,255,.20)'],   // pink → purple
-  ['rgba(0,240,255,.50)',  'rgba(155,92,255,.18)'],   // cyan → purple
-  ['rgba(255,184,0,.45)',  'rgba(255,61,138,.15)'],   // gold → pink
-  ['rgba(155,92,255,.50)', 'rgba(0,240,255,.15)'],    // purple → cyan
-];
-const nebulas = [];
-for (let i = 0; i < 7; i++) {
-  const pal = nebulaPalettes[i % nebulaPalettes.length];
-  const tex = makeNebulaTexture(pal[0], pal[1]);
-  const mat = new THREE.SpriteMaterial({
-    map: tex, blending: THREE.AdditiveBlending,
-    transparent: true, depthWrite: false, opacity: 0.8,
-  });
-  const sprite = new THREE.Sprite(mat);
-  const size = 450 + Math.random() * 350;
-  sprite.scale.set(size, size, 1);
-  // 球外圍隨機分布（避開正中央）
-  const r = 700 + Math.random() * 500;
-  const theta = Math.random() * Math.PI * 2;
-  const phi = Math.acos(2 * Math.random() - 1);
-  sprite.position.set(
-    r * Math.sin(phi) * Math.cos(theta),
-    r * Math.sin(phi) * Math.sin(theta) * 0.6,  // y 軸壓扁，星雲偏盤狀
-    r * Math.cos(phi)
-  );
-  sprite.userData = { baseOp: 0.8 };
-  scene.add(sprite);
-  nebulas.push(sprite);
-}
-
-// ─── 戰術地平面（網格） ───
-const grid = new THREE.GridHelper(2000, 40, 0x00f0ff, 0x00f0ff);
-grid.material.transparent = true;
-grid.material.opacity = 0.06;
-grid.position.y = -350;
-scene.add(grid);
-const grid2 = new THREE.GridHelper(2000, 40, 0xff3d8a, 0xff3d8a);
-grid2.material.transparent = true;
-grid2.material.opacity = 0.04;
-grid2.position.y = -350;
-grid2.rotation.x = 0.001;
-scene.add(grid2);
-
-// ─── 節點（球面 Fibonacci 分布在不同 layer）───
+// ─── 節點分布（按類別到不同層）───
 function fibSphere(n, radius, offset = 0) {
   const points = [];
   const phi = Math.PI * (3 - Math.sqrt(5));
@@ -746,57 +476,71 @@ function fibSphere(n, radius, offset = 0) {
     const y = 1 - ((i + offset) / (n - 1 + offset)) * 2;
     const r = Math.sqrt(Math.max(0, 1 - y * y));
     const theta = phi * (i + offset);
-    points.push([
-      Math.cos(theta) * r * radius,
-      y * radius,
-      Math.sin(theta) * r * radius,
-    ]);
+    points.push([Math.cos(theta) * r * radius, y * radius, Math.sin(theta) * r * radius]);
   }
   return points;
 }
 
 const nodes = DATA.nodes;
-// 把 nodes 按類別分到不同 orbit 層
 const layerCfg = {
-  moc:     { radius: 200, jitter: 25 },
-  persona: { radius: 240, jitter: 30 },
-  agent:   { radius: 270, jitter: 35 },
-  system:  { radius: 320, jitter: 40 },
-  project: { radius: 360, jitter: 30 },
-  note:    { radius: 410, jitter: 50 },
-  video:   { radius: 470, jitter: 55 },   // 影音最外圈，象徵「流量從外圍導入」
+  anchor: { radius: 0,   jitter: 0 },     // 錨點放近中央
+  agent:  { radius: 280, jitter: 35 },
+  video:  { radius: 470, jitter: 55 },
 };
 
-const node3D = [];  // {node, position THREE.Vector3, sprite, labelDiv}
+const node3D = [];
 const labelsLayer = document.getElementById('labels-layer');
-
-// 為每類分配位置
 const grouped = {};
 nodes.forEach(n => { (grouped[n.type] ||= []).push(n); });
 
+// 把兩個 anchor 手動放在 yz 平面對稱位置（影響資料流視覺）
+const anchorPositions = { 's:Meta': [0, 80, 0], 's:Shopline': [0, -80, 0] };
+
 Object.keys(grouped).forEach(type => {
   const arr = grouped[type];
+  if (type === 'anchor') {
+    arr.forEach(n => {
+      const p = anchorPositions[n.id] || [0, 0, 0];
+      const pos = new THREE.Vector3(p[0], p[1], p[2]);
+      const colorHex = '#' + TYPE_COLOR.anchor.toString(16).padStart(6, '0');
+      const tex = makeGlowTexture('rgb(0,240,255)');
+      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: tex, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false,
+      }));
+      sprite.scale.set(80, 80, 1);
+      sprite.position.copy(pos);
+      scene.add(sprite);
+      const div = document.createElement('div');
+      div.className = 'node-label anchor';
+      div.innerHTML = `${n.name}<span class="sub">${n.sub || ''}</span>`;
+      div.addEventListener('click', () => focusNode(n, pos));
+      labelsLayer.appendChild(div);
+      node3D.push({ node: n, pos, sprite, div });
+    });
+    return;
+  }
   const cfg = layerCfg[type] || { radius: 300, jitter: 30 };
   const points = fibSphere(arr.length, cfg.radius, Math.random() * 0.5);
   arr.forEach((n, i) => {
     const [x, y, z] = points[i];
-    // 加小擾動
     const jx = (Math.random() - 0.5) * cfg.jitter;
     const jy = (Math.random() - 0.5) * cfg.jitter;
     const jz = (Math.random() - 0.5) * cfg.jitter;
     const pos = new THREE.Vector3(x + jx, y + jy, z + jz);
 
-    // 節點 sprite (glow point)
-    const colorHex = '#' + TYPE_COLOR[type].toString(16).padStart(6, '0');
-    const tex = makeGlowTexture('rgb(' + parseInt(colorHex.slice(1,3),16) + ',' + parseInt(colorHex.slice(3,5),16) + ',' + parseInt(colorHex.slice(5,7),16) + ')');
-    // video sprite 大小由 plays 決定（log scale）
     let spriteSize;
     if (type === 'video') {
       const playsLog = Math.log10(Math.max(1, n.plays || 1));
-      spriteSize = 18 + Math.min(28, playsLog * 6);   // 18 ~ 46
+      spriteSize = 18 + Math.min(28, playsLog * 6);
+    } else if (type === 'agent') {
+      const revLog = Math.log10(Math.max(1, n.rev || 1));
+      spriteSize = 22 + Math.min(28, revLog * 4);
     } else {
-      spriteSize = type === 'persona' ? 60 : type === 'moc' ? 55 : type === 'system' ? 45 : type === 'agent' ? 38 : type === 'project' ? 32 : 22;
+      spriteSize = 30;
     }
+    const colorHex = TYPE_COLOR[type];
+    const rgbStr = 'rgb(' + ((colorHex>>16)&255) + ',' + ((colorHex>>8)&255) + ',' + (colorHex&255) + ')';
+    const tex = makeGlowTexture(rgbStr);
     const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
       map: tex, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false,
     }));
@@ -804,7 +548,6 @@ Object.keys(grouped).forEach(type => {
     sprite.position.copy(pos);
     scene.add(sprite);
 
-    // HTML label
     const div = document.createElement('div');
     div.className = 'node-label ' + type;
     div.innerHTML = `${n.name}${n.sub ? '<span class="sub">' + n.sub + '</span>' : ''}`;
@@ -815,14 +558,13 @@ Object.keys(grouped).forEach(type => {
   });
 });
 
-// ─── 連線 ───
+// 連線
 const linkLines = new THREE.Group();
 scene.add(linkLines);
 const nodeMap = {};
 node3D.forEach(nd => { nodeMap[nd.node.id] = nd; });
 
-// 連線 + 沿線流動的粒子
-const linkFlowParticles = [];  // { sprite, from, to, t, speed }
+const linkFlowParticles = [];
 DATA.links.forEach(l => {
   const src = typeof l.source === 'object' ? l.source.id : l.source;
   const tgt = typeof l.target === 'object' ? l.target.id : l.target;
@@ -831,127 +573,70 @@ DATA.links.forEach(l => {
   if (!a || !b) return;
   const geo = new THREE.BufferGeometry().setFromPoints([a.pos, b.pos]);
   let colorHex = 0x9b5cff, colorRgb = 'rgb(155,92,255)';
-  if (src.startsWith('v:') || tgt.startsWith('v:')) { colorHex = 0xff8800; colorRgb = 'rgb(255,136,0)'; }  // 影音流量橘
-  else if (src.startsWith('m:') || tgt.startsWith('m:')) { colorHex = 0xffb800; colorRgb = 'rgb(255,184,0)'; }
-  else if (src.startsWith('s:') || tgt.startsWith('s:')) { colorHex = 0x00f0ff; colorRgb = 'rgb(0,240,255)'; }
+  if (src.startsWith('v:') || tgt.startsWith('v:')) { colorHex = 0xff8800; colorRgb = 'rgb(255,136,0)'; }
+  else if (src.startsWith('s:Meta') && tgt.startsWith('s:Shopline')) { colorHex = 0x00f0ff; colorRgb = 'rgb(0,240,255)'; }
+  else if (src.startsWith('agent:') || tgt.startsWith('agent:')) { colorHex = 0xff3d8a; colorRgb = 'rgb(255,61,138)'; }
 
-  // 主線（提高 opacity .35 → .55，更明顯）
   const line = new THREE.Line(geo, new THREE.LineBasicMaterial({
     color: colorHex, transparent: true, opacity: 0.55, depthWrite: false,
   }));
   linkLines.add(line);
 
-  // 沿線流動的發光粒子（每條 1 個 sprite）
-  const flowTex = makeGlowTexture(colorRgb);
   const flowSprite = new THREE.Sprite(new THREE.SpriteMaterial({
-    map: flowTex, blending: THREE.AdditiveBlending,
+    map: makeGlowTexture(colorRgb), blending: THREE.AdditiveBlending,
     transparent: true, depthWrite: false, opacity: 0.95,
   }));
   flowSprite.scale.set(10, 10, 1);
   flowSprite.userData = { baseOp: 0.95 };
   scene.add(flowSprite);
   linkFlowParticles.push({
-    sprite: flowSprite,
-    from: a.pos,
-    to: b.pos,
-    t: Math.random(),
-    speed: 0.0025 + Math.random() * 0.003,
+    sprite: flowSprite, from: a.pos, to: b.pos,
+    t: Math.random(), speed: 0.0025 + Math.random() * 0.003,
   });
 });
 
-// ─── Label projection（每 frame 把 3D pos 投影到 2D）───
-const tmpVec = new THREE.Vector3();
-function updateLabels() {
-  const halfW = W() / 2, halfH = H() / 2;
-  node3D.forEach(nd => {
-    tmpVec.copy(nd.pos).project(camera);
-    const x = (tmpVec.x * halfW) + halfW;
-    const y = (-tmpVec.y * halfH) + halfH;
-    const inFront = tmpVec.z < 1;
-    nd.div.style.left = x + 'px';
-    nd.div.style.top  = y + 'px';
-    nd.div.style.display = inFront ? 'block' : 'none';
-    // focus mode 時 opacity 由 CSS class 控制；否則用距離計算
-    if (focusedNodeId) {
-      if (nd.node.id === focusedNodeId) {
-        nd.div.style.opacity = 1;
-      } else {
-        nd.div.style.opacity = '';  // 讓 CSS .focused .node-label 接管
-      }
-    } else {
-      const distance = camera.position.distanceTo(nd.pos);
-      const opacity = inFront ? Math.max(0.15, Math.min(1, 1 - (distance - 200) / 900)) : 0;
-      nd.div.style.opacity = opacity;
-    }
-  });
-}
-
-// ─── 鏡頭飛行補間（ease-out cubic 起飛快、落點慢 + dolly zoom）───
+// ─── 鏡頭飛行 ───
 let flyAnimId = null;
 function flyTo(targetCamPos, lookAtPos, duration = 2600) {
   if (flyAnimId !== null) cancelAnimationFrame(flyAnimId);
   if (controls) controls.autoRotate = false;
   else autoRotate = false;
-
   const startPos = camera.position.clone();
   const startTarget = controls ? controls.target.clone() : new THREE.Vector3(0, 0, 0);
   const startFov = camera.fov;
   const startTime = performance.now();
-
-  // ease-out quart：起飛瞬間快、尾端非常慢、有「滑入定位」感
-  function easeOutQuart(t) {
-    return 1 - Math.pow(1 - t, 4);
-  }
-
+  function easeOutQuart(t) { return 1 - Math.pow(1 - t, 4); }
   function tick() {
     const elapsed = performance.now() - startTime;
     const t = Math.min(1, elapsed / duration);
     const e = easeOutQuart(t);
-
     camera.position.lerpVectors(startPos, targetCamPos, e);
     const fovT = Math.sin(e * Math.PI);
     camera.fov = startFov - fovT * 6;
     camera.updateProjectionMatrix();
-
-    if (controls) {
-      controls.target.lerpVectors(startTarget, lookAtPos, e);
-      controls.update();
-    } else {
+    if (controls) { controls.target.lerpVectors(startTarget, lookAtPos, e); controls.update(); }
+    else {
       const cur = new THREE.Vector3().lerpVectors(startTarget, lookAtPos, e);
       camera.lookAt(cur);
     }
-
-    if (t < 1) {
-      flyAnimId = requestAnimationFrame(tick);
-    } else {
-      flyAnimId = null;
-      camera.fov = startFov;
-      camera.updateProjectionMatrix();
-    }
+    if (t < 1) { flyAnimId = requestAnimationFrame(tick); }
+    else { flyAnimId = null; camera.fov = startFov; camera.updateProjectionMatrix(); }
   }
   flyAnimId = requestAnimationFrame(tick);
 }
 
-// ─── Focus Mode：飛到節點後 dim 周圍 ───
+// Focus Mode
 let focusedNodeId = null;
 function enterFocusMode(nodeId) {
   focusedNodeId = nodeId;
   document.getElementById('labels-layer').classList.add('focused');
-  node3D.forEach(nd => {
-    nd.div.classList.toggle('is-focus', nd.node.id === nodeId);
-  });
-  // 連線淡化
+  node3D.forEach(nd => nd.div.classList.toggle('is-focus', nd.node.id === nodeId));
   linkLines.children.forEach(line => { line.material.opacity = 0.06; });
   linkFlowParticles.forEach(p => { p.sprite.material.opacity = 0.10; });
   nebulas.forEach(n => { n.material.opacity = 0.15; });
   galaxies.forEach(g => { g.material.opacity = 0.20; });
-  // 粒子場淡化
-  farStars.material.opacity = 0.30;
-  midStars.material.opacity = 0.25;
-  nearGlow.material.opacity = 0.18;
-  // 中央球體稍淡
-  icoLines.material.opacity = 0.35;
-  icoLines2.material.opacity = 0.15;
+  farStars.material.opacity = 0.30; midStars.material.opacity = 0.25; nearGlow.material.opacity = 0.18;
+  icoLines.material.opacity = 0.35; icoLines2.material.opacity = 0.15;
 }
 function exitFocusMode() {
   focusedNodeId = null;
@@ -961,41 +646,32 @@ function exitFocusMode() {
   linkFlowParticles.forEach(p => { p.sprite.material.opacity = p.sprite.userData.baseOp; });
   nebulas.forEach(n => { n.material.opacity = n.userData.baseOp; });
   galaxies.forEach(g => { g.material.opacity = g.userData.baseOp; });
-  farStars.material.opacity = 0.85;
-  midStars.material.opacity = 0.85;
-  nearGlow.material.opacity = 0.85;
-  icoLines.material.opacity = 0.65;
-  icoLines2.material.opacity = 0.30;
+  farStars.material.opacity = 0.85; midStars.material.opacity = 0.85; nearGlow.material.opacity = 0.85;
+  icoLines.material.opacity = 0.65; icoLines2.material.opacity = 0.30;
   document.getElementById('detail').classList.remove('show');
 }
 
-// ─── Detail panel ───
 function focusNode(node, pos) {
   const p = document.getElementById('detail');
   p.classList.add('show');
-  p.querySelector('.d-name').textContent = node.name;
+  p.querySelector('.d-name').textContent = node.fullName || node.name;
   p.querySelector('.d-sub').textContent = (TYPE_LABEL_NAME[node.type] || '') + ' · ' + (node.sub || '');
   const body = document.getElementById('d-body');
-  let rows = `<div class="d-row"><span class="l">節點 ID</span><span class="v" style="font-size:10px;">${node.id}</span></div>`;
+  let rows = `<div class="d-row"><span class="l">節點 ID</span><span class="v" style="font-size:10px;word-break:break-all;">${node.id}</span></div>`;
   rows += `<div class="d-row"><span class="l">類別</span><span class="v">${TYPE_LABEL_NAME[node.type]||'--'}</span></div>`;
-  if (node.rev) {
+  if (node.type === 'agent') {
     rows += `<div class="d-row"><span class="l">業績</span><span class="v">${fmtF(node.rev)}</span></div>`;
     rows += `<div class="d-row"><span class="l">訂單</span><span class="v">${fmtN(node.orders)}</span></div>`;
     rows += `<div class="d-row"><span class="l">客戶</span><span class="v">${fmtN(node.customers)}</span></div>`;
-  }
-  if (node.type === 'video') {
+    rows += `<div class="d-row"><span class="l">AOV</span><span class="v">${fmtN(node.aov)}</span></div>`;
+  } else if (node.type === 'video') {
     rows += `<div class="d-row"><span class="l">平台</span><span class="v" style="color:#ff8800;">${node.platform}</span></div>`;
     rows += `<div class="d-row"><span class="l">播放</span><span class="v">${fmtN(node.plays)}</span></div>`;
     rows += `<div class="d-row"><span class="l">觸及</span><span class="v">${fmtN(node.reach)}</span></div>`;
     rows += `<div class="d-row"><span class="l">分享</span><span class="v">${fmtN(node.shares)}</span></div>`;
     rows += `<div class="d-row"><span class="l">留言</span><span class="v">${fmtN(node.comments)}</span></div>`;
     rows += `<div class="d-row"><span class="l">片長</span><span class="v">${node.length_sec}s</span></div>`;
-    if (node.created_date) {
-      rows += `<div class="d-row"><span class="l">上線日</span><span class="v" style="font-size:10px;">${node.created_date}</span></div>`;
-    }
-  }
-  if (node.status) {
-    rows += `<div class="d-row"><span class="l">狀態</span><span class="v" style="color:var(--green);">● ${node.status}</span></div>`;
+    if (node.created_date) rows += `<div class="d-row"><span class="l">上線</span><span class="v" style="font-size:10px;">${node.created_date}</span></div>`;
   }
   const linkCount = DATA.links.filter(l => {
     const s = typeof l.source === 'object' ? l.source.id : l.source;
@@ -1005,86 +681,66 @@ function focusNode(node, pos) {
   rows += `<div class="d-row"><span class="l">連線</span><span class="v">${linkCount}</span></div>`;
   body.innerHTML = rows;
 
-  // 飛行終點計算：
-  //   1) 沿節點方向 (球心 → 節點) 拉遠 dist，讓 camera 在節點外側
-  //   2) 沿節點切線方向 (右手系，與 world Y 做 cross) 偏移 sideOffset
-  //      讓節點顯示在畫面「**左 1/3**」處，detail panel 在右側不會擋
-  const dist = 190;
-  const sideOffset = 90;  // 偏移強度
+  const dist = 190, sideOffset = 90;
   const dirOut = pos.clone().normalize();
+  if (dirOut.length() < 0.01) dirOut.set(0, 0, 1);
   const right = new THREE.Vector3().crossVectors(dirOut, new THREE.Vector3(0, 1, 0)).normalize();
-  // 若節點剛好在 y 軸上 (right 變 0)，fallback 用 X 軸
   if (right.length() < 0.1) right.set(1, 0, 0);
-  const targetCam = pos.clone()
-    .add(dirOut.multiplyScalar(dist))
-    .add(right.multiplyScalar(sideOffset));
+  const targetCam = pos.clone().add(dirOut.multiplyScalar(dist)).add(right.multiplyScalar(sideOffset));
   flyTo(targetCam, pos, 2600);
-
-  // 飛行結束後（稍延遲一點 ease-out 比較慢）進入 focus mode
   setTimeout(() => enterFocusMode(node.id), 2400);
 }
 
-// 點背景或 close → 退出 focus mode
-canvas.addEventListener('click', e => {
-  // 排除點到 label 的情況
-  if (e.target === canvas) exitFocusMode();
-});
+canvas.addEventListener('click', e => { if (e.target === canvas) exitFocusMode(); });
+if (controls) canvas.addEventListener('pointerdown', () => { controls.autoRotate = false; });
 
-// ─── 側邊 panel 各項目也能觸發飛行 ───
-function findNodeByMatch(predicate) {
-  for (const nd of node3D) {
-    if (predicate(nd.node)) return nd;
-  }
-  return null;
-}
-
-// MOC 樹 row click → 飛到對應 m:* 節點（by name 子串 match）
-document.querySelectorAll('#moc-list .moc-row').forEach((row, idx) => {
-  row.style.cursor = 'pointer';
-  row.addEventListener('click', () => {
-    const moc = (DATA.moc_tree || [])[idx];
-    if (!moc) return;
-    const nd = findNodeByMatch(n => n.type === 'moc' && (n.name.includes(moc.name.replace('...','').slice(0, 4))));
-    if (nd) focusNode(nd.node, nd.pos);
-  });
-});
-
-// 服務 chip click → 飛到對應 system 節點（by 名稱前 4 字）
-document.querySelectorAll('.svc-chip').forEach(chip => {
-  chip.style.cursor = 'pointer';
-  chip.addEventListener('click', () => {
-    const name = chip.querySelector('.nm').textContent.trim();
-    const nd = findNodeByMatch(n => n.type === 'system' && n.name.startsWith(name.slice(0, 3)));
-    if (nd) focusNode(nd.node, nd.pos);
-  });
-});
-
-// Dataview rows click → 飛到對應節點
-function bindDvRows(elId, candidateTypes) {
+// Dataview 飛行
+function findNodesByType(type) { return node3D.filter(nd => nd.node.type === type); }
+function bindDvRows(elId, type) {
   document.querySelectorAll('#' + elId + ' .dv-row').forEach((row, idx) => {
     row.style.cursor = 'pointer';
     row.addEventListener('click', () => {
-      // 找 candidateTypes 內第 idx 個節點
-      const matched = node3D.filter(nd => candidateTypes.includes(nd.node.type));
+      const matched = findNodesByType(type);
       const target = matched[idx % matched.length];
       if (target) focusNode(target.node, target.pos);
     });
   });
 }
-bindDvRows('dv-ai',   ['persona']);
-bindDvRows('dv-proj', ['project']);
-bindDvRows('dv-rec',  ['video', 'note']);   // 「熱門影片」清單對應 video 節點
+bindDvRows('dv-videos', 'video');
+bindDvRows('dv-agents', 'agent');
+// utm 沒對應節點，純資訊用
 
-if (controls) canvas.addEventListener('pointerdown', () => { controls.autoRotate = false; });
-
-// ─── Resize ───
+// Resize
 window.addEventListener('resize', () => {
   camera.aspect = W() / H();
   camera.updateProjectionMatrix();
   renderer.setSize(W(), H());
 });
 
-// ─── Animation loop ───
+// Label projection
+const tmpVec = new THREE.Vector3();
+function updateLabels() {
+  const halfW = W()/2, halfH = H()/2;
+  node3D.forEach(nd => {
+    tmpVec.copy(nd.pos).project(camera);
+    const x = (tmpVec.x * halfW) + halfW;
+    const y = (-tmpVec.y * halfH) + halfH;
+    const inFront = tmpVec.z < 1;
+    nd.div.style.left = x + 'px';
+    nd.div.style.top  = y + 'px';
+    nd.div.style.display = inFront ? 'block' : 'none';
+    if (focusedNodeId) {
+      if (nd.node.id === focusedNodeId) nd.div.style.opacity = 1;
+      else nd.div.style.opacity = '';
+    } else {
+      const distance = camera.position.distanceTo(nd.pos);
+      const opacity = inFront ? Math.max(0.15, Math.min(1, 1 - (distance - 200) / 900)) : 0;
+      nd.div.style.opacity = opacity;
+    }
+  });
+}
+
+// Animation
 let frame = 0;
 function animate() {
   requestAnimationFrame(animate);
@@ -1092,59 +748,32 @@ function animate() {
   if (controls) {
     controls.update();
   } else {
-    // Fallback：手動 orbit
     if (autoRotate) cameraAngle += 0.003;
     const radius = camera.position.length();
     const phi = dragAngleX + cameraAngle;
     const theta = Math.PI / 2 - dragAngleY;
-    camera.position.set(
-      radius * Math.sin(theta) * Math.cos(phi),
-      radius * Math.cos(theta),
-      radius * Math.sin(theta) * Math.sin(phi)
-    );
+    camera.position.set(radius*Math.sin(theta)*Math.cos(phi), radius*Math.cos(theta), radius*Math.sin(theta)*Math.sin(phi));
     camera.lookAt(0, 0, 0);
   }
-
-  // 中央球體緩慢自轉
   coreGroup.rotation.y += 0.0015;
   coreGroup.rotation.x += 0.0007;
-
-  // 粒子層緩慢自轉
   farStars.rotation.y += 0.00015;
   midStars.rotation.y -= 0.00025;
   nearGlow.rotation.y += 0.0004;
-
-  // 銀河系緩慢自轉（每個沿自己 normal 軸旋）
-  galaxies.forEach((g, i) => {
-    const sign = i % 2 === 0 ? 1 : -1;
-    g.rotation.z += g.userData.autoRotateSpeed * sign;
-  });
-
-  // 連線流動粒子（沿線往返）
+  galaxies.forEach((g, i) => { g.rotation.z += g.userData.autoRotateSpeed * (i%2===0?1:-1); });
   linkFlowParticles.forEach(p => {
     p.t += p.speed;
     if (p.t > 1) p.t -= 1;
-    // 用 sin 曲線讓中段加速、頭尾減速，更有「脈衝流」感
-    const tt = p.t;
-    p.sprite.position.lerpVectors(p.from, p.to, tt);
+    p.sprite.position.lerpVectors(p.from, p.to, p.t);
   });
-
-  // 星雲緩慢呼吸（scale 微縮+opacity 漂浮）
   nebulas.forEach((n, i) => {
     const breathe = 1 + Math.sin(frame * 0.005 + i * 1.3) * 0.04;
     n.scale.x = n.scale.y = (450 + (i * 50)) * breathe;
-    if (!focusedNodeId) {
-      n.material.opacity = 0.7 + Math.sin(frame * 0.008 + i) * 0.15;
-    }
+    if (!focusedNodeId) n.material.opacity = 0.7 + Math.sin(frame * 0.008 + i) * 0.15;
   });
-
-  // Pulse 中心 glow
   const pulse = 1 + Math.sin(frame * 0.04) * 0.08;
   coreGlow.scale.set(280 * pulse, 280 * pulse, 1);
-
-  // Label projection
   updateLabels();
-
   renderer.render(scene, camera);
 }
 animate();
