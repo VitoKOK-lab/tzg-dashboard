@@ -527,8 +527,8 @@ Object.keys(grouped).forEach(type => {
       const rgbStr = isCore ? 'rgb(255,184,0)'
         : 'rgb(' + ((colorHex>>16)&255) + ',' + ((colorHex>>8)&255) + ',' + (colorHex&255) + ')';
 
-      // 大星球 mesh（Core 略大一點 60，其他 50）
-      const planetR = isCore ? 60 : 50;
+      // 大星球 mesh（Core 主星 100，其他 anchor 50）
+      const planetR = isCore ? 100 : 50;
       const planetMesh = new THREE.Mesh(
         new THREE.SphereGeometry(planetR, 32, 32),
         new THREE.MeshBasicMaterial({ color: colorHex, transparent: true, opacity: 0.55 })
@@ -563,53 +563,98 @@ Object.keys(grouped).forEach(type => {
       ring.rotation.y = 0.4;
       scene.add(ring);
 
-      // 3 顆小衛星繞行（每顆再加 1-2 顆微星）
-      for (let mi = 0; mi < 3; mi++) {
-        const moonR = 8 + Math.random() * 5;
-        const moonMesh = new THREE.Mesh(
-          new THREE.SphereGeometry(moonR, 12, 12),
-          new THREE.MeshBasicMaterial({ color: colorHex, transparent: true, opacity: 0.9 })
-        );
-        const moonGlow = new THREE.Sprite(new THREE.SpriteMaterial({
-          map: makeGlowTexture(rgbStr), blending: THREE.AdditiveBlending, transparent: true, depthWrite: false,
-        }));
-        moonGlow.scale.set(moonR * 4, moonR * 4, 1);
-        moonMesh.add(moonGlow);
-        scene.add(moonMesh);
-        orbiters.push({
-          mesh: moonMesh,
-          around: pos.clone(),       // Vector3 固定點繞 anchor
-          axisTilt: (Math.random() - 0.5) * 0.6,
-          axisRoll: mi * (Math.PI * 2 / 3) + Math.random() * 0.4,
-          dist: planetR * (3.2 + Math.random() * 1.5),
-          angle: Math.random() * Math.PI * 2,
-          speed: 0.006 + Math.random() * 0.005,
-        });
+      if (isCore) {
+        // ─── 主星專屬：12 顆月度業績衛星（取代預設 3 衛星）───
+        //   每顆衛星 = 一個月，大小按業績、顏色按達標率
+        const monthly = n.monthly_rev || [];
+        const MONTHLY_TARGET = 4500000;  // 月目標 450 萬，用於上色
+        monthly.forEach((m, mi) => {
+          const revLog = Math.log10(Math.max(1, m.rev));
+          const moonR = 5 + Math.min(11, (revLog - 5) * 4);   // 5 ~ 16
+          const ach = m.rev / MONTHLY_TARGET;
+          let moonColor, moonRgb;
+          if (ach >= 1)        { moonColor = 0xffb800; moonRgb = 'rgb(255,184,0)'; }   // 達標金
+          else if (ach >= 0.85){ moonColor = 0xffd966; moonRgb = 'rgb(255,217,102)'; } // 暖黃
+          else if (ach >= 0.6) { moonColor = 0xff8800; moonRgb = 'rgb(255,136,0)'; }   // 橘
+          else if (ach >= 0.3) { moonColor = 0xb86a2c; moonRgb = 'rgb(184,106,44)'; }  // 暗橘
+          else                 { moonColor = 0x666666; moonRgb = 'rgb(102,102,102)'; } // 灰
 
-        // 微星繞衛星（小星 → 衛星 → 主星 三層 hierarchy）
-        const nMicros = 1 + Math.floor(Math.random() * 2);   // 1-2 顆
-        for (let mj = 0; mj < nMicros; mj++) {
-          const microR = 1.8 + Math.random() * 2;
-          const microMesh = new THREE.Mesh(
-            new THREE.SphereGeometry(microR, 8, 8),
-            new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 })
+          const moonMesh = new THREE.Mesh(
+            new THREE.SphereGeometry(moonR, 14, 14),
+            new THREE.MeshBasicMaterial({ color: moonColor, transparent: true, opacity: 0.95 })
           );
-          const microGlow = new THREE.Sprite(new THREE.SpriteMaterial({
-            map: makeGlowTexture('rgb(255,255,255)'), blending: THREE.AdditiveBlending,
+          const moonGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+            map: makeGlowTexture(moonRgb), blending: THREE.AdditiveBlending,
             transparent: true, depthWrite: false,
           }));
-          microGlow.scale.set(microR * 5, microR * 5, 1);
-          microMesh.add(microGlow);
-          scene.add(microMesh);
+          moonGlow.scale.set(moonR * 4, moonR * 4, 1);
+          moonMesh.add(moonGlow);
+          // 本月加 pulse 環（亮一點）
+          if (m.is_current) {
+            moonMesh.userData.isCurrent = true;
+          }
+          // 把月度資料掛在 mesh 上，給 click 用
+          moonMesh.userData.monthData = m;
+          scene.add(moonMesh);
           orbiters.push({
-            mesh: microMesh,
-            around: moonMesh,         // 改成 mesh，每 frame 用 mesh.position
-            axisTilt: (Math.random() - 0.5) * 1.4,
-            axisRoll: Math.random() * Math.PI * 2,
-            dist: moonR * (2.3 + Math.random() * 0.8),
-            angle: Math.random() * Math.PI * 2,
-            speed: 0.03 + Math.random() * 0.025,     // 微星轉得快
+            mesh: moonMesh,
+            around: pos.clone(),
+            axisTilt: 0.22,                                   // 12 顆同一軌道平面
+            axisRoll: 0,
+            dist: planetR * 2.0 + 60,                          // 約 260 半徑
+            angle: (mi / 12) * Math.PI * 2,                    // 12 等分
+            speed: 0.0015,                                     // 慢慢轉一圈代表一年
           });
+        });
+      } else {
+        // ─── 一般 anchor：3 顆衛星 + 微星 hierarchy ───
+        for (let mi = 0; mi < 3; mi++) {
+          const moonR = 8 + Math.random() * 5;
+          const moonMesh = new THREE.Mesh(
+            new THREE.SphereGeometry(moonR, 12, 12),
+            new THREE.MeshBasicMaterial({ color: colorHex, transparent: true, opacity: 0.9 })
+          );
+          const moonGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+            map: makeGlowTexture(rgbStr), blending: THREE.AdditiveBlending, transparent: true, depthWrite: false,
+          }));
+          moonGlow.scale.set(moonR * 4, moonR * 4, 1);
+          moonMesh.add(moonGlow);
+          scene.add(moonMesh);
+          orbiters.push({
+            mesh: moonMesh,
+            around: pos.clone(),
+            axisTilt: (Math.random() - 0.5) * 0.6,
+            axisRoll: mi * (Math.PI * 2 / 3) + Math.random() * 0.4,
+            dist: planetR * (3.2 + Math.random() * 1.5),
+            angle: Math.random() * Math.PI * 2,
+            speed: 0.006 + Math.random() * 0.005,
+          });
+
+          // 微星繞衛星（小星 → 衛星 → 主星 三層 hierarchy）
+          const nMicros = 1 + Math.floor(Math.random() * 2);
+          for (let mj = 0; mj < nMicros; mj++) {
+            const microR = 1.8 + Math.random() * 2;
+            const microMesh = new THREE.Mesh(
+              new THREE.SphereGeometry(microR, 8, 8),
+              new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 })
+            );
+            const microGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+              map: makeGlowTexture('rgb(255,255,255)'), blending: THREE.AdditiveBlending,
+              transparent: true, depthWrite: false,
+            }));
+            microGlow.scale.set(microR * 5, microR * 5, 1);
+            microMesh.add(microGlow);
+            scene.add(microMesh);
+            orbiters.push({
+              mesh: microMesh,
+              around: moonMesh,
+              axisTilt: (Math.random() - 0.5) * 1.4,
+              axisRoll: Math.random() * Math.PI * 2,
+              dist: moonR * (2.3 + Math.random() * 0.8),
+              angle: Math.random() * Math.PI * 2,
+              speed: 0.03 + Math.random() * 0.025,
+            });
+          }
         }
       }
 

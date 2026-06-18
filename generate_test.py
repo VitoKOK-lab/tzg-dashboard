@@ -170,6 +170,41 @@ def build_video_nodes_links():
 
 
 # ═══════════════════════════════════════════════════════════
+# 月度業績（近 12 個月）— 主星的 12 顆衛星
+# ═══════════════════════════════════════════════════════════
+def build_monthly_revenue(months=12):
+    df = load_data()
+    vd = paid_orders(df)
+    today = datetime.now()
+    yr, mo = today.year, today.month
+    months_list = []
+    for _ in range(months):
+        months_list.insert(0, (yr, mo))
+        mo -= 1
+        if mo == 0:
+            mo = 12
+            yr -= 1
+    out = []
+    for (y, m) in months_list:
+        if m == 12:
+            start = datetime(y, m, 1)
+            end = datetime(y + 1, 1, 1)
+        else:
+            start = datetime(y, m, 1)
+            end = datetime(y, m + 1, 1)
+        sub = vd[(vd['訂單日期'] >= start) & (vd['訂單日期'] < end)]
+        ord_ = sub.drop_duplicates('訂單號碼')
+        out.append({
+            'month': f'{y}-{m:02d}',
+            'short': f'{m}月',
+            'rev': int(ord_['訂單合計'].sum()),
+            'orders': int(len(ord_)),
+            'is_current': (y == today.year and m == today.month),
+        })
+    return out
+
+
+# ═══════════════════════════════════════════════════════════
 # 真實 UTM 渠道分布 (近 60 天 top 5)
 # ═══════════════════════════════════════════════════════════
 def build_utm_channels():
@@ -206,7 +241,9 @@ def build_payload():
     video_nodes, video_links, updated_at, total_videos = build_video_nodes_links()
     utm_channels = build_utm_channels()
 
-    # 把 KPI 注入「主星」節點（年度營業額成長）
+    # 把 KPI + 月度業績注入「主星」節點（年度營業額成長 + 12 顆月衛星）
+    monthly_rev = build_monthly_revenue(12)
+    annual_rev_real = sum(m['rev'] for m in monthly_rev)
     anchor_nodes = []
     for an in ANCHOR_NODES:
         an = dict(an)
@@ -216,9 +253,11 @@ def build_payload():
             an['period_rev'] = period_rev
             an['period_days'] = LOOKBACK_DAYS
             an['projected_annual'] = projected_annual
+            an['annual_rev_real'] = annual_rev_real    # 真實近 12 個月加總
             an['period_orders'] = kpi.get('total_orders', 0)
             an['period_customers'] = kpi.get('total_customers', 0)
             an['period_aov'] = kpi.get('avg_aov', 0)
+            an['monthly_rev'] = monthly_rev            # 12 個月度衛星資料
         anchor_nodes.append(an)
 
     nodes = anchor_nodes + agent_nodes + video_nodes
