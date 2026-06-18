@@ -274,8 +274,8 @@ html, body {
 
 #hint { position: fixed; bottom: 6px; left: 50%; transform: translateX(-50%); z-index: 10; font-size: 9px; color: var(--dim); font-family: var(--mono); letter-spacing: 1.5px; }
 </style>
-<script src="https://unpkg.com/three@0.150.0/build/three.min.js"></script>
-<script src="https://unpkg.com/three@0.150.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.140.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.140.0/examples/js/controls/OrbitControls.js"></script>
 </head>
 <body>
 
@@ -474,38 +474,78 @@ renderer.setSize(W(), H());
 renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
 
 const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0x02010a, 0.0011);
+scene.fog = new THREE.FogExp2(0x02010a, 0.0007);   // 降低 fog 強度，中央更清楚
 
 const camera = new THREE.PerspectiveCamera(60, W()/H(), 0.1, 3000);
-camera.position.set(0, 0, 480);
+camera.position.set(0, 60, 480);
 
-const controls = new THREE.OrbitControls(camera, canvas);
-controls.enableDamping = true;
-controls.dampingFactor = 0.05;
-controls.autoRotate = true;
-controls.autoRotateSpeed = 0.35;
-controls.minDistance = 200;
-controls.maxDistance = 900;
+// OrbitControls：若 CDN 沒載入成功，做 fallback（手動拖拉旋轉）
+let controls = null;
+if (typeof THREE.OrbitControls === 'function') {
+  controls = new THREE.OrbitControls(camera, canvas);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.05;
+  controls.autoRotate = true;
+  controls.autoRotateSpeed = 0.35;
+  controls.minDistance = 200;
+  controls.maxDistance = 900;
+} else {
+  console.warn('[JARVIS] OrbitControls 未載入，使用 fallback 旋轉');
+}
+let cameraAngle = 0;
+let autoRotate = controls ? false : true;  // fallback 模式直接自動轉
+let isDragging = false, dragStartX = 0, dragStartY = 0, dragAngleX = 0, dragAngleY = 0;
+if (!controls) {
+  canvas.addEventListener('pointerdown', e => { isDragging = true; dragStartX = e.clientX; dragStartY = e.clientY; autoRotate = false; });
+  canvas.addEventListener('pointerup', () => isDragging = false);
+  canvas.addEventListener('pointermove', e => {
+    if (!isDragging) return;
+    dragAngleX += (e.clientX - dragStartX) * 0.005;
+    dragAngleY = Math.max(-1.5, Math.min(1.5, dragAngleY + (e.clientY - dragStartY) * 0.005));
+    dragStartX = e.clientX; dragStartY = e.clientY;
+  });
+  canvas.addEventListener('wheel', e => {
+    e.preventDefault();
+    const z = camera.position.length();
+    const nz = Math.max(200, Math.min(900, z + e.deltaY * 0.5));
+    camera.position.multiplyScalar(nz / z);
+  }, { passive: false });
+}
 
 // ─── 中央 wireframe sphere（多層） ───
 const coreGroup = new THREE.Group();
 scene.add(coreGroup);
 
-// 外層 icosahedron wireframe
+// 外層 icosahedron wireframe（強化能見度）
 const icoGeo = new THREE.IcosahedronGeometry(140, 3);
 const icoWire = new THREE.WireframeGeometry(icoGeo);
 const icoLines = new THREE.LineSegments(icoWire, new THREE.LineBasicMaterial({
-  color: 0x00f0ff, transparent: true, opacity: 0.32, depthWrite: false,
+  color: 0x00f0ff, transparent: true, opacity: 0.65, depthWrite: false,
 }));
 coreGroup.add(icoLines);
 
-// 內層 sphere with backside emissive
-const innerGeo = new THREE.SphereGeometry(118, 32, 32);
+// 第二層 icosahedron（不同細度，疊出網狀）
+const icoGeo2 = new THREE.IcosahedronGeometry(155, 2);
+const icoWire2 = new THREE.WireframeGeometry(icoGeo2);
+const icoLines2 = new THREE.LineSegments(icoWire2, new THREE.LineBasicMaterial({
+  color: 0xff3d8a, transparent: true, opacity: 0.30, depthWrite: false,
+}));
+coreGroup.add(icoLines2);
+
+// 內層 sphere with backside emissive（提高透明度讓內光可見）
+const innerGeo = new THREE.SphereGeometry(115, 32, 32);
 const innerMat = new THREE.MeshBasicMaterial({
-  color: 0xff3d8a, transparent: true, opacity: 0.10, side: THREE.BackSide, depthWrite: false,
+  color: 0xff3d8a, transparent: true, opacity: 0.18, side: THREE.BackSide, depthWrite: false,
 });
 const innerSphere = new THREE.Mesh(innerGeo, innerMat);
 coreGroup.add(innerSphere);
+
+// 內核 sphere with frontside emissive（更顯眼的核心）
+const coreCore = new THREE.Mesh(
+  new THREE.SphereGeometry(40, 24, 24),
+  new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.18 })
+);
+coreGroup.add(coreCore);
 
 // 中心點光暈 (sprite)
 function makeGlowTexture(color) {
@@ -710,16 +750,21 @@ function focusNode(node, pos) {
   rows += `<div class="d-row"><span class="l">連線</span><span class="v">${linkCount}</span></div>`;
   body.innerHTML = rows;
 
-  // 鏡頭飛到節點 (用 OrbitControls target 軌道)
-  controls.autoRotate = false;
+  // 鏡頭飛到節點
   const dist = 300;
   const dir = pos.clone().normalize().multiplyScalar(dist);
   camera.position.copy(pos.clone().add(dir));
-  controls.target.copy(pos);
-  controls.update();
+  if (controls) {
+    controls.autoRotate = false;
+    controls.target.copy(pos);
+    controls.update();
+  } else {
+    autoRotate = false;
+    camera.lookAt(pos);
+  }
 }
 
-canvas.addEventListener('pointerdown', () => { controls.autoRotate = false; });
+if (controls) canvas.addEventListener('pointerdown', () => { controls.autoRotate = false; });
 
 // ─── Resize ───
 window.addEventListener('resize', () => {
@@ -733,7 +778,21 @@ let frame = 0;
 function animate() {
   requestAnimationFrame(animate);
   frame++;
-  controls.update();
+  if (controls) {
+    controls.update();
+  } else {
+    // Fallback：手動 orbit
+    if (autoRotate) cameraAngle += 0.003;
+    const radius = camera.position.length();
+    const phi = dragAngleX + cameraAngle;
+    const theta = Math.PI / 2 - dragAngleY;
+    camera.position.set(
+      radius * Math.sin(theta) * Math.cos(phi),
+      radius * Math.cos(theta),
+      radius * Math.sin(theta) * Math.sin(phi)
+    );
+    camera.lookAt(0, 0, 0);
+  }
 
   // 中央球體緩慢自轉
   coreGroup.rotation.y += 0.0015;
