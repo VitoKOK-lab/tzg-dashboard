@@ -38,11 +38,14 @@ LOOKBACK_DAYS = 60
 # 錨點：兩個真實對應的系統節點（影片要連、業務要連）
 # ═══════════════════════════════════════════════════════════
 ANCHOR_NODES = [
-    {'id': 's:Meta',     'name': 'Meta',     'type': 'anchor', 'sub': 'FB + IG 影音流量入口', 'tier': 1},
-    {'id': 's:Shopline', 'name': 'Shopline', 'type': 'anchor', 'sub': '訂單成交系統',         'tier': 1},
+    {'id': 's:Core',     'name': '年度營業額', 'type': 'anchor', 'sub': '主星 · CORE GROWTH',   'tier': 0, 'is_core': True},
+    {'id': 's:Meta',     'name': 'Meta',       'type': 'anchor', 'sub': 'FB + IG 影音流量入口', 'tier': 1},
+    {'id': 's:Shopline', 'name': 'Shopline',   'type': 'anchor', 'sub': '訂單成交系統',         'tier': 1},
 ]
+# 資料流方向：影音 → Meta → Shopline → 主星（年度營業額成長）
 ANCHOR_LINKS = [
-    ('s:Meta', 's:Shopline'),   # 流量導購主管道
+    ('s:Meta',     's:Shopline'),   # 流量轉成訂單
+    ('s:Shopline', 's:Core'),       # 訂單匯流到年度業績
 ]
 
 
@@ -203,10 +206,25 @@ def build_payload():
     video_nodes, video_links, updated_at, total_videos = build_video_nodes_links()
     utm_channels = build_utm_channels()
 
-    nodes = list(ANCHOR_NODES) + agent_nodes + video_nodes
+    # 把 KPI 注入「主星」節點（年度營業額成長）
+    anchor_nodes = []
+    for an in ANCHOR_NODES:
+        an = dict(an)
+        if an.get('is_core'):
+            period_rev = kpi.get('total_rev', 0)
+            projected_annual = int(period_rev * 365 / LOOKBACK_DAYS) if period_rev else 0
+            an['period_rev'] = period_rev
+            an['period_days'] = LOOKBACK_DAYS
+            an['projected_annual'] = projected_annual
+            an['period_orders'] = kpi.get('total_orders', 0)
+            an['period_customers'] = kpi.get('total_customers', 0)
+            an['period_aov'] = kpi.get('avg_aov', 0)
+        anchor_nodes.append(an)
+
+    nodes = anchor_nodes + agent_nodes + video_nodes
     links_raw = list(ANCHOR_LINKS) + agent_links + video_links
 
-    # 業務 → Shopline（每位都連，視覺化所有真實業務與成交系統的連線）
+    # 業務 → Shopline（所有真實業務匯到成交系統）
     for an in agent_nodes:
         links_raw.append((an['id'], 's:Shopline'))
 

@@ -493,11 +493,12 @@ const labelsLayer = document.getElementById('labels-layer');
 const grouped = {};
 nodes.forEach(n => { (grouped[n.type] ||= []).push(n); });
 
-// 三個星純「左右平行」排列在 X 軸上、y=z=0
-//   Meta 左 ──── 中央 sphere ──── Shopline 右
-//   兩個 anchor 距離 2000 units（≈ 20 顆主星直徑寬）
+// 三個 anchor 純「左右平行」排列在 X 軸上：
+//   Meta 左 ──── 主星 中央 ──── Shopline 右
+//   流量資料 ──→ 主星（年度營業額成長）←── 訂單成交資料
 const anchorPositions = {
   's:Meta':     [-1000, 0, 0],
+  's:Core':     [    0, 0, 0],     // 主星 = 中央 wireframe sphere 位置
   's:Shopline': [ 1000, 0, 0],
 };
 
@@ -520,8 +521,25 @@ Object.keys(grouped).forEach(type => {
     arr.forEach(n => {
       const p = anchorPositions[n.id] || [0, 0, 0];
       const pos = new THREE.Vector3(p[0], p[1], p[2]);
-      const colorHex = TYPE_COLOR.anchor;
-      const rgbStr = 'rgb(' + ((colorHex>>16)&255) + ',' + ((colorHex>>8)&255) + ',' + (colorHex&255) + ')';
+      const isCore = n.is_core;
+      // Core 主星用金色，其他 anchor 用青色
+      const colorHex = isCore ? 0xffb800 : TYPE_COLOR.anchor;
+      const rgbStr = isCore ? 'rgb(255,184,0)'
+        : 'rgb(' + ((colorHex>>16)&255) + ',' + ((colorHex>>8)&255) + ',' + (colorHex&255) + ')';
+
+      // Core 主星：不另加大星球 mesh（中央 wireframe sphere 已存在當主體）
+      //   只加 label + 中央 sprite halo 強化
+      if (isCore) {
+        const div = document.createElement('div');
+        div.className = 'node-label anchor';
+        div.style.color = '#ffb800';
+        div.innerHTML = `${n.name}<span class="sub">${n.sub || ''}</span>`;
+        div.addEventListener('click', () => focusNode(n, pos));
+        labelsLayer.appendChild(div);
+        // 用 coreGlow 當 sprite (已是中央發光 sprite)
+        node3D.push({ node: n, pos, sprite: coreGlow, mesh: coreCore, div });
+        return;
+      }
 
       // 大星球 mesh
       const planetR = 50;
@@ -812,7 +830,11 @@ DATA.links.forEach(l => {
   if (!a || !b) return;
   const geo = new THREE.BufferGeometry().setFromPoints([a.pos, b.pos]);
   let colorHex = 0x9b5cff, colorRgb = 'rgb(155,92,255)';
-  if (src.startsWith('v:') || tgt.startsWith('v:')) { colorHex = 0xff8800; colorRgb = 'rgb(255,136,0)'; }
+  // Shopline → Core 用金色（年度成長能量流，最關鍵的一條）
+  if ((src === 's:Shopline' && tgt === 's:Core') || (src === 's:Core' && tgt === 's:Shopline')) {
+    colorHex = 0xffb800; colorRgb = 'rgb(255,184,0)';
+  }
+  else if (src.startsWith('v:') || tgt.startsWith('v:')) { colorHex = 0xff8800; colorRgb = 'rgb(255,136,0)'; }
   else if (src.startsWith('s:Meta') && tgt.startsWith('s:Shopline')) { colorHex = 0x00f0ff; colorRgb = 'rgb(0,240,255)'; }
   else if (src.startsWith('agent:') || tgt.startsWith('agent:')) { colorHex = 0xff3d8a; colorRgb = 'rgb(255,61,138)'; }
 
@@ -1046,7 +1068,14 @@ function focusNode(node, pos) {
   const body = document.getElementById('d-body');
   let rows = `<div class="d-row"><span class="l">節點 ID</span><span class="v" style="font-size:10px;word-break:break-all;">${node.id}</span></div>`;
   rows += `<div class="d-row"><span class="l">類別</span><span class="v">${TYPE_LABEL_NAME[node.type]||'--'}</span></div>`;
-  if (node.type === 'agent') {
+  if (node.type === 'anchor' && node.is_core) {
+    rows += `<div class="d-row"><span class="l">期間業績</span><span class="v" style="color:#ffb800;">${fmtF(node.period_rev)}</span></div>`;
+    rows += `<div class="d-row"><span class="l">統計天數</span><span class="v">${node.period_days} 天</span></div>`;
+    rows += `<div class="d-row"><span class="l">推估年度</span><span class="v" style="color:#ffb800;font-size:14px;">${fmtF(node.projected_annual)}</span></div>`;
+    rows += `<div class="d-row"><span class="l">訂單</span><span class="v">${fmtN(node.period_orders)}</span></div>`;
+    rows += `<div class="d-row"><span class="l">客戶</span><span class="v">${fmtN(node.period_customers)}</span></div>`;
+    rows += `<div class="d-row"><span class="l">AOV</span><span class="v">${fmtN(node.period_aov)}</span></div>`;
+  } else if (node.type === 'agent') {
     rows += `<div class="d-row"><span class="l">業績</span><span class="v">${fmtF(node.rev)}</span></div>`;
     rows += `<div class="d-row"><span class="l">訂單</span><span class="v">${fmtN(node.orders)}</span></div>`;
     rows += `<div class="d-row"><span class="l">客戶</span><span class="v">${fmtN(node.customers)}</span></div>`;
