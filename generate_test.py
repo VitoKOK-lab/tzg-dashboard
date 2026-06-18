@@ -15,12 +15,16 @@ TZG 測試儀表板 — JARVIS-BRAIN Neural Vault v0.2
 """
 import json
 import sys
+import urllib.request
 from pathlib import Path
 from datetime import datetime, timedelta
 from itertools import combinations
 
 sys.path.insert(0, '.')
 from generate_daily import load_data, paid_orders, is_real_agent
+
+META_VIDEOS_URL = 'https://vitokok-lab.github.io/meta-dashboard/data/videos.json'
+TOP_VIDEOS = 25
 
 OUTPUT_HTML = Path('./output/test.html')
 TEMPLATE_HTML = Path('./data/templates/test_template.html')
@@ -91,6 +95,7 @@ VAULT_LINKS = [
     # System 之間
     ('s:Shopline', 's:POS'), ('s:Shopline', 's:1SHOP'), ('s:Shopline', 's:LINE'),
     ('s:Meta', 's:LINE'), ('s:Meta', 's:1SHOP'),
+    ('s:Meta', 's:Shopline'),                            # 影音流量導購主管道
     # Project ↔ System
     ('pj:POS_intg', 's:POS'), ('pj:POS_intg', 's:Shopline'),
     ('pj:1SHOP_v3', 's:1SHOP'),
@@ -175,16 +180,78 @@ def build_real_agents():
 
 
 # ═══════════════════════════════════════════════════════════
+# 影音資料（從 meta-dashboard）
+# ═══════════════════════════════════════════════════════════
+
+def fetch_video_data(top_n=TOP_VIDEOS):
+    """抓 meta-dashboard 影音 JSON，回傳 top N 影片（按 plays 排序）"""
+    try:
+        req = urllib.request.Request(META_VIDEOS_URL, headers={'User-Agent': 'tzg-dashboard'})
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = json.loads(resp.read().decode('utf-8'))
+        videos = data.get('videos', {})
+        sorted_videos = sorted(
+            videos.values(),
+            key=lambda v: -(v.get('plays', 0) or 0)
+        )
+        return sorted_videos[:top_n]
+    except Exception as e:
+        print(f'  [!] 影音資料抓取失敗（不阻擋）: {e}')
+        return []
+
+
+def build_video_nodes_links():
+    """把 top N 影片轉成節點 + 連線（影片 → s:Meta → s:Shopline）"""
+    videos = fetch_video_data(TOP_VIDEOS)
+    nodes = []
+    for v in videos:
+        vid = str(v.get('id', ''))
+        if not vid:
+            continue
+        title = (v.get('title') or '').replace('\n', ' ').strip()
+        # 截斷顯示名稱
+        if title:
+            short = title[:8]
+        else:
+            short = f'video {vid[-5:]}'
+        platform = (v.get('platform') or 'fb').upper()
+        plays = int(v.get('plays', 0) or 0)
+        reach = int(v.get('reach', 0) or 0)
+        nodes.append({
+            'id': f'v:{vid}',
+            'name': short,
+            'fullName': title or f'Video {vid}',
+            'type': 'video',
+            'sub': f'{platform} · {plays:,} 播放',
+            'tier': 3,
+            'platform': platform,
+            'plays': plays,
+            'reach': reach,
+            'shares': int(v.get('shares', 0) or 0),
+            'comments': int(v.get('comments', 0) or 0),
+            'likes': int(v.get('likes', 0) or 0),
+            'length_sec': int(v.get('length_sec', 0) or 0),
+            'created_date': v.get('created_date', ''),
+        })
+
+    # 影片 → s:Meta（廣告渠道入口）
+    # s:Meta → s:Shopline 連線在 VAULT_LINKS 加（如果還沒有）
+    links = [(n['id'], 's:Meta') for n in nodes]
+    return nodes, links
+
+
+# ═══════════════════════════════════════════════════════════
 # 構建 graph payload + UI sub-blocks
 # ═══════════════════════════════════════════════════════════
 
 def build_payload():
     agent_nodes, agent_links, kpi = build_real_agents()
+    video_nodes, video_links = build_video_nodes_links()
 
-    nodes = VAULT_NODES + agent_nodes
-    links_raw = list(VAULT_LINKS) + agent_links
+    nodes = VAULT_NODES + agent_nodes + video_nodes
+    links_raw = list(VAULT_LINKS) + agent_links + video_links
 
-    # 業務 ↔ 系統 連線（business agent ↔ Shopline）
+    # 業務 ↔ Shopline 連線
     for an in agent_nodes:
         links_raw.append((an['id'], 's:Shopline'))
 
@@ -203,6 +270,14 @@ def build_payload():
     ]
 
     # Dataview 風格清單
+    top_videos_dv = []
+    for vn in video_nodes[:5]:
+        top_videos_dv.append({
+            'name': vn['fullName'][:18] or vn['name'],
+            'tag':  f'{vn["platform"]} · {vn["plays"]//1000}K',
+            'mtime': vn.get('created_date', '') or '',
+        })
+
     dataview_lists = {
         'ai_brain': [
             {'name': 'AI Core / JARVIS',     'tag': '#ai #core',   'mtime': '2026-06-18'},
@@ -218,7 +293,7 @@ def build_payload():
             {'name': '1SHOP v3',          'tag': '籌備中',  'mtime': '2026-06-10'},
             {'name': 'Dashboard v2',      'tag': '進行中',  'mtime': '2026-06-18'},
         ],
-        'recent_notes': [
+        'recent_notes': top_videos_dv or [  # 若抓不到影音則 fallback
             {'name': 'LINE OA 業績拆分',     'tag': '#analysis', 'mtime': '今天'},
             {'name': '寵粉策略檢討',          'tag': '#mkt',      'mtime': '今天'},
             {'name': '會員等級設計 v2',       'tag': '#crm',      'mtime': '昨天'},
@@ -265,11 +340,15 @@ def main():
     data = build_payload()
     n_total = len(data['nodes'])
     n_agent = sum(1 for n in data['nodes'] if n['type'] == 'agent')
-    n_vault = n_total - n_agent
-    print(f'  總節點:   {n_total} (vault {n_vault} + agent {n_agent})')
+    n_video = sum(1 for n in data['nodes'] if n['type'] == 'video')
+    n_vault = n_total - n_agent - n_video
+    total_plays = sum(n.get('plays', 0) for n in data['nodes'] if n['type'] == 'video')
+    print(f'  總節點:   {n_total} (vault {n_vault} + agent {n_agent} + video {n_video})')
     print(f'  總連線:   {len(data["links"])}')
     print(f'  MOC 樹:   {len(data["moc_tree"])} 個')
     print(f'  Dataview: {len(data["dataview"])} 個清單')
+    if n_video:
+        print(f'  📹 影音:   top {n_video} 支 / 累計播放 {total_plays:,}')
 
     print('\n[2/3] 套用模板...')
     if not TEMPLATE_HTML.exists():
