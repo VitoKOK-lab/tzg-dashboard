@@ -100,21 +100,24 @@ html, body {
 .panel {
   background: var(--bg-panel);
   border: 1px solid rgba(0,240,255,.2);
-  border-radius: 3px;
+  border-radius: 14px;          /* 圓角方塊 */
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   box-shadow: 0 0 30px rgba(0,0,0,.6), inset 0 0 16px rgba(0,240,255,.04);
+  overflow: hidden;             /* 讓內部 panel-h 圓角貼齊 */
 }
 .panel-h {
   font-family: var(--mono);
   font-size: 9px;
   color: var(--pink);
   letter-spacing: 2.5px;
-  padding: 8px 12px;
+  padding: 8px 14px;
   border-bottom: 1px solid rgba(255,61,138,.18);
   text-transform: uppercase;
   font-weight: 700;
   background: rgba(255,61,138,.05);
+  border-top-left-radius: 14px;
+  border-top-right-radius: 14px;
 }
 .panel-h .badge {
   float: right;
@@ -145,9 +148,9 @@ html, body {
 @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:.3 } }
 .topbar-stats { margin-left: auto; display: flex; gap: 8px; }
 .topbar-stats .stat {
-  padding: 4px 10px;
+  padding: 4px 14px;
   border: 1px solid rgba(0,240,255,.28);
-  border-radius: 2px;
+  border-radius: 999px;          /* pill 膠囊型 */
   color: var(--cyan);
   font-size: 10px;
   background: rgba(0,240,255,.04);
@@ -168,7 +171,8 @@ html, body {
   font-size: 11px;
   transition: background .15s;
 }
-.dv-row:hover { background: rgba(0,240,255,.06); }
+.dv-row { border-radius: 8px; }
+.dv-row:hover { background: rgba(0,240,255,.08); }
 .dv-row:last-child { border-bottom: 0; }
 .dv-row .name { color: var(--mid); }
 .dv-row .meta { color: var(--dim); font-family: var(--mono); font-size: 9px; }
@@ -187,7 +191,8 @@ html, body {
   font-size: 11px;
   transition: background .15s;
 }
-.moc-row:hover { background: rgba(255,184,0,.08); }
+.moc-row { border-radius: 8px; margin: 0 4px; }
+.moc-row:hover { background: rgba(255,184,0,.12); }
 .moc-row:last-child { border-bottom: 0; }
 .moc-row .icon { color: var(--gold); margin-right: 6px; }
 .moc-row .cnt { color: var(--dim); font-family: var(--mono); font-size: 9px; }
@@ -202,10 +207,16 @@ html, body {
 .svc-chip {
   background: rgba(0,240,255,.05);
   border: 1px solid rgba(0,240,255,.28);
-  padding: 6px 8px;
-  border-radius: 2px;
+  padding: 8px 10px;
+  border-radius: 999px;          /* 圓 pill */
   font-size: 10px;
   text-align: center;
+  transition: all .2s;
+}
+.svc-chip:hover {
+  background: rgba(0,240,255,.15);
+  border-color: var(--cyan);
+  box-shadow: 0 0 12px rgba(0,240,255,.4);
 }
 .svc-chip .nm { color: var(--cyan); font-weight: 600; font-family: var(--mono); }
 .svc-chip .st { color: var(--green); font-size: 8px; letter-spacing: 1.5px; margin-top: 2px; }
@@ -276,7 +287,7 @@ html, body {
 #detail .d-row:last-child { border: 0; }
 #detail .d-row .l { color: var(--dim); letter-spacing: 1px; }
 #detail .d-row .v { color: var(--cyan); font-family: var(--mono); font-weight: 600; }
-#detail .close { position: absolute; top: 8px; right: 12px; color: var(--dim); cursor: pointer; font-size: 14px; width: 20px; height: 20px; line-height: 18px; text-align: center; border: 1px solid rgba(255,255,255,.15); border-radius: 2px; }
+#detail .close { position: absolute; top: 8px; right: 12px; color: var(--dim); cursor: pointer; font-size: 14px; width: 22px; height: 22px; line-height: 20px; text-align: center; border: 1px solid rgba(255,255,255,.15); border-radius: 50%; }
 #detail .close:hover { color: var(--pink); border-color: var(--pink); }
 
 #hint { position: fixed; bottom: 6px; left: 50%; transform: translateX(-50%); z-index: 10; font-size: 9px; color: var(--dim); font-family: var(--mono); letter-spacing: 1.5px; }
