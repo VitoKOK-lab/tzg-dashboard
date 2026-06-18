@@ -619,15 +619,69 @@ Object.keys(grouped).forEach(type => {
     return;
   }
 
-  // ─── 業務 / 影片 ─── 中小星球 + sprite halo
-  const cfg = layerCfg[type] || { radius: 300, jitter: 30 };
-  const points = fibSphere(arr.length, cfg.radius, Math.random() * 0.5);
-  arr.forEach((n, i) => {
-    const [x, y, z] = points[i];
-    const jx = (Math.random() - 0.5) * cfg.jitter;
-    const jy = (Math.random() - 0.5) * cfg.jitter;
-    const jz = (Math.random() - 0.5) * cfg.jitter;
-    const pos = new THREE.Vector3(x + jx, y + jy, z + jz);
+  // ─── 業務 / 影片 ─── 規律圓環軌道分布
+  //   影片繞 Meta (左)、業務繞 Shopline (右)
+  //   多個同心傾斜環（讓視覺有 3D 立體感）
+  const orbitCenter = (type === 'video')
+    ? new THREE.Vector3(...(anchorPositions['s:Meta']     || [-1000, 0, 0]))
+    : new THREE.Vector3(...(anchorPositions['s:Shopline'] || [ 1000, 0, 0]));
+
+  // 軌道環配置（依節點數自動拆環）
+  let ringConfig;
+  if (type === 'video') {
+    // 30 個影音排 3 環（10 / 10 / 10）
+    ringConfig = [
+      { radius: 220, tilt:  0.30, startA: 0 },
+      { radius: 320, tilt: -0.30, startA: Math.PI / 10 },
+      { radius: 420, tilt:  0.15, startA: Math.PI / 5  },
+    ];
+  } else if (type === 'agent') {
+    // 13 個業務排 2 環（7 / 6）
+    ringConfig = [
+      { radius: 200, tilt:  0.35, startA: 0 },
+      { radius: 290, tilt: -0.25, startA: Math.PI / 6 },
+    ];
+  } else {
+    ringConfig = [{ radius: 300, tilt: 0, startA: 0 }];
+  }
+  // 把 arr 平均分到各 ring（前環放 top items）
+  const perRing = Math.ceil(arr.length / ringConfig.length);
+
+  // 為每個 ring 畫淡淡的軌道導引線（讓「規律」一眼看出）
+  const guideColor = (type === 'video') ? 0xff8800 : 0xff3d8a;
+  ringConfig.forEach(cfg => {
+    const ringPoints = [];
+    const segments = 96;
+    for (let s = 0; s <= segments; s++) {
+      const a = (s / segments) * Math.PI * 2;
+      const x = Math.cos(a) * cfg.radius;
+      const yz = Math.sin(a) * cfg.radius;
+      const y = yz * Math.cos(cfg.tilt);
+      const z = yz * Math.sin(cfg.tilt);
+      ringPoints.push(new THREE.Vector3(orbitCenter.x + x, orbitCenter.y + y, orbitCenter.z + z));
+    }
+    const ringGeo = new THREE.BufferGeometry().setFromPoints(ringPoints);
+    const ringLine = new THREE.Line(ringGeo, new THREE.LineBasicMaterial({
+      color: guideColor, transparent: true, opacity: 0.15, depthWrite: false,
+    }));
+    scene.add(ringLine);
+  });
+
+  arr.forEach((n, idx) => {
+    const ringIdx = Math.min(ringConfig.length - 1, Math.floor(idx / perRing));
+    const inRing  = idx % perRing;
+    const ringCount = (ringIdx === ringConfig.length - 1)
+      ? (arr.length - ringIdx * perRing)
+      : perRing;
+    const cfg = ringConfig[ringIdx];
+    const angle = cfg.startA + (inRing / Math.max(1, ringCount)) * Math.PI * 2;
+    // 軌道平面：cos(angle)*r 為 x、sin(angle)*r 為環平面切線
+    //   切線方向投影到 (y, z)，加 tilt
+    const x = Math.cos(angle) * cfg.radius;
+    const yz = Math.sin(angle) * cfg.radius;
+    const y = yz * Math.cos(cfg.tilt);
+    const z = yz * Math.sin(cfg.tilt);
+    const pos = new THREE.Vector3(orbitCenter.x + x, orbitCenter.y + y, orbitCenter.z + z);
 
     let planetR, haloSize;
     if (type === 'video') {
