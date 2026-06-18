@@ -493,13 +493,12 @@ const labelsLayer = document.getElementById('labels-layer');
 const grouped = {};
 nodes.forEach(n => { (grouped[n.type] ||= []).push(n); });
 
-// 三個星（中央 sphere / Meta / Shopline）拉開：
-//   不要在 Y 軸上一條直線，改斜對角錯開
-//   Meta: 左上後方  Shopline: 右下前方
-//   彼此距離約 1600+ units（≈ 16 顆主星直徑）
+// 三個星純「左右平行」排列在 X 軸上、y=z=0
+//   Meta 左 ──── 中央 sphere ──── Shopline 右
+//   兩個 anchor 距離 2000 units（≈ 20 顆主星直徑寬）
 const anchorPositions = {
-  's:Meta':     [-700,  300,  200],
-  's:Shopline': [ 700, -300, -200],
+  's:Meta':     [-1000, 0, 0],
+  's:Shopline': [ 1000, 0, 0],
 };
 
 // 軌道衛星全域陣列（每 frame 更新位置）
