@@ -1402,14 +1402,7 @@ function updateLabels() {
     nd.div.style.left = x + 'px';
     nd.div.style.top  = y + 'px';
     nd.div.style.display = inFront ? 'block' : 'none';
-    if (focusedNodeId) {
-      if (nd.node.id === focusedNodeId) nd.div.style.opacity = 1;
-      else nd.div.style.opacity = '';
-    } else {
-      const distance = camera.position.distanceTo(nd.pos);
-      const opacity = inFront ? Math.max(0.15, Math.min(1, 1 - (distance - 200) / 900)) : 0;
-      nd.div.style.opacity = opacity;
-    }
+    // opacity 完全交給 CSS class 控制（.hover-show / .is-focus），不再 inline 蓋
   });
 }
 
