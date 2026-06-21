@@ -189,6 +189,51 @@ html, body {
 #hint { position: fixed; bottom: 6px; left: 50%; transform: translateX(-50%); z-index: 10; font-size: 9px; color: var(--dim); font-family: var(--mono); letter-spacing: 1.5px; }
 #gen-info { position: fixed; top: 50px; right: 14px; z-index: 10; font-size: 9px; color: var(--dim); font-family: var(--mono); letter-spacing: 1px; }
 
+/* === Panel toggle 按鈕（手機才顯示） === */
+#panel-toggle {
+  display: none;
+  position: fixed; top: 50px; left: 14px; z-index: 51;
+  background: rgba(8,8,24,.88);
+  border: 1px solid rgba(0,240,255,.4);
+  color: var(--cyan);
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-family: var(--mono);
+  font-size: 11px;
+  cursor: pointer;
+  letter-spacing: 1.5px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+#panel-toggle:hover { background: rgba(0,240,255,.15); box-shadow: 0 0 12px rgba(0,240,255,.4); }
+
+/* === 手機 RWD：side panel 全收起，主畫面只剩宇宙 === */
+@media (max-width: 768px) {
+  #leftbar {
+    transform: translateX(-110%);
+    transition: transform .3s ease;
+    z-index: 50;
+    width: 250px;
+    max-height: calc(100vh - 80px);
+    overflow-y: auto;
+  }
+  #leftbar.show { transform: translateX(0); }
+  #panel-toggle { display: block; }
+  #topbar .topbar-stats { display: none; }
+  #hint, #gen-info { display: none; }
+  #view-buttons button {
+    min-width: 110px;
+    font-size: 10px;
+    padding: 7px 10px;
+    letter-spacing: 1px;
+  }
+  #detail {
+    width: calc(100vw - 36px);
+    max-width: 320px;
+    right: 18px;
+  }
+}
+
 /* === 視角按鈕（右下） === */
 #view-buttons {
   position: fixed; bottom: 16px; right: 16px; z-index: 12;
@@ -283,6 +328,7 @@ html, body {
 
 <div id="hint">DRAG · ZOOM · CLICK NODE = INSPECT</div>
 <div id="gen-info">SYS://generated <span id="gen-at">--</span></div>
+<button id="panel-toggle">☰ 資料面板</button>
 
 <div id="view-buttons">
   <div class="vh">// VIEW</div>
@@ -1205,6 +1251,14 @@ function focusNode(node, pos) {
   flyTo(targetCam, pos, 2600);
   setTimeout(() => enterFocusMode(node.id), 2400);
 }
+
+// ─── 手機 panel toggle ───
+const panelToggleBtn = document.getElementById('panel-toggle');
+const leftbarEl = document.getElementById('leftbar');
+panelToggleBtn.addEventListener('click', () => {
+  const show = leftbarEl.classList.toggle('show');
+  panelToggleBtn.textContent = show ? '✕ 收起' : '☰ 資料面板';
+});
 
 // ─── Raycaster：hover 星球顯示 label、click 星球 focusNode ───
 const raycaster = new THREE.Raycaster();
