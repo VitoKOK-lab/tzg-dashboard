@@ -50,12 +50,15 @@ html, body {
     0 0 18px currentColor,
     0 0 4px rgba(0,0,0,.9);
   letter-spacing: 1px;
-  pointer-events: auto;
-  cursor: pointer;
-  transition: filter .15s, opacity .5s ease;
+  pointer-events: none;      /* 不擋光線；hover/click 用 raycaster 偵測星球 */
   user-select: none;
+  opacity: 0;                /* 預設隱藏，hover-show / is-focus 才顯示 */
+  transition: opacity .25s ease;
 }
-.node-label:hover { filter: brightness(1.4) drop-shadow(0 0 8px currentColor); }
+.node-label.hover-show,
+.node-label.is-focus {
+  opacity: 1;
+}
 .node-label.anchor { color: var(--cyan);   font-size: 22px; }
 .node-label.agent  { color: var(--pink);   font-size: 16px; }
 .node-label.video  { color: var(--orange); font-size: 13px; font-weight: 600; }
@@ -70,8 +73,7 @@ html, body {
   text-transform: uppercase;
 }
 
-/* Focus mode */
-#labels-layer.focused .node-label:not(.is-focus) { opacity: .08 !important; pointer-events: none; }
+/* Focus mode：只有 focus 那個顯示，其他維持隱藏 */
 #labels-layer.focused .node-label.is-focus {
   filter: drop-shadow(0 0 14px currentColor) drop-shadow(0 0 28px currentColor);
   transform: translate(-50%, -50%) scale(1.15);
@@ -1204,7 +1206,45 @@ function focusNode(node, pos) {
   setTimeout(() => enterFocusMode(node.id), 2400);
 }
 
-canvas.addEventListener('click', e => { if (e.target === canvas) { exitFocusMode(); startIdle(); } });
+// ─── Raycaster：hover 星球顯示 label、click 星球 focusNode ───
+const raycaster = new THREE.Raycaster();
+raycaster.params.Points = { threshold: 4 };
+const mouseVec = new THREE.Vector2();
+let hoveredNd = null;
+
+function pickNode(clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  mouseVec.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+  mouseVec.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(mouseVec, camera);
+  const meshes = node3D.map(nd => nd.mesh).filter(Boolean);
+  const hits = raycaster.intersectObjects(meshes, false);
+  if (hits.length === 0) return null;
+  return node3D.find(nd => nd.mesh === hits[0].object) || null;
+}
+
+canvas.addEventListener('pointermove', e => {
+  // 拖拉中不更新 hover（避免一直閃）
+  if (e.buttons > 0) return;
+  const nd = pickNode(e.clientX, e.clientY);
+  if (nd !== hoveredNd) {
+    if (hoveredNd) hoveredNd.div.classList.remove('hover-show');
+    if (nd) nd.div.classList.add('hover-show');
+    hoveredNd = nd;
+    canvas.style.cursor = nd ? 'pointer' : 'grab';
+  }
+});
+
+canvas.addEventListener('click', e => {
+  if (e.target !== canvas) return;
+  const nd = pickNode(e.clientX, e.clientY);
+  if (nd) {
+    focusNode(nd.node, nd.pos);
+  } else {
+    exitFocusMode();
+    startIdle();
+  }
+});
 
 // ─── 視角按鈕 ───
 const VIEW_PRESETS = {
