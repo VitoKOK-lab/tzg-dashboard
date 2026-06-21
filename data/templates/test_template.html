@@ -185,7 +185,53 @@ html, body {
 #detail .close:hover { color: var(--pink); border-color: var(--pink); }
 
 #hint { position: fixed; bottom: 6px; left: 50%; transform: translateX(-50%); z-index: 10; font-size: 9px; color: var(--dim); font-family: var(--mono); letter-spacing: 1.5px; }
-#gen-info { position: fixed; bottom: 6px; right: 14px; z-index: 10; font-size: 9px; color: var(--dim); font-family: var(--mono); letter-spacing: 1px; }
+#gen-info { position: fixed; top: 50px; right: 14px; z-index: 10; font-size: 9px; color: var(--dim); font-family: var(--mono); letter-spacing: 1px; }
+
+/* === 視角按鈕（右下） === */
+#view-buttons {
+  position: fixed; bottom: 16px; right: 16px; z-index: 12;
+  display: flex; flex-direction: column; gap: 6px;
+}
+#view-buttons .vh {
+  font-size: 8px;
+  color: var(--dim);
+  letter-spacing: 2px;
+  margin-bottom: 4px;
+  padding: 0 14px;
+  text-transform: uppercase;
+  font-family: var(--mono);
+}
+#view-buttons button {
+  background: rgba(8,8,24,.85);
+  border: 1px solid rgba(0,240,255,.3);
+  color: var(--cyan);
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all .15s;
+  font-family: var(--mono);
+  letter-spacing: 1.5px;
+  text-align: left;
+  min-width: 130px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+#view-buttons button:hover {
+  background: rgba(0,240,255,.15);
+  border-color: var(--cyan);
+  box-shadow: 0 0 12px rgba(0,240,255,.4);
+  color: var(--hi);
+}
+#view-buttons button[data-view="orbit"] {
+  color: var(--gold);
+  border-color: rgba(255,184,0,.5);
+}
+#view-buttons button[data-view="orbit"]:hover {
+  background: rgba(255,184,0,.15);
+  border-color: var(--gold);
+  box-shadow: 0 0 12px rgba(255,184,0,.4);
+}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/three@0.140.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.140.0/examples/js/controls/OrbitControls.js"></script>
@@ -235,6 +281,17 @@ html, body {
 
 <div id="hint">DRAG · ZOOM · CLICK NODE = INSPECT</div>
 <div id="gen-info">SYS://generated <span id="gen-at">--</span></div>
+
+<div id="view-buttons">
+  <div class="vh">// VIEW</div>
+  <button data-view="home">🌐 全景 HOME</button>
+  <button data-view="top">⬆ 俯視 TOP</button>
+  <button data-view="front">▣ 正面 FRONT</button>
+  <button data-view="meta">◀ Meta 側</button>
+  <button data-view="shopline">▶ Shopline 側</button>
+  <button data-view="core">★ 主星 CORE</button>
+  <button data-view="orbit">⟲ 自動公轉</button>
+</div>
 
 <script>
 const DATA = __GRAPH_DATA__;
@@ -1150,6 +1207,36 @@ function focusNode(node, pos) {
 }
 
 canvas.addEventListener('click', e => { if (e.target === canvas) { exitFocusMode(); startIdle(); } });
+
+// ─── 視角按鈕 ───
+const VIEW_PRESETS = {
+  home:     { pos: [    0,  200, 2200], target: [    0,    0,    0], rotate: false },
+  top:      { pos: [    0, 2600,   80], target: [    0,    0,    0], rotate: false },
+  front:    { pos: [    0,    0, 2300], target: [    0,  100,    0], rotate: false },
+  meta:     { pos: [-2200,  -200, 800], target: [-1000, -400,    0], rotate: false },
+  shopline: { pos: [ 2200,  -200, 800], target: [ 1000, -400,    0], rotate: false },
+  core:     { pos: [  200, 1200,  900], target: [    0,  800,    0], rotate: false },
+  orbit:    { pos: [    0,  200, 2200], target: [    0,    0,    0], rotate: true  },
+};
+
+document.querySelectorAll('#view-buttons button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const v = VIEW_PRESETS[btn.dataset.view];
+    if (!v) return;
+    cancelIdle();
+    exitFocusMode();
+    flyTo(
+      new THREE.Vector3(v.pos[0], v.pos[1], v.pos[2]),
+      new THREE.Vector3(v.target[0], v.target[1], v.target[2]),
+      2200
+    );
+    // 飛完後決定要不要公轉
+    setTimeout(() => {
+      if (controls) controls.autoRotate = v.rotate;
+      else autoRotate = v.rotate;
+    }, 2300);
+  });
+});
 
 // ─── Idle 自動回中心 + 啟動公轉 ───
 const INITIAL_CAM_POS = camera.position.clone();
