@@ -1098,6 +1098,8 @@ function exitFocusMode() {
   farStars.material.opacity = 0.85; midStars.material.opacity = 0.85; nearGlow.material.opacity = 0.85;
   icoLines.material.opacity = 0.65; icoLines2.material.opacity = 0.30;
   document.getElementById('detail').classList.remove('show');
+  // 離開 focus mode 後啟動 idle，6 秒沒互動會自動回中心
+  if (typeof startIdle === 'function') startIdle();
 }
 
 function focusNode(node, pos) {
@@ -1147,8 +1149,46 @@ function focusNode(node, pos) {
   setTimeout(() => enterFocusMode(node.id), 2400);
 }
 
-canvas.addEventListener('click', e => { if (e.target === canvas) exitFocusMode(); });
-if (controls) canvas.addEventListener('pointerdown', () => { controls.autoRotate = false; });
+canvas.addEventListener('click', e => { if (e.target === canvas) { exitFocusMode(); startIdle(); } });
+
+// ─── Idle 自動回中心 + 啟動公轉 ───
+const INITIAL_CAM_POS = camera.position.clone();
+const INITIAL_TARGET  = controls ? controls.target.clone() : new THREE.Vector3(0, 0, 0);
+const IDLE_RESET_MS = 6000;     // 6 秒沒互動 → 回中心
+let idleTimer = null;
+let isReturning = false;
+
+function startIdle() {
+  clearTimeout(idleTimer);
+  // 在 focus mode 不自動回（避免打斷用戶看 detail）
+  if (focusedNodeId) return;
+  idleTimer = setTimeout(returnHome, IDLE_RESET_MS);
+}
+function cancelIdle() {
+  clearTimeout(idleTimer);
+}
+function returnHome() {
+  if (isReturning) return;
+  isReturning = true;
+  // 飛回起始 camera + target
+  flyTo(INITIAL_CAM_POS, INITIAL_TARGET, 2800);
+  // 飛行完成後啟動 autoRotate（公轉）
+  setTimeout(() => {
+    if (controls) controls.autoRotate = true;
+    else autoRotate = true;
+    isReturning = false;
+  }, 2900);
+}
+
+// 任何互動都重置 idle timer
+canvas.addEventListener('pointerdown', () => {
+  if (controls) controls.autoRotate = false;
+  else autoRotate = false;
+  cancelIdle();
+});
+canvas.addEventListener('pointerup', () => { startIdle(); });
+canvas.addEventListener('wheel', () => { cancelIdle(); startIdle(); }, { passive: true });
+// 啟動時也開始計時（首次載入若用戶不動 6 秒就...其實已經在 autoRotate，所以不重要）
 
 // Dataview 飛行
 function findNodesByType(type) { return node3D.filter(nd => nd.node.type === type); }
