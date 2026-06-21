@@ -284,9 +284,7 @@ html, body {
 
 <div id="view-buttons">
   <div class="vh">// VIEW</div>
-  <button data-view="home">🌐 全景 HOME</button>
   <button data-view="top">⬆ 俯視 TOP</button>
-  <button data-view="front">▣ 正面 FRONT</button>
   <button data-view="meta">◀ Meta 側</button>
   <button data-view="shopline">▶ Shopline 側</button>
   <button data-view="core">★ 主星 CORE</button>
@@ -1210,9 +1208,7 @@ canvas.addEventListener('click', e => { if (e.target === canvas) { exitFocusMode
 
 // ─── 視角按鈕 ───
 const VIEW_PRESETS = {
-  home:     { pos: [    0,  200, 2200], target: [    0,    0,    0], rotate: false },
   top:      { pos: [    0, 2600,   80], target: [    0,    0,    0], rotate: false },
-  front:    { pos: [    0,    0, 2300], target: [    0,  100,    0], rotate: false },
   meta:     { pos: [-2200,  -200, 800], target: [-1000, -400,    0], rotate: false },
   shopline: { pos: [ 2200,  -200, 800], target: [ 1000, -400,    0], rotate: false },
   core:     { pos: [  200, 1200,  900], target: [    0,  800,    0], rotate: false },
