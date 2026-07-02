@@ -1,26 +1,28 @@
 <!DOCTYPE html>
 <!--
   ═══════════════════════════════════════════════════════════════
-   TZG 即時動態儀表板（珠寶工坊即時場景）  live.html
+   TZG 即時儀表板 v2 —「水晶奇幻都市」3D 世界  live.html
   ═══════════════════════════════════════════════════════════════
-   ▸ 純前端、零後端、零函式庫。唯讀 output/dashboard_latest.html
-     內嵌的 const D= JSON，不影響任何既有產生流程。
+   ▸ 純前端、零後端。Three.js 由 jsdelivr CDN 載入（importmap），
+     所有幾何程序化生成，不用外部模型/貼圖。
+   ▸ 唯讀 output/dashboard_latest.html 內嵌的 const D= JSON 與
+     同源 /meta-dashboard/ 的 STATIC_DATA，不影響任何產生流程。
    ▸ 移除方式：
        1. 刪除本檔案（git rm live.html）
        2. 還原 index.html 中的三處新增：
           -「即時」tab、- f4 iframe、- urls 陣列最後一項
           （loaded 陣列改回 4 個 false）
    ▸ 測試參數：
-       ?hour=20              時鐘跳到今天 20:00
-       ?time=2026-07-15T20:30 指定完整時間
-       ?demo=1               內建範例資料 + 60 倍速時鐘
+       ?hour=20   時鐘跳到今天 20:00      ?time=2026-07-15T20:30
+       ?demo=1    內建範例資料 + 60 倍速   ?lite=1  低階裝置模式
+       ?debug=1   顯示 fps / draw calls HUD
   ═══════════════════════════════════════════════════════════════
 -->
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TZG 即時工坊</title>
+<title>TZG 即時水晶都市</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@400;600&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -31,10 +33,13 @@ body {
   color: #F5EFE4;
 }
 
-#stage {
+#gl { position: fixed; inset: 0 0 52px 0; }
+#gl canvas { display: block; }
+
+/* ── HUD 覆蓋層（防烙印微漂移） ── */
+#hud {
   position: fixed; inset: 0 0 52px 0;
-  display: flex; align-items: center; justify-content: center;
-  /* 防烙印：整體 90 秒 8 字形微漂移 */
+  pointer-events: none; z-index: 5;
   animation: drift 90s ease-in-out infinite;
 }
 @keyframes drift {
@@ -44,92 +49,30 @@ body {
   75%  { transform: translate(-6px, -4px); }
   100% { transform: translate(0px, 0px); }
 }
-svg#scene { width: 100%; height: 100%; display: block; }
-
-text { user-select: none; }
-.serif  { font-family: 'Cormorant Garamond', serif; }
-.num    { font-family: 'Cormorant Garamond', serif; font-variant-numeric: tabular-nums; }
-.zh     { font-family: 'Noto Sans TC', 'PingFang TC', 'Montserrat', sans-serif; }
-
-/* ── 環境動畫（全 CSS，合成器執行緒） ── */
-.gem { animation: twinkle 4s ease-in-out infinite; }
-@keyframes twinkle { 0%,100% { opacity: .45; } 50% { opacity: 1; } }
-
-.chan-swing { animation: sway 6s ease-in-out infinite; transform-origin: 0 0; }
-@keyframes sway { 0%,100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg); } }
-
-.star { opacity: 0; transition: opacity 2s; }
-.is-night .star { animation: twinkle 3s ease-in-out infinite; opacity: .9; }
-
-/* ── 員工三態 ── */
-.figure { animation: breathe 2.8s ease-in-out infinite; }
-@keyframes breathe { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
-
-.worker .arm { transition: transform .3s; }
-.worker.working .arm-l { animation: typeL .32s ease-in-out infinite alternate; }
-.worker.working .arm-r { animation: typeR .29s ease-in-out infinite alternate; }
-@keyframes typeL { from { transform: rotate(-14deg); } to { transform: rotate(10deg); } }
-@keyframes typeR { from { transform: rotate(12deg); }  to { transform: rotate(-12deg); } }
-.worker.working .figure { animation: workbob .5s ease-in-out infinite; }
-@keyframes workbob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
-
-.worker.celebrate .figure { animation: jump .55s ease-in-out infinite; }
-@keyframes jump { 0%,100% { transform: translateY(0); } 40% { transform: translateY(-26px); } }
-.worker.celebrate .arm-l { transform: rotate(-150deg); }
-.worker.celebrate .arm-r { transform: rotate(150deg); }
-
-/* 泡泡 */
-.bubble { opacity: 0; pointer-events: none; transition: opacity .35s, transform .35s; transform: translateY(8px); }
-.bubble.show { opacity: 1; transform: translateY(0); }
-
-/* 夜間模式 */
-#nightDim { opacity: 0; transition: opacity 3s; pointer-events: none; }
-.is-night #nightDim { opacity: .52; }
-.is-night .figure, .is-night .nametag { opacity: 0; transition: opacity 2s; }
-.figure, .nametag { transition: opacity 2s; }
-#cat { opacity: 0; transition: opacity 2s; }
-.is-night #cat { opacity: 1; }
-#cat .cat-body { animation: breathe 3.4s ease-in-out infinite; }
-#lampGlow { opacity: 0; transition: opacity 3s; }
-.is-night #lampGlow { opacity: .22; }
-.zzz { opacity: 0; }
-.is-night .zzz { animation: zzz 3s ease-in-out infinite; }
-.zzz:nth-of-type(2) { animation-delay: 1s !important; }
-@keyframes zzz { 0% { opacity: 0; transform: translate(0,0); } 30% { opacity: .8; } 100% { opacity: 0; transform: translate(10px,-22px); } }
-
-/* 彩紙（池化，觸發時加 .boom） */
-#confetti .cf { opacity: 0; }
-#confetti.boom .cf { animation: fall var(--dur) var(--delay) cubic-bezier(.2,.6,.4,1) forwards; }
-@keyframes fall {
-  0%   { opacity: 1; transform: translate(0,0) rotate(0deg); }
-  100% { opacity: 0; transform: translate(var(--dx), 620px) rotate(var(--rot)); }
+#asOf {
+  position: absolute; top: 14px; right: 20px;
+  font-size: 13px; color: rgba(245,239,228,.62); letter-spacing: 1px;
+  text-shadow: 0 1px 4px rgba(0,0,0,.6);
 }
-
-/* 綵帶橫幅 */
-#banner { opacity: 0; transition: opacity .5s, transform .5s; transform: translateY(-18px) scale(.92); transform-origin: 960px 300px; }
-#banner.show { opacity: 1; transform: translateY(0) scale(1); }
-
-/* 禮盒上架 */
-.giftbox { opacity: 0; }
-.giftbox.on { opacity: 1; animation: pop .5s cubic-bezier(.3,1.6,.5,1); }
-@keyframes pop { 0% { transform: translateY(14px) scale(.4); } 100% { transform: translateY(0) scale(1); } }
-
-/* 收銀機更新脈衝 */
-#regToday.pulse { animation: pulse .8s ease-out; }
-@keyframes pulse { 0% { fill: #ffe9b8; } 100% { fill: #C9A961; } }
-
-/* 短影音成效牆 */
-#metaTV { opacity: 0; transition: opacity 1.2s; }
-#metaTV.on { opacity: 1; }
-#metaTV .livedot { animation: livedot 1.6s ease-in-out infinite; }
-@keyframes livedot { 0%,100% { opacity: 1; } 50% { opacity: .25; } }
-#metaTV .eq { transform-origin: center bottom; transform-box: fill-box; animation: eq 1s ease-in-out infinite alternate; }
-@keyframes eq { from { transform: scaleY(.25); } to { transform: scaleY(1); } }
-.is-night #metaTV.on { opacity: .35; }
-
-/* 資料異常告示 */
-#stalePlaque { opacity: 0; transition: opacity 1s; }
+#stalePlaque {
+  position: absolute; top: 40px; right: 20px;
+  padding: 6px 14px; border-radius: 8px;
+  background: rgba(214,158,46,.18); border: 1px solid rgba(230,180,70,.7);
+  color: #e6b446; font-size: 13px;
+  opacity: 0; transition: opacity 1s;
+}
 #stalePlaque.show { opacity: 1; }
+#disclaimer {
+  position: absolute; bottom: 10px; right: 20px;
+  font-size: 11px; color: rgba(245,239,228,.4);
+  text-shadow: 0 1px 3px rgba(0,0,0,.6);
+}
+#debugHud {
+  position: absolute; top: 14px; left: 20px;
+  font-size: 12px; font-family: monospace; color: #9fe89f;
+  background: rgba(0,0,0,.5); padding: 6px 10px; border-radius: 6px;
+  white-space: pre; display: none;
+}
 
 /* ── 底部跑馬燈（僅真實訂單） ── */
 #ticker {
@@ -137,6 +80,7 @@ text { user-select: none; }
   background: rgba(18,10,15,.9);
   border-top: 1px solid rgba(201,169,97,.4);
   display: flex; align-items: center; overflow: hidden;
+  z-index: 6;
 }
 #tickerLabel {
   flex-shrink: 0; padding: 0 18px; height: 100%;
@@ -157,7 +101,7 @@ text { user-select: none; }
 .tick-item .amt { color: #C9A961; font-weight: 600; }
 .tick-item .sep { color: rgba(212,69,106,.8); padding: 0 10px; }
 
-/* ── 載入 / 錯誤覆蓋層 ── */
+/* ── 覆蓋層 ── */
 .overlay {
   position: fixed; inset: 0; z-index: 20;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
@@ -172,273 +116,20 @@ text { user-select: none; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .overlay h2 { font-size: 17px; font-weight: 500; color: #F5EFE4; letter-spacing: 1px; }
 .overlay p  { font-size: 13px; color: rgba(245,239,228,.55); line-height: 1.9; }
+.fbNums { display: flex; flex-direction: column; gap: 14px; margin-top: 10px; }
+.fbNums div { font-size: 16px; color: rgba(245,239,228,.7); }
+.fbNums b { font-family: 'Cormorant Garamond', serif; font-size: 34px; color: #C9A961; margin-left: 12px; }
 </style>
 </head>
 <body>
 
-<div id="stage">
-<svg id="scene" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid meet" aria-label="TZG 即時工坊">
-<defs>
-  <linearGradient id="wallGrad" x1="0" y1="0" x2="0" y2="1">
-    <stop offset="0" stop-color="#31212c"/><stop offset="1" stop-color="#241722"/>
-  </linearGradient>
-  <linearGradient id="floorGrad" x1="0" y1="0" x2="0" y2="1">
-    <stop offset="0" stop-color="#1c1119"/><stop offset="1" stop-color="#140b11"/>
-  </linearGradient>
-  <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
-    <stop id="skyStop1" offset="0" stop-color="#8fb6d9"/>
-    <stop id="skyStop2" offset="1" stop-color="#dcd3e8"/>
-  </linearGradient>
-  <linearGradient id="goldGrad" x1="0" y1="0" x2="0" y2="1">
-    <stop offset="0" stop-color="#e3c98a"/><stop offset=".5" stop-color="#C9A961"/><stop offset="1" stop-color="#9a7c3e"/>
-  </linearGradient>
-  <linearGradient id="counterGrad" x1="0" y1="0" x2="0" y2="1">
-    <stop offset="0" stop-color="#4a3341"/><stop offset="1" stop-color="#332230"/>
-  </linearGradient>
-  <linearGradient id="gaugeFillGrad" x1="0" y1="1" x2="0" y2="0">
-    <stop offset="0" stop-color="#D4456A"/><stop offset="1" stop-color="#e88ca3"/>
-  </linearGradient>
-  <radialGradient id="lampGlowGrad">
-    <stop offset="0" stop-color="#ffdf9e" stop-opacity=".9"/>
-    <stop offset="1" stop-color="#ffdf9e" stop-opacity="0"/>
-  </radialGradient>
-</defs>
+<div id="gl"></div>
 
-<!-- ═══ 房間 ═══ -->
-<g id="room">
-  <rect x="0" y="0" width="1920" height="800" fill="url(#wallGrad)"/>
-  <rect x="0" y="800" width="1920" height="280" fill="url(#floorGrad)"/>
-  <rect x="0" y="796" width="1920" height="6" fill="#171017"/>
-  <!-- 牆面金線飾條 -->
-  <rect x="0" y="60" width="1920" height="2" fill="rgba(201,169,97,.22)"/>
-  <rect x="0" y="740" width="1920" height="2" fill="rgba(201,169,97,.16)"/>
-
-  <!-- 左拱窗 -->
-  <g id="window1">
-    <path d="M170 460 L170 260 Q290 150 410 260 L410 460 Z" fill="url(#skyGrad)" stroke="#C9A961" stroke-width="5"/>
-    <line x1="290" y1="178" x2="290" y2="460" stroke="rgba(201,169,97,.7)" stroke-width="3"/>
-    <line x1="170" y1="330" x2="410" y2="330" stroke="rgba(201,169,97,.7)" stroke-width="3"/>
-    <circle id="moon" cx="345" cy="240" r="22" fill="#f4ecd4" opacity="0"/>
-    <g id="stars1">
-      <circle class="star" cx="215" cy="230" r="2.2" fill="#fff"/>
-      <circle class="star" cx="255" cy="290" r="1.6" fill="#fff" style="animation-delay:.8s"/>
-      <circle class="star" cx="330" cy="300" r="1.8" fill="#fff" style="animation-delay:1.5s"/>
-      <circle class="star" cx="380" cy="230" r="1.5" fill="#fff" style="animation-delay:2.2s"/>
-    </g>
-  </g>
-  <!-- 右拱窗 -->
-  <g id="window2">
-    <path d="M1510 460 L1510 260 Q1630 150 1750 260 L1750 460 Z" fill="url(#skyGrad)" stroke="#C9A961" stroke-width="5"/>
-    <line x1="1630" y1="178" x2="1630" y2="460" stroke="rgba(201,169,97,.7)" stroke-width="3"/>
-    <line x1="1510" y1="330" x2="1750" y2="330" stroke="rgba(201,169,97,.7)" stroke-width="3"/>
-    <g id="stars2">
-      <circle class="star" cx="1560" cy="240" r="2" fill="#fff" style="animation-delay:.4s"/>
-      <circle class="star" cx="1610" cy="300" r="1.6" fill="#fff" style="animation-delay:1.2s"/>
-      <circle class="star" cx="1690" cy="250" r="2.1" fill="#fff" style="animation-delay:1.9s"/>
-      <circle class="star" cx="1720" cy="320" r="1.4" fill="#fff" style="animation-delay:2.6s"/>
-    </g>
-  </g>
-
-  <!-- 招牌 -->
-  <g id="sign" text-anchor="middle">
-    <rect x="740" y="66" width="440" height="112" rx="8" fill="rgba(0,0,0,.18)" stroke="url(#goldGrad)" stroke-width="2.5"/>
-    <text class="serif" x="960" y="126" font-size="52" font-weight="700" fill="url(#goldGrad)" letter-spacing="10">TZG</text>
-    <text class="zh" x="960" y="160" font-size="19" fill="#e9dfcc" letter-spacing="7">泰熙爾札娜珠寶</text>
-  </g>
-
-  <!-- 吊燈 ×2 -->
-  <g transform="translate(620,0)">
-    <g class="chan-swing">
-      <line x1="0" y1="0" x2="0" y2="90" stroke="#C9A961" stroke-width="3"/>
-      <path d="M-46 90 Q0 68 46 90 L34 128 Q0 144 -34 128 Z" fill="url(#goldGrad)"/>
-      <circle cx="-30" cy="136" r="6" fill="#ffe9b8" opacity=".9"/>
-      <circle cx="0"   cy="146" r="6" fill="#ffe9b8" opacity=".9"/>
-      <circle cx="30"  cy="136" r="6" fill="#ffe9b8" opacity=".9"/>
-    </g>
-  </g>
-  <g transform="translate(1300,0)">
-    <g class="chan-swing" style="animation-delay:1.6s">
-      <line x1="0" y1="0" x2="0" y2="90" stroke="#C9A961" stroke-width="3"/>
-      <path d="M-46 90 Q0 68 46 90 L34 128 Q0 144 -34 128 Z" fill="url(#goldGrad)"/>
-      <circle cx="-30" cy="136" r="6" fill="#ffe9b8" opacity=".9"/>
-      <circle cx="0"   cy="146" r="6" fill="#ffe9b8" opacity=".9"/>
-      <circle cx="30"  cy="136" r="6" fill="#ffe9b8" opacity=".9"/>
-    </g>
-  </g>
-
-  <!-- 展示櫃（牆掛，寶石閃爍） -->
-  <g id="case1">
-    <rect x="470" y="415" width="290" height="130" rx="8" fill="rgba(255,255,255,.07)" stroke="#C9A961" stroke-width="2.5"/>
-    <line x1="470" y1="480" x2="760" y2="480" stroke="rgba(201,169,97,.5)" stroke-width="1.5"/>
-    <path class="gem" d="M520 457 l14 -16 14 16 -14 18 Z" fill="#e88ca3"/>
-    <path class="gem" d="M610 459 l12 -14 12 14 -12 16 Z" fill="#9fd8d4" style="animation-delay:1.1s"/>
-    <path class="gem" d="M695 457 l13 -15 13 15 -13 17 Z" fill="#cbb3e6" style="animation-delay:2.3s"/>
-    <path class="gem" d="M545 517 l11 -13 11 13 -11 15 Z" fill="#f2d377" style="animation-delay:.6s"/>
-    <path class="gem" d="M655 519 l12 -14 12 14 -12 16 Z" fill="#a8cdf0" style="animation-delay:1.8s"/>
-  </g>
-  <g id="case2">
-    <rect x="1470" y="480" width="290" height="130" rx="8" fill="rgba(255,255,255,.07)" stroke="#C9A961" stroke-width="2.5"/>
-    <line x1="1470" y1="545" x2="1760" y2="545" stroke="rgba(201,169,97,.5)" stroke-width="1.5"/>
-    <path class="gem" d="M1520 522 l13 -15 13 15 -13 17 Z" fill="#f2d377" style="animation-delay:.3s"/>
-    <path class="gem" d="M1610 524 l12 -14 12 14 -12 16 Z" fill="#e88ca3" style="animation-delay:1.4s"/>
-    <path class="gem" d="M1700 522 l13 -15 13 15 -13 17 Z" fill="#9fd8d4" style="animation-delay:2.6s"/>
-    <path class="gem" d="M1565 582 l11 -13 11 13 -11 15 Z" fill="#cbb3e6" style="animation-delay:.9s"/>
-  </g>
-</g>
-
-<!-- ═══ 牆面資訊 ═══ -->
-<g id="wallInfo">
-  <!-- 短影音成效牆（讀取 meta-dashboard，同源） -->
-  <g id="metaTV">
-    <rect x="182" y="492" width="246" height="168" rx="10" fill="#171019" stroke="url(#goldGrad)" stroke-width="2.5"/>
-    <circle class="livedot" cx="206" cy="518" r="5" fill="#D4456A"/>
-    <text class="zh" x="220" y="524" font-size="15" font-weight="700" fill="#F5EFE4" letter-spacing="2">短影音成效</text>
-    <text id="metaWindowLabel" class="zh" x="410" y="524" font-size="11" fill="rgba(245,239,228,.45)" text-anchor="end">近 7 日</text>
-    <text class="zh" x="206" y="560" font-size="13" fill="rgba(245,239,228,.6)">播放</text>
-    <text id="metaPlays" class="num" x="410" y="562" font-size="24" font-weight="700" fill="#C9A961" text-anchor="end">—</text>
-    <text class="zh" x="206" y="592" font-size="13" fill="rgba(245,239,228,.6)">互動</text>
-    <text id="metaEngage" class="num" x="410" y="594" font-size="24" font-weight="700" fill="#C9A961" text-anchor="end">—</text>
-    <text class="zh" x="206" y="624" font-size="13" fill="rgba(245,239,228,.6)">新粉絲</text>
-    <text id="metaFans" class="num" x="410" y="626" font-size="24" font-weight="700" fill="#e88ca3" text-anchor="end">—</text>
-    <g fill="#D4456A">
-      <rect class="eq" x="206" y="634" width="5" height="14" rx="2"/>
-      <rect class="eq" x="216" y="634" width="5" height="14" rx="2" style="animation-delay:.18s"/>
-      <rect class="eq" x="226" y="634" width="5" height="14" rx="2" style="animation-delay:.36s"/>
-      <rect class="eq" x="236" y="634" width="5" height="14" rx="2" style="animation-delay:.1s"/>
-      <rect class="eq" x="246" y="634" width="5" height="14" rx="2" style="animation-delay:.28s"/>
-    </g>
-    <text id="metaCount" class="zh" x="410" y="646" font-size="11" fill="rgba(245,239,228,.45)" text-anchor="end">— 支影片</text>
-  </g>
-
-  <!-- 月曆 -->
-  <g id="calendar" text-anchor="middle">
-    <rect x="490" y="180" width="250" height="120" rx="10" fill="rgba(0,0,0,.2)" stroke="#C9A961" stroke-width="2"/>
-    <rect x="490" y="180" width="250" height="34" rx="10" fill="rgba(212,69,106,.85)"/>
-    <rect x="490" y="200" width="250" height="14" fill="rgba(212,69,106,.85)"/>
-    <text id="calMonth" class="zh" x="615" y="204" font-size="18" font-weight="700" fill="#fff" letter-spacing="2">— 月</text>
-    <text id="calDay" class="zh" x="615" y="262" font-size="24" fill="#F5EFE4" font-weight="500">第 — / — 天</text>
-    <text class="zh" x="615" y="288" font-size="12" fill="rgba(245,239,228,.5)" letter-spacing="2">本 月 進 度</text>
-  </g>
-
-  <!-- 月目標金色溫度計（右側牆面獨立欄位） -->
-  <g id="gauge">
-    <g id="crown" opacity="0" transform="translate(1845,86)">
-      <path d="M-24 8 L-24 -10 L-12 0 L0 -16 L12 0 L24 -10 L24 8 Z" fill="url(#goldGrad)"/>
-    </g>
-    <text id="gaugePct" class="num" x="1845" y="142" font-size="40" font-weight="700" fill="#C9A961" text-anchor="middle">—%</text>
-    <rect x="1823" y="200" width="44" height="360" rx="22" fill="rgba(0,0,0,.32)" stroke="url(#goldGrad)" stroke-width="3"/>
-    <rect id="gaugeFill" x="1830" y="546" width="30" height="7" rx="14" fill="url(#gaugeFillGrad)"/>
-    <g id="gaugeTicks" font-size="13" fill="rgba(245,239,228,.6)" class="num" text-anchor="end">
-      <line x1="1809" y1="467" x2="1823" y2="467" stroke="rgba(201,169,97,.8)" stroke-width="2"/><text x="1803" y="472">25</text>
-      <line x1="1809" y1="380" x2="1823" y2="380" stroke="rgba(201,169,97,.8)" stroke-width="2"/><text x="1803" y="385">50</text>
-      <line x1="1809" y1="294" x2="1823" y2="294" stroke="rgba(201,169,97,.8)" stroke-width="2"/><text x="1803" y="299">75</text>
-      <line x1="1809" y1="207" x2="1823" y2="207" stroke="rgba(201,169,97,.8)" stroke-width="2"/><text x="1803" y="212">100</text>
-    </g>
-    <text id="gaugeTargetLabel" class="zh" x="1845" y="596" font-size="14" fill="rgba(245,239,228,.75)" text-anchor="middle">月目標</text>
-    <text id="gaugeTarget" class="num" x="1845" y="622" font-size="18" fill="#C9A961" text-anchor="middle">NT$ —</text>
-  </g>
-
-  <!-- 資料截至（右上） -->
-  <text id="asOf" class="zh" x="1880" y="44" font-size="14" fill="rgba(245,239,228,.55)" text-anchor="end" letter-spacing="1">資料截至 —</text>
-
-  <!-- 資料異常琥珀告示 -->
-  <g id="stalePlaque">
-    <rect x="1470" y="58" width="410" height="34" rx="8" fill="rgba(214,158,46,.16)" stroke="rgba(230,180,70,.7)" stroke-width="1.5"/>
-    <text id="staleText" class="zh" x="1675" y="80" font-size="14" fill="#e6b446" text-anchor="middle">⚠ 資料更新失敗</text>
-  </g>
-
-  <!-- 免責小字（右下） -->
-  <text class="zh" x="1896" y="1010" font-size="12" fill="rgba(245,239,228,.34)" text-anchor="end">今日數字為依歷史節奏之動態預估，實際以日報為準</text>
-</g>
-
-<!-- ═══ 家具 ═══ -->
-<g id="furniture">
-  <!-- 接單桌 A / B -->
-  <g id="deskA">
-    <rect x="180" y="700" width="270" height="24" rx="6" fill="url(#goldGrad)"/>
-    <rect x="192" y="724" width="246" height="96" fill="url(#counterGrad)"/>
-    <rect x="255" y="652" width="86" height="52" rx="5" fill="#241a22" stroke="#C9A961" stroke-width="2"/>
-    <rect x="262" y="660" width="72" height="36" rx="3" fill="#3d5e6e"/>
-    <rect x="292" y="704" width="12" height="10" fill="#8a734a"/>
-  </g>
-  <g id="deskB">
-    <rect x="480" y="700" width="270" height="24" rx="6" fill="url(#goldGrad)"/>
-    <rect x="492" y="724" width="246" height="96" fill="url(#counterGrad)"/>
-    <rect x="555" y="652" width="86" height="52" rx="5" fill="#241a22" stroke="#C9A961" stroke-width="2"/>
-    <rect x="562" y="660" width="72" height="36" rx="3" fill="#3d5e6e"/>
-    <rect x="592" y="704" width="12" height="10" fill="#8a734a"/>
-  </g>
-
-  <!-- 本月累計牆面掛牌 -->
-  <g id="monthPlaque" text-anchor="middle">
-    <rect x="790" y="462" width="400" height="88" rx="10" fill="rgba(0,0,0,.22)" stroke="url(#goldGrad)" stroke-width="2"/>
-    <text class="zh" x="990" y="490" font-size="14" fill="rgba(245,239,228,.65)" letter-spacing="4">本 月 累 計</text>
-    <text id="regMonth" class="num" x="990" y="532" font-size="31" font-weight="700" fill="#C9A961">NT$ —</text>
-  </g>
-
-  <!-- 收銀台 -->
-  <g id="counter">
-    <rect x="790" y="690" width="400" height="26" rx="7" fill="url(#goldGrad)"/>
-    <rect x="802" y="716" width="376" height="112" fill="url(#counterGrad)"/>
-    <ellipse id="lampGlow" cx="1000" cy="600" rx="230" ry="150" fill="url(#lampGlowGrad)"/>
-    <!-- 收銀機（置於櫃台右側，避開收銀員） -->
-    <g id="register">
-      <rect x="940" y="576" width="230" height="116" rx="10" fill="url(#goldGrad)"/>
-      <rect x="952" y="588" width="206" height="62" rx="6" fill="#1c1218"/>
-      <text class="zh" x="1055" y="607" font-size="13" fill="rgba(245,239,228,.65)" text-anchor="middle">今 日</text>
-      <text id="regToday" class="num" x="1055" y="640" font-size="30" font-weight="700" fill="#C9A961" text-anchor="middle">NT$ 0</text>
-      <text id="regOrders" class="zh" x="1035" y="676" font-size="14" fill="#3a2a20" text-anchor="middle" font-weight="700">今日 0 筆</text>
-      <circle cx="1146" cy="672" r="7" fill="#D4456A"/>
-    </g>
-    <!-- 睡貓（夜間） -->
-    <g id="cat" transform="translate(852,672)">
-      <g class="cat-body">
-        <ellipse cx="0" cy="0" rx="30" ry="16" fill="#4a3a44"/>
-        <circle cx="24" cy="-8" r="11" fill="#4a3a44"/>
-        <path d="M17 -16 l4 -8 5 6 Z" fill="#4a3a44"/>
-        <path d="M27 -17 l4 -8 5 6 Z" fill="#4a3a44"/>
-        <path d="M-28 4 q-12 -2 -8 -14" stroke="#4a3a44" stroke-width="5" fill="none" stroke-linecap="round"/>
-      </g>
-      <text class="zzz num" x="38" y="-26" font-size="15" fill="rgba(245,239,228,.8)">z</text>
-      <text class="zzz num" x="48" y="-38" font-size="12" fill="rgba(245,239,228,.6)">z</text>
-    </g>
-  </g>
-
-  <!-- 包裝桌 -->
-  <g id="packTable">
-    <rect x="1200" y="700" width="280" height="24" rx="6" fill="url(#goldGrad)"/>
-    <rect x="1212" y="724" width="256" height="96" fill="url(#counterGrad)"/>
-    <rect x="1240" y="668" width="56" height="36" rx="4" fill="#8a5d6e"/>
-    <path d="M1240 686 h56 M1268 668 v36" stroke="#C9A961" stroke-width="3"/>
-    <rect x="1330" y="676" width="44" height="28" rx="3" fill="rgba(255,255,255,.14)"/>
-  </g>
-
-  <!-- 成品架（禮盒池，最多 12 個） -->
-  <g id="shelf">
-    <rect x="1500" y="656" width="300" height="10" rx="4" fill="url(#goldGrad)"/>
-    <rect x="1500" y="742" width="300" height="10" rx="4" fill="url(#goldGrad)"/>
-    <rect x="1508" y="666" width="8"  height="162" fill="#5c4a2c"/>
-    <rect x="1784" y="666" width="8"  height="162" fill="#5c4a2c"/>
-    <rect x="1500" y="828" width="300" height="8" rx="4" fill="url(#goldGrad)"/>
-    <g id="boxShelf"></g>
-  </g>
-</g>
-
-<!-- ═══ 員工（JS 依真實人員動態建立） ═══ -->
-<g id="workers"></g>
-
-<!-- 夜幕 -->
-<rect id="nightDim" x="0" y="0" width="1920" height="1080" fill="#0a0510"/>
-
-<!-- ═══ 慶祝層 ═══ -->
-<g id="confetti"></g>
-<g id="banner">
-  <path d="M700 268 L680 330 L700 316 Z" fill="#a83553"/>
-  <path d="M1220 268 L1240 330 L1220 316 Z" fill="#a83553"/>
-  <rect x="690" y="256" width="540" height="64" rx="8" fill="#D4456A" stroke="url(#goldGrad)" stroke-width="3"/>
-  <text id="bannerText" class="zh" x="960" y="298" font-size="28" font-weight="700" fill="#fff" text-anchor="middle" letter-spacing="4">今日達標 🎉</text>
-</g>
-</svg>
+<div id="hud">
+  <div id="asOf">資料截至 —</div>
+  <div id="stalePlaque"><span id="staleText">⚠ 資料更新失敗</span></div>
+  <div id="disclaimer">今日數字為依歷史節奏之動態預估，實際以日報為準</div>
+  <div id="debugHud"></div>
 </div>
 
 <!-- 跑馬燈：僅重播日報中的真實訂單（姓名已由管線遮罩） -->
@@ -449,20 +140,50 @@ text { user-select: none; }
 
 <div id="loadingOverlay" class="overlay">
   <div class="spinner"></div>
-  <h2>資料載入中…</h2>
+  <h2>水晶都市載入中…</h2>
 </div>
 <div id="errorOverlay" class="overlay hidden">
   <h2>資料載入失敗</h2>
   <p id="errorMsg">請透過 http 開啟（例如 python3 -m http.server），<br>或在網址加上 ?demo=1 觀看展示模式。</p>
 </div>
+<div id="glFallback" class="overlay hidden">
+  <h2>此裝置不支援 3D 顯示</h2>
+  <p>改以精簡模式顯示即時數字</p>
+  <div class="fbNums">
+    <div>今日營收<b id="fbToday">—</b></div>
+    <div>本月累計<b id="fbMonth">—</b></div>
+    <div>月目標達成<b id="fbPct">—</b></div>
+  </div>
+</div>
 
 <script>
-(function () {
-'use strict';
+// 看門狗（非 module）：CDN 載入失敗導致整個 module 無法執行時，給出友善訊息並定時重試
+setTimeout(function () {
+  if (!window.__world) {
+    document.getElementById('loadingOverlay').classList.add('hidden');
+    var fb = document.getElementById('glFallback');
+    fb.querySelector('h2').textContent = '3D 引擎載入失敗';
+    fb.querySelector('p').textContent = '需可連線 cdn.jsdelivr.net。兩分鐘後自動重試…';
+    fb.classList.remove('hidden');
+    setTimeout(function () { location.reload(); }, 120000);
+  }
+}, 20000);
+</script>
+<script type="importmap">
+{ "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 /* ═══════════════ 0. 時鐘（支援時間旅行 / 展示加速） ═══════════════ */
 var q = new URLSearchParams(location.search);
 var DEMO = q.has('demo');
+var LITE = q.has('lite');
+var DEBUG = q.has('debug');
 var SPEED = DEMO ? 60 : 1;
 var TIME_TRAVEL = DEMO || q.has('hour') || q.has('time');
 var bootReal = Date.now();
@@ -481,6 +202,10 @@ function ymd(t) { var d = new Date(t); return d.getFullYear() + '-' + String(d.g
 /* ═══════════════ 1. 小工具 ═══════════════ */
 function $(id) { return document.getElementById(id); }
 function fmt(n) { return 'NT$ ' + Math.round(n).toLocaleString('en-US'); }
+function fmtCompact(n) {
+  n = Math.round(n);
+  return n >= 10000 ? (n / 10000).toFixed(1).replace(/\.0$/, '') + '萬' : n.toLocaleString('en-US');
+}
 function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
 function hashStr(s) { var h = 2166136261; for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
 function mulberry32(seed) {
@@ -492,7 +217,7 @@ function mulberry32(seed) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
-function gauss(rng) { // Box-Muller
+function gauss(rng) {
   var u = Math.max(rng(), 1e-9), v = Math.max(rng(), 1e-9);
   return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
 }
@@ -506,6 +231,14 @@ function agentDisplayName(full) {
 function shortProduct(p) {
   var first = String(p || '').split(/[\/｜|]/)[0].trim();
   return first.length > 13 ? first.slice(0, 12) + '…' : (first || '珠寶訂單');
+}
+function easeInOut(k) { return k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2; }
+function lerpColor(c1, c2, f) {
+  var p1 = parseInt(c1.slice(1), 16), p2 = parseInt(c2.slice(1), 16);
+  var r = Math.round(((p1 >> 16) & 255) + (((p2 >> 16) & 255) - ((p1 >> 16) & 255)) * f);
+  var g = Math.round(((p1 >> 8) & 255) + (((p2 >> 8) & 255) - ((p1 >> 8) & 255)) * f);
+  var bl = Math.round((p1 & 255) + ((p2 & 255) - (p1 & 255)) * f);
+  return 'rgb(' + r + ',' + g + ',' + bl + ')';
 }
 
 /* ═══════════════ 2. 展示模式範例資料 ═══════════════ */
@@ -544,8 +277,7 @@ var DEMO_D = {
 
 /* ═══════════════ 3. 資料層 ═══════════════ */
 var LS_KEY = 'tzg_live_D';
-var D = null;              // 目前生效的日報資料
-var fetchFailed = false;
+var D = null;
 var retryDelay = 60e3;
 var retryTimer = null;
 
@@ -562,7 +294,7 @@ function applyData(newD, fromCache) {
   var changed = !D || !D.meta || D.meta.data_as_of_iso !== newD.meta.data_as_of_iso;
   D = newD;
   if (changed) {
-    buildWorkers();
+    buildStaff();
     buildTicker();
     buildSim();
     renderStatic();
@@ -589,12 +321,11 @@ function loadData() {
     .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
     .then(function (html) {
       var d = extractD(html);
-      fetchFailed = false; retryDelay = 60e3;
+      retryDelay = 60e3;
       try { localStorage.setItem(LS_KEY, JSON.stringify(d)); } catch (e) {}
       applyData(d, false);
     })
     .catch(function () {
-      fetchFailed = true;
       if (D) { updateStalePlaque('⚠ 資料更新失敗，顯示 ' + (D.meta.data_as_of || '快取') + ' 資料'); }
       else {
         var cached = null;
@@ -608,20 +339,33 @@ function loadData() {
     });
 }
 
+function renderStatic() {
+  var m = D.meta || {};
+  $('asOf').textContent = '資料截至 ' + (m.data_as_of || '—') + (m.data_as_of_iso ? ' ' + String(m.data_as_of_iso).slice(11, 16) : '');
+  updateStalePlaque(null);
+  world.monthMeta = {
+    month: m.report_month || '', dayX: m.days_elapsed || 0, dayY: m.days_total || 0,
+    target: D.target || 0
+  };
+  paintMonth();
+}
+
+function buildTicker() {
+  var track = $('tickerTrack');
+  var rows = (D.customers || []).slice().sort(function (a, b) { return String(b.time).localeCompare(String(a.time)); }).slice(0, 14);
+  var html = rows.map(function (c) {
+    var t = String(c.time || '').slice(11, 16);
+    return '<span class="tick-item">' + (t ? t + '　' : '') + (c.customer || '') +
+      '<span class="sep">✦</span>' + shortProduct(c.products) +
+      '<span class="sep">✦</span><span class="amt">' + fmt(c.amount || 0) + '</span></span>';
+  }).join('');
+  if (!html) html = '<span class="tick-item">尚無近期訂單資料</span>';
+  track.innerHTML = html + html;
+  var len = track.textContent.length;
+  track.style.setProperty('--tickDur', clamp(len * 0.28, 30, 150) + 's');
+}
+
 /* ═══════════════ 3b. 短影音（Meta）成效 ═══════════════ */
-// 讀取同源的 meta-dashboard（vitokok-lab.github.io/meta-dashboard/）
-// 內嵌 STATIC_DATA；本機預覽抓不到時面板自動隱藏，不影響其他部分。
-function fmtCompact(n) {
-  n = Math.round(n);
-  return n >= 10000 ? (n / 10000).toFixed(1).replace(/\.0$/, '') + '萬' : n.toLocaleString('en-US');
-}
-function renderMeta(a) {
-  $('metaPlays').textContent = fmtCompact(a.plays);
-  $('metaEngage').textContent = fmtCompact(a.engage);
-  $('metaFans').textContent = '+' + fmtCompact(a.fans);
-  $('metaCount').textContent = a.count + ' 支影片';
-  $('metaTV').classList.add('on');
-}
 function aggMeta(S) {
   var cutoff = ymd(now() - 7 * 864e5);
   var plays = 0, engage = 0, fans = 0, count = 0;
@@ -635,6 +379,7 @@ function aggMeta(S) {
   });
   return { plays: plays, engage: engage, fans: fans, count: count };
 }
+function renderMeta(a) { world.metaData = a; paintJumbo(); }
 function loadMeta() {
   if (DEMO) { renderMeta({ plays: 567366, engage: 7180, fans: 445, count: 77 }); return; }
   fetch('/meta-dashboard/?_live=' + Date.now(), { cache: 'no-store' })
@@ -647,28 +392,25 @@ function loadMeta() {
       var S = JSON.parse(html.slice(i + 19, j).trim().replace(/;$/, ''));
       renderMeta(aggMeta(S));
     })
-    .catch(function () { /* 面板維持前次數字或隱藏 */ });
+    .catch(function () { /* 巨幕維持前次內容 */ });
 }
 
-/* ═══════════════ 4. 模擬引擎 ═══════════════ */
-// 一切由（今天日期 + data_as_of_iso）決定：任何時刻刷新頁面，
-// 顯示數字都與從早上跑到現在的螢幕一致。
+/* ═══════════════ 4. 模擬引擎（決定性） ═══════════════ */
 var sim = { events: [], dayStart: 0, simStartMs: 0, realTodayRev: 0, realTodayOrders: 0, dailyTarget: 150000 };
 var lastTickMs = -1;
 var prevPct = null;
 var firedMilestones = {};
+var workerList = [];
 
 function hourCurve() {
   var counts = new Array(24).fill(0);
   (D.hour_dist || []).forEach(function (h) { if (h && h.hour >= 0 && h.hour < 24) counts[h.hour] = +h.orders || 0; });
   var total = counts.reduce(function (a, b) { return a + b; }, 0);
-  // 先驗曲線：凌晨低谷、19–22 高峰（源自 weekday_hour 峰值觀察）
   var prior = [1,1,.4,.3,.3,.4,.8,1.5,2.5,3.5,4.5,5,5.5,6,6.5,7,7.5,8.5,9.5,11,11.5,11,8,4];
   var pTotal = prior.reduce(function (a, b) { return a + b; }, 0);
   var w = [], sum = 0;
   for (var h = 0; h < 24; h++) {
     var real = total > 0 ? counts[h] / total : 0;
-    // 3 點平滑
     if (total > 0) {
       var l = counts[(h + 23) % 24] / total, r = counts[(h + 1) % 24] / total;
       real = (l + 2 * real + r) / 4;
@@ -688,7 +430,6 @@ function buildSim() {
   var rng = mulberry32(seed);
   var w = hourCurve();
 
-  // 今日包絡：近 7 完整天平均營收（排除 is_today），fallback daily_target
   var dt = (D.last_7_days && D.last_7_days.daily_target) || 150000;
   sim.dailyTarget = dt;
   var fullDays = ((D.last_7_days && D.last_7_days.data) || []).filter(function (d) { return !d.is_today && d.rev > 0; });
@@ -699,18 +440,15 @@ function buildSim() {
   var medOrder = (D.kpi && D.kpi.median_order) || Math.round(avgOrder * 0.4);
   var estOrders = clamp(Math.round(dayTotal / avgOrder), 5, 80);
 
-  // 今日已有的真實數字（報表當天已跑過的情況）
   sim.realTodayRev = 0; sim.realTodayOrders = 0;
   var todayKey = String(new Date(t).getMonth() + 1).padStart(2, '0') + '/' + String(new Date(t).getDate()).padStart(2, '0');
   (((D.last_7_days || {}).data) || []).forEach(function (d) {
     if (d.date === todayKey) { sim.realTodayRev = d.rev || 0; sim.realTodayOrders = d.orders || 0; }
   });
 
-  // 模擬只涵蓋 data_as_of 之後的時間
   var asOf = new Date(D.meta.data_as_of_iso || 0).getTime();
   sim.simStartMs = Math.max(0, asOf - sim.dayStart);
 
-  // 事件排程（Poisson 式）
   var events = [];
   for (var h = 0; h < 24; h++) {
     var lam = estOrders * w[h];
@@ -719,7 +457,6 @@ function buildSim() {
   }
   events.sort(function (a, b) { return a.t - b.t; });
 
-  // 金額：75% 中位數對數常態、25% 大單，總和縮放至 dayTotal
   var rawSum = 0;
   events.forEach(function (ev) {
     ev.amount = rng() < 0.75 ? medOrder * Math.exp(gauss(rng) * 0.6) : avgOrder * (1 + 2 * rng());
@@ -728,9 +465,8 @@ function buildSim() {
   var scale = rawSum > 0 ? dayTotal / rawSum : 1;
   events.forEach(function (ev) { ev.amount = Math.max(200, Math.round(ev.amount * scale)); });
 
-  // 指派員工（依昨日業績佔比加權）與商品
   var weights = workerList.map(function (wk) { return Math.max(wk.rev, 1); });
-  var wSum = weights.reduce(function (a, b) { return a + b; }, 0);
+  var wSum = weights.reduce(function (a, b) { return a + b; }, 0) || 1;
   var prods = (D.prod_qty || []).map(function (p) { return shortProduct(p.name); });
   events.forEach(function (ev) {
     var r = rng() * wSum, idx = 0;
@@ -742,254 +478,1621 @@ function buildSim() {
   sim.events = events.filter(function (ev) { return ev.t > sim.simStartMs; });
   lastTickMs = -1;
   prevPct = null;
-  if (boxPool.length) clearBoxes();
+  world.setBoxCount(0);
 }
 
-/* ═══════════════ 5. 員工建立 ═══════════════ */
-var SLOTS = [
-  { x: 862,  y: 700, role: '收銀', headset: false }, // rank1 → 收銀台（MVP）
-  { x: 315,  y: 706, role: '接單', headset: true  },
-  { x: 1290, y: 706, role: '包裝', headset: false },
-  { x: 615,  y: 706, role: '接單', headset: true  },
-  { x: 1425, y: 706, role: '包裝', headset: false }
+/* ═══════════════ 5. 世界開機 ═══════════════ */
+var world = { ok: false, monthMeta: null, metaData: null };
+var renderer, scene, camera, clock3;
+var UP = new THREE.Vector3(0, 1, 0);
+var _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _v3 = new THREE.Vector3();
+var _q = new THREE.Quaternion(), _e = new THREE.Euler(), _s = new THREE.Vector3(), _m = new THREE.Matrix4();
+var _c = new THREE.Color(), _c2 = new THREE.Color();
+var et = 0; // 場景經過秒數（動畫用，自由流動）
+
+var PAL = {
+  rose: 0xD4456A, gold: 0xC9A961, cream: 0xF5EFE4,
+  grass: 0x8CC77B, grassD: 0x6FAF63, cliff: 0xC4A184, cliffD: 0x9C7B5F,
+  path: 0xE8D9B8, wood: 0xB98A5F, roofRose: 0xE58BA4,
+  crystalPink: 0xE88CA3, crystalLight: 0xF2A9C0,
+  lampWarm: 0xFFDF9E,
+  treeGreens: [0x7DBB6E, 0x96CE84, 0xB9E08F],
+  roofs: [0xE58BA4, 0x9FD8D4, 0xF2D377, 0xCBB3E6, 0xA8CDF0, 0xF5B48A],
+  clothes: [0xE58BA4, 0x9FD8D4, 0xF2D377, 0xCBB3E6, 0xA8CDF0, 0xF5B48A, 0xC9A961, 0x8FCF9F, 0xE8A0B0, 0xB0C4E8],
+  hairs: [0x42303A, 0x6B4A35, 0x8A6248, 0x2E2A38, 0xA88250, 0x53422E],
+  skins: [0xF3D9C6, 0xEDC9A8, 0xE0B48E]
+};
+
+var gradTex = (function () {
+  // RGBA 而非 RedFormat：WebGL1 裝置也支援
+  var v = [110, 190, 255];
+  var data = new Uint8Array(12);
+  for (var i = 0; i < 3; i++) { data[i * 4] = v[i]; data[i * 4 + 1] = v[i]; data[i * 4 + 2] = v[i]; data[i * 4 + 3] = 255; }
+  var tex = new THREE.DataTexture(data, 3, 1, THREE.RGBAFormat);
+  tex.magFilter = THREE.NearestFilter; tex.minFilter = THREE.NearestFilter;
+  tex.generateMipmaps = false;
+  tex.needsUpdate = true;
+  return tex;
+})();
+// CanvasTexture 統一關 mipmaps：避免 WebGL1 對非 2 次冪貼圖強制縮放（文字變糊）
+function canvasTex(c) {
+  var tex = new THREE.CanvasTexture(c);
+  tex.generateMipmaps = false;
+  tex.minFilter = THREE.LinearFilter;
+  return tex;
+}
+function toonMat(hex, opts) {
+  var m = new THREE.MeshToonMaterial(Object.assign({ color: hex, gradientMap: gradTex }, opts || {}));
+  return m;
+}
+var vertexToon = toonMat(0xffffff, { vertexColors: true });
+var goldMat = new THREE.MeshStandardMaterial({ color: PAL.gold, metalness: 0.85, roughness: 0.3 });
+function crystalMat(hex, opacity) {
+  return new THREE.MeshStandardMaterial({
+    color: hex, transparent: true, opacity: opacity || 0.45,
+    roughness: 0.12, metalness: 0, emissive: hex, emissiveIntensity: 0.25
+  });
+}
+
+function colorize(geo, hex) {
+  _c.set(hex);
+  var n = geo.attributes.position.count;
+  var arr = new Float32Array(n * 3);
+  for (var i = 0; i < n; i++) { arr[i * 3] = _c.r; arr[i * 3 + 1] = _c.g; arr[i * 3 + 2] = _c.b; }
+  geo.setAttribute('color', new THREE.BufferAttribute(arr, 3));
+  return geo;
+}
+function xform(geo, x, y, z, sx, sy, sz, ry) {
+  if (ry) geo.rotateY(ry);
+  if (sx !== 1 || sy !== 1 || sz !== 1) geo.scale(sx, sy, sz);
+  geo.translate(x, y, z);
+  return geo;
+}
+
+// 光暈 sprite（同色共用貼圖）
+var glowTexCache = {};
+function glowTexture(hexStr) {
+  if (glowTexCache[hexStr]) return glowTexCache[hexStr];
+  var c = document.createElement('canvas'); c.width = c.height = 64;
+  var g = c.getContext('2d');
+  var grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  grad.addColorStop(0, hexStr); grad.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = grad; g.fillRect(0, 0, 64, 64);
+  var tex = canvasTex(c);
+  glowTexCache[hexStr] = tex;
+  return tex;
+}
+function glowSprite(hexStr, size) {
+  var sp = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: glowTexture(hexStr), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true
+  }));
+  sp.scale.set(size, size, 1);
+  return sp;
+}
+
+var hemiLight, sunLight, shopLight, moonMesh, sunMesh;
+
+function initWorld() {
+  try {
+    renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    if (!renderer.getContext()) throw new Error('no ctx');
+  } catch (e) { showGLFallback(); return; }
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, LITE ? 1 : 1.5));
+  sizeRenderer();
+  $('gl').appendChild(renderer.domElement);
+  renderer.domElement.addEventListener('webglcontextlost', function (ev) {
+    ev.preventDefault();
+    showGLFallback();
+    setTimeout(function () { location.reload(); }, 30e3);
+  });
+
+  scene = new THREE.Scene();
+  scene.fog = new THREE.Fog(0x8ECBEE, 70, 160);
+  camera = new THREE.PerspectiveCamera(42, glAspect(), 0.5, 400);
+  camera.position.set(0, 30, 68);
+  clock3 = new THREE.Clock();
+
+  var pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  pmrem.dispose();
+
+  hemiLight = new THREE.HemisphereLight(0xBFE3FF, 0x8CC77B, 0.9);
+  scene.add(hemiLight);
+  sunLight = new THREE.DirectionalLight(0xFFF2D8, 1.1);
+  sunLight.position.set(40, 80, 30);
+  scene.add(sunLight);
+  shopLight = new THREE.PointLight(PAL.lampWarm, 0, 20);
+  shopLight.position.set(0, 4, -4);
+  scene.add(shopLight);
+
+  buildSky();
+  buildTerrain();
+  buildLandmarks();
+  buildTextPools();
+  buildNPCBase();
+  buildParticles();
+  buildCritters();
+
+  world.ok = true;
+  if (DEBUG) $('debugHud').style.display = 'block';
+  window.addEventListener('resize', onResize);
+  requestAnimationFrame(loop);
+}
+function glAspect() { return window.innerWidth / Math.max(1, window.innerHeight - 52); }
+function sizeRenderer() { renderer.setSize(window.innerWidth, Math.max(1, window.innerHeight - 52)); }
+var resizeT = null;
+function onResize() {
+  clearTimeout(resizeT);
+  resizeT = setTimeout(function () {
+    sizeRenderer();
+    camera.aspect = glAspect();
+    camera.updateProjectionMatrix();
+  }, 200);
+}
+function showGLFallback() {
+  world.ok = false;
+  $('glFallback').classList.remove('hidden');
+  $('loadingOverlay').classList.add('hidden');
+}
+
+/* ═══════════════ 6. 天空與地形 ═══════════════ */
+var skyDome, skyFactors, stars, zzzSprites = [];
+var windowsMat, lampGlowPts, waterfallTexs = [];
+
+function buildSky() {
+  var geo = new THREE.SphereGeometry(180, 24, 12);
+  var n = geo.attributes.position.count;
+  skyFactors = new Float32Array(n);
+  var colors = new Float32Array(n * 3);
+  for (var i = 0; i < n; i++) {
+    skyFactors[i] = clamp((geo.attributes.position.getY(i) / 180 + 0.35) / 1.1, 0, 1);
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  skyDome = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false }));
+  scene.add(skyDome);
+
+  // 星星
+  var sn = 350, pos = new Float32Array(sn * 3);
+  var srng = mulberry32(99);
+  for (var s = 0; s < sn; s++) {
+    var th = srng() * Math.PI * 2, ph = srng() * Math.PI * 0.45;
+    pos[s * 3] = Math.cos(th) * Math.cos(ph) * 165;
+    pos[s * 3 + 1] = Math.sin(ph) * 165 + 8;
+    pos[s * 3 + 2] = Math.sin(th) * Math.cos(ph) * 165;
+  }
+  var sg = new THREE.BufferGeometry();
+  sg.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  stars = new THREE.Points(sg, new THREE.PointsMaterial({
+    color: 0xFFFFFF, size: 1.4, sizeAttenuation: false, transparent: true, opacity: 0, fog: false,
+    map: glowTexture('rgba(255,255,255,1)'), blending: THREE.AdditiveBlending, depthWrite: false
+  }));
+  scene.add(stars);
+
+  // 太陽 / 月亮
+  sunMesh = new THREE.Group();
+  sunMesh.add(new THREE.Mesh(new THREE.SphereGeometry(5, 14, 10), new THREE.MeshBasicMaterial({ color: 0xFFE9A8, fog: false })));
+  sunMesh.add(glowSprite('rgba(255,230,160,.9)', 26));
+  scene.add(sunMesh);
+  moonMesh = new THREE.Group();
+  moonMesh.add(new THREE.Mesh(new THREE.SphereGeometry(4, 14, 10), new THREE.MeshBasicMaterial({ color: 0xF4ECD4, fog: false })));
+  moonMesh.add(glowSprite('rgba(230,230,255,.7)', 18));
+  scene.add(moonMesh);
+}
+
+var scRng = mulberry32(20260702); // 場景種子（固定，與資料無關）
+function ringSpot(rMin, rMax, exclude) {
+  // 在環帶找一個不與 exclude [{x,z,r}] 衝突的點
+  for (var tries = 0; tries < 40; tries++) {
+    var a = scRng() * Math.PI * 2;
+    var r = rMin + scRng() * (rMax - rMin);
+    var x = Math.cos(a) * r, z = Math.sin(a) * r;
+    var ok = true;
+    for (var i = 0; i < exclude.length; i++) {
+      var e = exclude[i];
+      if ((x - e.x) * (x - e.x) + (z - e.z) * (z - e.z) < e.r * e.r) { ok = false; break; }
+    }
+    if (ok) return { x: x, z: z };
+  }
+  return null;
+}
+var EXCLUDE = [
+  { x: 0, z: -8, r: 9 },    // 宮殿
+  { x: -18, z: 8, r: 5 },   // 目標塔
+  { x: 13, z: 10, r: 4.5 }, // 發射台
+  { x: 6.5, z: -4, r: 3.5 },// 禮盒架
+  { x: 0, z: 0, r: 0 }
 ];
-var SUITS = ['#3a2a35', '#453043', '#2f2436', '#41303c', '#372a3a'];
-var workerList = []; // {name, rev, el, bubble, mvp}
 
-function buildWorkers() {
-  var g = $('workers');
-  while (g.firstChild) g.removeChild(g.firstChild);
-  workerList = [];
+function buildTerrain() {
+  var parts = [];
 
-  // 合併 yesterday.agents + agents（去重、依 rank）
+  // 島本體（草頂 + 三層懸崖 + 倒吊水晶）
+  parts.push(colorize(xform(new THREE.CylinderGeometry(38, 35.5, 3.6, 40), 0, -1.8, 0, 1, 1, 1), PAL.grass));
+  parts.push(colorize(xform(new THREE.CylinderGeometry(37.6, 38, 0.7, 40), 0, 0.1, 0, 1, 1, 1), PAL.grassD));
+  parts.push(colorize(xform(new THREE.CylinderGeometry(35.5, 27, 6.5, 36), 0, -6.8, 0, 1, 1, 1), PAL.cliff));
+  parts.push(colorize(xform(new THREE.CylinderGeometry(27, 16, 7, 30), 0, -13.5, 0, 1, 1, 1), PAL.cliffD));
+  parts.push(colorize(xform(new THREE.CylinderGeometry(16, 6, 6, 22), 0, -20, 0, 1, 1, 1), 0x7E5F49));
+  for (var sp = 0; sp < 7; sp++) {
+    var a = sp / 7 * Math.PI * 2;
+    parts.push(colorize(xform(new THREE.ConeGeometry(1.8 + scRng() * 1.2, 5 + scRng() * 3, 6),
+      Math.cos(a) * (5 + scRng() * 7), -25 - scRng() * 2, Math.sin(a) * (5 + scRng() * 7), 1, -1, 1), PAL.crystalPink));
+  }
+  // 步道環
+  parts.push(colorize(xform(new THREE.TorusGeometry(14, 1.7, 3, 48).rotateX(Math.PI / 2), 0, 0.42, 0, 1, 0.1, 1), PAL.path));
+
+  var island = new THREE.Mesh(mergeGeometries(parts.map(function (g) { return g.toNonIndexed(); })), vertexToon);
+  scene.add(island);
+  parts.forEach(function (g) { g.dispose(); });
+
+  // 樹（樹幹 + 三球樹冠 instanced）
+  var treeN = LITE ? 14 : 24;
+  var trunkGeo = new THREE.CylinderGeometry(0.35, 0.5, 1.6, 7);
+  var canopyGeo = mergeGeometries([
+    new THREE.SphereGeometry(1.25, 10, 8).translate(0, 0, 0),
+    new THREE.SphereGeometry(0.95, 10, 8).translate(0.75, 0.5, 0.15),
+    new THREE.SphereGeometry(0.9, 10, 8).translate(-0.7, 0.55, -0.2)
+  ].map(function (g) { return g.toNonIndexed(); }));
+  var trunks = new THREE.InstancedMesh(trunkGeo, toonMat(PAL.wood), treeN);
+  var canopies = new THREE.InstancedMesh(canopyGeo, toonMat(0xffffff), treeN);
+  for (var t = 0; t < treeN; t++) {
+    var spot = ringSpot(18, 33, EXCLUDE) || { x: 20 + t, z: 20 };
+    var sc = 0.9 + scRng() * 0.9;
+    _m.compose(_v.set(spot.x, 0.8 * sc + 0.4, spot.z), _q.identity(), _s.set(sc, sc, sc));
+    trunks.setMatrixAt(t, _m);
+    _m.compose(_v.set(spot.x, 2.2 * sc + 0.4, spot.z), _q.setFromAxisAngle(UP, scRng() * 6.28), _s.set(sc, sc, sc));
+    canopies.setMatrixAt(t, _m);
+    canopies.setColorAt(t, _c.set(PAL.treeGreens[t % 3]));
+  }
+  scene.add(trunks); scene.add(canopies);
+
+  // 花
+  var flN = LITE ? 60 : 140;
+  var flowers = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.16, 0), toonMat(0xffffff), flN);
+  var patches = [];
+  for (var p = 0; p < 8; p++) patches.push(ringSpot(8, 30, EXCLUDE) || { x: 10 + p * 2, z: 18 });
+  var fPal = [0xF2A9C0, 0xF2D377, 0xCBB3E6, 0xFFFFFF, 0xF5B48A];
+  for (var f = 0; f < flN; f++) {
+    var pc = patches[f % 8];
+    _m.compose(_v.set(pc.x + (scRng() - 0.5) * 4.5, 0.5, pc.z + (scRng() - 0.5) * 4.5), _q.identity(), _s.set(1, 1, 1));
+    flowers.setMatrixAt(f, _m);
+    flowers.setColorAt(f, _c.set(fPal[f % 5]));
+  }
+  scene.add(flowers);
+
+  // 路燈（沿步道環）+ 夜間光暈
+  var lampN = 10;
+  var lampGeo = mergeGeometries([
+    new THREE.CylinderGeometry(0.09, 0.13, 2.6, 6).toNonIndexed(),
+    new THREE.SphereGeometry(0.28, 8, 6).translate(0, 1.45, 0).toNonIndexed()
+  ]);
+  var lamps = new THREE.InstancedMesh(lampGeo, goldMat, lampN);
+  var lgPos = new Float32Array(lampN * 3);
+  for (var L = 0; L < lampN; L++) {
+    var la = L / lampN * Math.PI * 2 + 0.31;
+    var lx = Math.cos(la) * 15.9, lz = Math.sin(la) * 15.9;
+    _m.compose(_v.set(lx, 1.7, lz), _q.identity(), _s.set(1, 1, 1));
+    lamps.setMatrixAt(L, _m);
+    lgPos[L * 3] = lx; lgPos[L * 3 + 1] = 3.2; lgPos[L * 3 + 2] = lz;
+  }
+  scene.add(lamps);
+  var lgGeo = new THREE.BufferGeometry();
+  lgGeo.setAttribute('position', new THREE.BufferAttribute(lgPos, 3));
+  lampGlowPts = new THREE.Points(lgGeo, new THREE.PointsMaterial({
+    color: PAL.lampWarm, size: 4, transparent: true, opacity: 0,
+    map: glowTexture('rgba(255,223,158,1)'), blending: THREE.AdditiveBlending, depthWrite: false
+  }));
+  scene.add(lampGlowPts);
+
+  // 小屋 ×6（粉彩屋頂）+ 夜窗
+  var houseParts = [], windowParts = [];
+  for (var hI = 0; hI < 6; hI++) {
+    var ha = (100 + hI * 32) / 180 * Math.PI;
+    var hx = Math.cos(ha) * 26, hz = Math.sin(ha) * 26;
+    var yaw = -ha + Math.PI / 2 + Math.PI; // 面向島心
+    houseParts.push(colorize(xform(new THREE.BoxGeometry(3, 2.4, 3), hx, 1.2, hz, 1, 1, 1, yaw), PAL.cream));
+    houseParts.push(colorize(xform(new THREE.ConeGeometry(2.5, 1.8, 4), hx, 3.3, hz, 1, 1, 1, yaw + Math.PI / 4), PAL.roofs[hI]));
+    houseParts.push(colorize(xform(new THREE.BoxGeometry(0.9, 1.4, 0.15), hx + Math.sin(yaw) * 1.5, 0.7, hz + Math.cos(yaw) * 1.5, 1, 1, 1, yaw), PAL.wood));
+    windowParts.push(xform(new THREE.PlaneGeometry(0.6, 0.6), hx + Math.sin(yaw + 0.6) * 1.53, 1.5, hz + Math.cos(yaw + 0.6) * 1.53, 1, 1, 1, yaw));
+    windowParts.push(xform(new THREE.PlaneGeometry(0.6, 0.6), hx + Math.sin(yaw - 0.6) * 1.53, 1.5, hz + Math.cos(yaw - 0.6) * 1.53, 1, 1, 1, yaw));
+    EXCLUDE.push({ x: hx, z: hz, r: 3.2 });
+    // 深夜 Zzz
+    var zz = makeLabel('z z Z', 'zzz');
+    zz.position.set(hx, 4.6, hz);
+    zz.material.opacity = 0;
+    zzzSprites.push(zz);
+    scene.add(zz);
+  }
+  var houses = new THREE.Mesh(mergeGeometries(houseParts.map(function (g) { return g.toNonIndexed(); })), vertexToon);
+  scene.add(houses);
+  windowsMat = new THREE.MeshBasicMaterial({ color: PAL.lampWarm, transparent: true, opacity: 0, side: THREE.DoubleSide });
+  scene.add(new THREE.Mesh(mergeGeometries(windowParts.map(function (g) { return g.toNonIndexed(); })), windowsMat));
+
+  // 發光瀑布 ×2
+  [[-30, 18, 0.5], [26, 22, -0.6]].forEach(function (wf) {
+    var c = document.createElement('canvas'); c.width = 64; c.height = 256;
+    var g = c.getContext('2d');
+    g.clearRect(0, 0, 64, 256);
+    for (var st2 = 0; st2 < 9; st2++) {
+      g.fillStyle = 'rgba(255,255,255,' + (0.25 + (st2 % 3) * 0.18) + ')';
+      var sx = 4 + st2 * 7;
+      g.fillRect(sx, 0, 2.4, 256);
+    }
+    var tex = canvasTex(c); // 64×256 皆為 2 次冪，可安全 repeat
+    tex.wrapT = THREE.RepeatWrapping;
+    waterfallTexs.push(tex);
+    var mesh = new THREE.Mesh(new THREE.PlaneGeometry(4.5, 22),
+      new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, color: 0xAEE6F5 }));
+    mesh.position.set(wf[0], -10.5, wf[1]);
+    mesh.rotation.y = wf[2];
+    scene.add(mesh);
+  });
+}
+
+/* ═══════════════ 7. 地標 ═══════════════ */
+var doorMat, gaugeFill, gaugePctSprite, crownGroup, brandCrystal, brandCore;
+var billToday, billMonth, jumboGroup, dockBoxes, dockShown = 0, dockAnims = [];
+var screenIslandGroup;
+
+function buildLandmarks() {
+  // ── TZG 宮殿（0,0,-8）──
+  var palace = new THREE.Group();
+  var pParts = [];
+  pParts.push(colorize(xform(new THREE.BoxGeometry(10, 5, 8), 0, 2.5, 0, 1, 1, 1), PAL.cream));
+  pParts.push(colorize(xform(new THREE.SphereGeometry(3.6, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), 0, 5, 0, 1, 1, 1), PAL.roofRose));
+  for (var c4 = 0; c4 < 4; c4++) {
+    var cx = c4 % 2 ? 4.6 : -4.6, cz = c4 < 2 ? 3.6 : -3.6;
+    pParts.push(colorize(xform(new THREE.CylinderGeometry(1.1, 1.2, 6.2, 10), cx, 3.1, cz, 1, 1, 1), PAL.cream));
+    pParts.push(colorize(xform(new THREE.ConeGeometry(1.45, 2.2, 10), cx, 7.3, cz, 1, 1, 1), PAL.roofRose));
+  }
+  var palaceMesh = new THREE.Mesh(mergeGeometries(pParts.map(function (g) { return g.toNonIndexed(); })), vertexToon);
+  palace.add(palaceMesh);
+  // 金飾邊
+  var trim = new THREE.Mesh(new THREE.TorusGeometry(3.65, 0.16, 8, 28).rotateX(Math.PI / 2), goldMat);
+  trim.position.y = 5.05;
+  palace.add(trim);
+  // 發光門（面向 +z）
+  doorMat = new THREE.MeshBasicMaterial({ color: PAL.lampWarm, transparent: true, opacity: 0.35 });
+  var door = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 2.8), doorMat);
+  door.position.set(0, 1.45, 4.02);
+  palace.add(door);
+  var doorFrame = new THREE.Mesh(new THREE.TorusGeometry(1.15, 0.12, 8, 20, Math.PI).rotateZ(0), goldMat);
+  doorFrame.position.set(0, 2.8, 4.05);
+  palace.add(doorFrame);
+  // 招牌
+  var sign = makeLabel('TZG 泰熙爾札娜珠寶', 'sign');
+  sign.position.set(0, 7.6, 3.2);
+  palace.add(sign);
+  palace.position.set(0, 0, -8);
+  scene.add(palace);
+
+  // ── 品牌巨水晶（宮殿上空） ──
+  brandCrystal = new THREE.Group();
+  var bcMesh = new THREE.Mesh(new THREE.OctahedronGeometry(3, 0), crystalMat(PAL.rose, 0.5));
+  bcMesh.scale.set(1, 1.7, 1);
+  brandCore = new THREE.Mesh(new THREE.OctahedronGeometry(1.6, 0), new THREE.MeshBasicMaterial({ color: PAL.crystalLight, transparent: true, opacity: 0.9 }));
+  brandCore.scale.set(1, 1.7, 1);
+  brandCrystal.add(bcMesh); brandCrystal.add(brandCore);
+  brandCrystal.add(glowSprite('rgba(232,140,163,.65)', 16));
+  brandCrystal.position.set(0, 21, -8);
+  scene.add(brandCrystal);
+
+  // ── 目標水晶塔（-18,0,8） ──
+  var tower = new THREE.Group();
+  tower.add(new THREE.Mesh(new THREE.CylinderGeometry(2.8, 3.2, 0.8, 10).translate(0, 0.4, 0), goldMat));
+  var shell = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 2.4, 18, 6, 1, true).translate(0, 9.8, 0), crystalMat(PAL.crystalPink, 0.2));
+  tower.add(shell);
+  tower.add(new THREE.Mesh(new THREE.ConeGeometry(1.7, 2.6, 6).translate(0, 20.1, 0), crystalMat(PAL.crystalPink, 0.5)));
+  gaugeFill = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.85, 18, 6).translate(0, 9, 0), new THREE.MeshBasicMaterial({ color: 0xFF6E96, transparent: true, opacity: 0.95 }));
+  gaugeFill.position.y = 0.8;
+  gaugeFill.scale.y = 0.01;
+  tower.add(gaugeFill);
+  [25, 50, 75, 100].forEach(function (mk, i) {
+    var ring = new THREE.Mesh(new THREE.TorusGeometry(2.35 - i * 0.19, 0.09, 6, 22).rotateX(Math.PI / 2), goldMat);
+    ring.position.y = 0.8 + 18 * mk / 100;
+    tower.add(ring);
+    var tick = makeLabel(String(mk), 'tick');
+    tick.position.set(2.9, 0.8 + 18 * mk / 100, 0);
+    tower.add(tick);
+  });
+  crownGroup = new THREE.Group();
+  var crown = new THREE.Mesh(mergeGeometries([
+    new THREE.ConeGeometry(0.5, 1.4, 4).translate(-0.8, 0, 0).toNonIndexed(),
+    new THREE.ConeGeometry(0.6, 1.9, 4).toNonIndexed(),
+    new THREE.ConeGeometry(0.5, 1.4, 4).translate(0.8, 0, 0).toNonIndexed()
+  ]), goldMat);
+  crownGroup.add(crown);
+  crownGroup.add(glowSprite('rgba(255,223,120,.9)', 9));
+  crownGroup.position.y = 23.4;
+  crownGroup.visible = false;
+  tower.add(crownGroup);
+  gaugePctSprite = makeDynamicSprite(256, 96);
+  gaugePctSprite.sprite.position.y = 22;
+  gaugePctSprite.sprite.scale.set(6.5, 2.4, 1);
+  tower.add(gaugePctSprite.sprite);
+  var towerLabel = makeLabel('月目標', 'tick');
+  towerLabel.position.set(0, -0.9, 2.8);
+  tower.add(towerLabel);
+  tower.position.set(-18, 0, 8);
+  scene.add(tower);
+
+  // ── 漂浮看板：今日營收 / 本月累計 ──
+  billToday = makeBillboard(512, 224, 8.6, 3.8);
+  billToday.group.position.set(9.5, 7.5, -2);
+  scene.add(billToday.group);
+  billMonth = makeBillboard(512, 224, 8.6, 3.8);
+  billMonth.group.position.set(-10, 8.5, -1);
+  scene.add(billMonth.group);
+  paintToday(); paintMonth();
+
+  // ── 短影音巨幕漂浮小島（30,9,-22） ──
+  screenIslandGroup = new THREE.Group();
+  var siParts = [];
+  siParts.push(colorize(xform(new THREE.CylinderGeometry(7, 6.3, 2, 22), 0, -1, 0, 1, 1, 1), PAL.grass));
+  siParts.push(colorize(xform(new THREE.CylinderGeometry(6.3, 3, 3.4, 18), 0, -3.6, 0, 1, 1, 1), PAL.cliff));
+  siParts.push(colorize(xform(new THREE.ConeGeometry(2.2, 4.4, 8), 0, -7, 0, 1, -1, 1), PAL.crystalPink));
+  siParts.push(colorize(xform(new THREE.CylinderGeometry(0.3, 0.4, 1.4, 7), -4.4, 0.7, 1.6, 1, 1, 1), PAL.wood));
+  siParts.push(colorize(xform(new THREE.SphereGeometry(1.15, 9, 7), -4.4, 2, 1.6, 1, 1, 1), PAL.treeGreens[1]));
+  screenIslandGroup.add(new THREE.Mesh(mergeGeometries(siParts.map(function (g) { return g.toNonIndexed(); })), vertexToon));
+  jumboGroup = makeBillboard(512, 288, 11, 6.2);
+  jumboGroup.group.position.y = 4.4;
+  screenIslandGroup.add(jumboGroup.group);
+  screenIslandGroup.position.set(30, 9, -22);
+  scene.add(screenIslandGroup);
+  paintJumbo();
+
+  // ── 發射台（13,0,10） ──
+  var pad = new THREE.Group();
+  pad.add(new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.6, 0.4, 12), goldMat));
+  for (var py = 0; py < 4; py++) {
+    var pa = py / 4 * Math.PI * 2 + 0.4;
+    var pyl = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 1.1, 6), goldMat);
+    pyl.position.set(Math.cos(pa) * 2.1, 0.7, Math.sin(pa) * 2.1);
+    pad.add(pyl);
+  }
+  var padGlow = glowSprite('rgba(232,140,163,.5)', 7);
+  padGlow.position.y = 0.8;
+  pad.add(padGlow);
+  pad.position.set(13, 0.2, 10);
+  scene.add(pad);
+
+  // ── 禮盒架（6.5,0,-4） ──
+  var shelfG = new THREE.Group();
+  var shelf1 = new THREE.Mesh(new THREE.BoxGeometry(5.4, 0.16, 1.1), goldMat);
+  shelf1.position.y = 0.9;
+  var shelf2 = shelf1.clone(); shelf2.position.y = 1.9;
+  shelfG.add(shelf1); shelfG.add(shelf2);
+  var boxGeo = mergeGeometries([
+    new THREE.BoxGeometry(0.72, 0.55, 0.72).toNonIndexed(),
+    new THREE.BoxGeometry(0.8, 0.14, 0.8).translate(0, 0.3, 0).toNonIndexed()
+  ]);
+  dockBoxes = new THREE.InstancedMesh(boxGeo, toonMat(0xffffff), 12);
+  var BOX_COLS = [0xD4456A, 0xC9A961, 0x8A5D9E, 0x4A8A7E];
+  for (var b = 0; b < 12; b++) {
+    dockBoxes.setColorAt(b, _c.set(BOX_COLS[b % 4]));
+    _m.compose(_v.set(0, -99, 0), _q.identity(), _s.set(0.001, 0.001, 0.001));
+    dockBoxes.setMatrixAt(b, _m);
+  }
+  shelfG.add(dockBoxes);
+  shelfG.position.set(6.5, 0, -4);
+  shelfG.rotation.y = -0.35;
+  scene.add(shelfG);
+}
+
+function dockSlotPos(i) {
+  var col = i % 6, row = Math.floor(i / 6);
+  return _v3.set(-2.3 + col * 0.92, (row === 0 ? 0.9 : 1.9) + 0.36, 0);
+}
+world.setBoxCount = function (n) {
+  n = clamp(n, 0, 12);
+  if (n === dockShown) return;
+  if (!world.ok) { dockShown = n; return; }
+  if (n < dockShown) { // 跨日重置
+    for (var i = n; i < 12; i++) {
+      _m.compose(_v.set(0, -99, 0), _q.identity(), _s.set(0.001, 0.001, 0.001));
+      dockBoxes.setMatrixAt(i, _m);
+    }
+  } else {
+    for (var j = dockShown; j < n; j++) dockAnims.push({ idx: j, t: 0 });
+  }
+  dockShown = n;
+  dockBoxes.instanceMatrix.needsUpdate = true;
+};
+
+/* ═══════════════ 8. 文字工廠（CanvasTexture） ═══════════════ */
+var labelCache = new Map();
+var LABEL_LRU = 48;
+var TEXT_STYLES = {
+  sign:  { font: '700 44px "Noto Sans TC"', fg: '#F5EFE4', bg: 'rgba(20,10,16,.72)', border: '#C9A961', h: 2.2, pad: 26 },
+  name:  { font: '700 40px "Noto Sans TC"', fg: '#F5EFE4', bg: 'rgba(0,0,0,.55)', border: '#C9A961', h: 0.72, pad: 22 },
+  mvp:   { font: '700 34px "Noto Sans TC"', fg: '#FFE9B8', bg: 'rgba(140,80,20,.65)', border: '#FFDF9E', h: 0.5, pad: 18 },
+  tick:  { font: '600 40px "Cormorant Garamond"', fg: '#C9A961', bg: 'rgba(0,0,0,.35)', border: null, h: 1.0, pad: 12 },
+  zzz:   { font: '700 44px "Cormorant Garamond"', fg: 'rgba(245,239,228,.85)', bg: null, border: null, h: 1.6, pad: 8 },
+  banner:{ font: '700 52px "Noto Sans TC"', fg: '#FFFFFF', bg: 'rgba(212,69,106,.92)', border: '#C9A961', h: 2.6, pad: 34 }
+};
+function drawTextCanvas(c, text, st) {
+  var g = c.getContext('2d');
+  g.clearRect(0, 0, c.width, c.height);
+  g.font = st.font;
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  if (st.bg) {
+    g.fillStyle = st.bg;
+    roundRect(g, 4, 4, c.width - 8, c.height - 8, 18);
+    g.fill();
+    if (st.border) { g.strokeStyle = st.border; g.lineWidth = 4; roundRect(g, 4, 4, c.width - 8, c.height - 8, 18); g.stroke(); }
+  }
+  g.fillStyle = st.fg;
+  g.fillText(text, c.width / 2, c.height / 2 + 2);
+}
+function roundRect(g, x, y, w, h, r) {
+  g.beginPath();
+  g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+}
+function makeLabel(text, styleKey) {
+  var key = styleKey + '|' + text;
+  var hit = labelCache.get(key);
+  if (hit) {
+    hit.lastUse = et;
+    var sp0 = new THREE.Sprite(new THREE.SpriteMaterial({ map: hit.tex, transparent: true, depthWrite: false }));
+    sp0.scale.set(hit.aspect * TEXT_STYLES[styleKey].h, TEXT_STYLES[styleKey].h, 1);
+    return sp0;
+  }
+  var st = TEXT_STYLES[styleKey];
+  var probe = document.createElement('canvas').getContext('2d');
+  probe.font = st.font;
+  var w = Math.min(512, Math.ceil(probe.measureText(text).width) + st.pad * 2);
+  var c = document.createElement('canvas');
+  c.width = Math.max(64, w); c.height = 96;
+  drawTextCanvas(c, text, st);
+  var tex = canvasTex(c);
+  var entry = { tex: tex, aspect: c.width / c.height, lastUse: et };
+  labelCache.set(key, entry);
+  if (labelCache.size > LABEL_LRU) { // 汰換最舊
+    var oldest = null, oldestKey = null;
+    labelCache.forEach(function (v, k) { if (!oldest || v.lastUse < oldest.lastUse) { oldest = v; oldestKey = k; } });
+    if (oldestKey) { oldest.tex.dispose(); labelCache.delete(oldestKey); }
+  }
+  var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+  sp.scale.set(entry.aspect * st.h, st.h, 1);
+  return sp;
+}
+// 專屬 canvas 的動態 sprite（塔頂 %、彈窗）
+function makeDynamicSprite(w, h) {
+  var c = document.createElement('canvas'); c.width = w; c.height = h;
+  var tex = canvasTex(c);
+  var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+  return { sprite: sp, canvas: c, tex: tex };
+}
+// 漂浮金框看板（frame + canvas 螢幕，永遠面向鏡頭）
+var billboards = [];
+function makeBillboard(cw, ch, w, h) {
+  var group = new THREE.Group();
+  var frame = new THREE.Mesh(new THREE.BoxGeometry(w + 0.5, h + 0.5, 0.3), goldMat);
+  frame.position.z = -0.18;
+  group.add(frame);
+  var c = document.createElement('canvas'); c.width = cw; c.height = ch;
+  var tex = canvasTex(c);
+  var screen = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex }));
+  group.add(screen);
+  var bb = { group: group, canvas: c, tex: tex, bobPhase: billboards.length * 2.1 };
+  billboards.push(bb);
+  return bb;
+}
+function paintBillboardBase(bb, title) {
+  var g = bb.canvas.getContext('2d');
+  g.fillStyle = '#1c1218';
+  g.fillRect(0, 0, bb.canvas.width, bb.canvas.height);
+  g.strokeStyle = 'rgba(201,169,97,.5)'; g.lineWidth = 3;
+  g.strokeRect(6, 6, bb.canvas.width - 12, bb.canvas.height - 12);
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillStyle = 'rgba(245,239,228,.75)';
+  g.font = '500 30px "Noto Sans TC"';
+  g.fillText(title, bb.canvas.width / 2, 40);
+  return g;
+}
+var lastTodayInt = -1;
+function paintToday() {
+  if (!billToday) return;
+  var g = paintBillboardBase(billToday, '今 日 營 收');
+  g.fillStyle = '#C9A961';
+  g.font = '700 84px "Cormorant Garamond"';
+  g.fillText(fmt(regShown), billToday.canvas.width / 2, 118);
+  g.fillStyle = 'rgba(245,239,228,.6)';
+  g.font = '400 28px "Noto Sans TC"';
+  g.fillText('今日 ' + world.todayOrders + ' 筆', billToday.canvas.width / 2, 182);
+  billToday.tex.needsUpdate = true;
+}
+function paintMonth() {
+  if (!billMonth) return;
+  var g = paintBillboardBase(billMonth, '本 月 累 計');
+  g.fillStyle = '#C9A961';
+  g.font = '700 72px "Cormorant Garamond"';
+  g.fillText(fmt(world.monthRev || 0), billMonth.canvas.width / 2, 108);
+  g.fillStyle = 'rgba(245,239,228,.6)';
+  g.font = '400 26px "Noto Sans TC"';
+  var mm = world.monthMeta || {};
+  g.fillText((world.monthOrders || 0) + ' 筆 ・ 第 ' + (mm.dayX || '—') + '/' + (mm.dayY || '—') + ' 天 ・ 目標 ' + fmtCompact(mm.target || 0), billMonth.canvas.width / 2, 176);
+  billMonth.tex.needsUpdate = true;
+}
+var jumboEqT = 0;
+function paintJumbo() {
+  if (!jumboGroup) return;
+  var g = paintBillboardBase(jumboGroup, '短影音成效 ・ 近 7 日');
+  var md = world.metaData;
+  if (!md) {
+    g.fillStyle = '#C9A961';
+    g.font = '700 64px "Cormorant Garamond"';
+    g.fillText('T Z G', jumboGroup.canvas.width / 2, 150);
+  } else {
+    g.textAlign = 'left';
+    g.font = '500 30px "Noto Sans TC"';
+    var rows = [['播放', fmtCompact(md.plays)], ['互動', fmtCompact(md.engage)], ['新粉絲', '+' + fmtCompact(md.fans)]];
+    rows.forEach(function (r2, i) {
+      g.fillStyle = 'rgba(245,239,228,.6)';
+      g.fillText(r2[0], 46, 100 + i * 56);
+      g.fillStyle = i === 2 ? '#E88CA3' : '#C9A961';
+      g.font = '700 44px "Cormorant Garamond"';
+      g.textAlign = 'right';
+      g.fillText(r2[1], jumboGroup.canvas.width - 46, 100 + i * 56);
+      g.textAlign = 'left';
+      g.font = '500 30px "Noto Sans TC"';
+    });
+    // EQ 條
+    for (var eq = 0; eq < 5; eq++) {
+      var hh = 12 + Math.abs(Math.sin(jumboEqT * 2 + eq * 1.3)) * 22;
+      g.fillStyle = '#D4456A';
+      g.fillRect(46 + eq * 16, 262 - hh, 9, hh);
+    }
+    g.fillStyle = 'rgba(245,239,228,.45)';
+    g.font = '400 22px "Noto Sans TC"';
+    g.textAlign = 'right';
+    g.fillText(md.count + ' 支影片', jumboGroup.canvas.width - 46, 252);
+  }
+  jumboGroup.tex.needsUpdate = true;
+}
+
+// 「+NT$X / 新訂單」彈窗池
+var popupPool = [];
+function buildTextPools() {
+  for (var i = 0; i < 8; i++) {
+    var dsp = makeDynamicSprite(320, 128);
+    dsp.sprite.visible = false;
+    dsp.active = false; dsp.t = 0; dsp.dur = 2.6;
+    dsp.sprite.scale.set(5, 2, 1);
+    scene.add(dsp.sprite);
+    popupPool.push(dsp);
+  }
+}
+function popupAt(x, y, z, line1, line2) {
+  if (!world.ok) return;
+  var p = null;
+  for (var i = 0; i < popupPool.length; i++) if (!popupPool[i].active) { p = popupPool[i]; break; }
+  if (!p) return;
+  var g = p.canvas.getContext('2d');
+  g.clearRect(0, 0, 320, 128);
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.lineWidth = 7; g.strokeStyle = 'rgba(255,255,255,.9)';
+  g.font = '700 34px "Noto Sans TC"';
+  if (line2) {
+    g.strokeText(line1, 160, 40); g.fillStyle = '#8C2B47'; g.fillText(line1, 160, 40);
+    g.font = '700 44px "Cormorant Garamond"';
+    g.strokeText(line2, 160, 88); g.fillStyle = '#D4456A'; g.fillText(line2, 160, 88);
+  } else {
+    g.font = '700 46px "Cormorant Garamond"';
+    g.strokeText(line1, 160, 64); g.fillStyle = '#D4456A'; g.fillText(line1, 160, 64);
+  }
+  p.tex.needsUpdate = true;
+  p.sprite.position.set(x, y, z);
+  p.sprite.material.opacity = 1;
+  p.sprite.visible = true;
+  p.active = true; p.t = 0;
+}
+
+/* ═══════════════ 9. NPC 系統 ═══════════════ */
+var MAXN = 30; // 0-21 散步、22-26 員工、27-29 快遞
+var npcs = [];
+var npcParts = {};
+var staffTags = [];
+var PATHS = [];
+
+function closedCurve(pts) {
+  return new THREE.CatmullRomCurve3(pts.map(function (p) { return new THREE.Vector3(p[0], p[1], p[2]); }), true, 'catmullrom', 0.4);
+}
+function buildNPCBase() {
+  PATHS = [
+    closedCurve([[14,0.5,0],[9.9,0.5,9.9],[0,0.5,14],[-9.9,0.5,9.9],[-14,0.5,0],[-9.9,0.5,-9.9],[0,0.5,-14],[9.9,0.5,-9.9]]),
+    closedCurve([[-24,0.5,0],[-14,0.5,14],[0,0.5,7],[14,0.5,14],[26,0.5,2],[14,0.5,-13],[0,0.5,-17],[-14,0.5,-13]]),
+    closedCurve([[4,0.5,-3],[8,0.5,2],[13,0.5,9],[8,0.5,14],[2,0.5,8]])
+  ];
+  var mk = function (geo, count) {
+    var im = new THREE.InstancedMesh(geo, toonMat(0xffffff), count);
+    im.frustumCulled = false; // 實例散佈全島，關掉以原點包圍球的整批剔除
+    for (var i = 0; i < count; i++) {
+      _m.compose(_v.set(0, -99, 0), _q.identity(), _s.set(0.001, 0.001, 0.001));
+      im.setMatrixAt(i, _m);
+    }
+    scene.add(im);
+    return im;
+  };
+  npcParts.body = mk(new THREE.CapsuleGeometry(0.42, 0.34, 4, 10), MAXN);
+  npcParts.head = mk(new THREE.SphereGeometry(0.5, 12, 9), MAXN);
+  npcParts.hair = mk(new THREE.SphereGeometry(0.53, 10, 6, 0, Math.PI * 2, 0, 1.35), MAXN);
+  // 臉（眼睛+微笑，朝局部 +z，跟著 heading 轉向）
+  npcParts.face = mk(mergeGeometries([
+    new THREE.SphereGeometry(0.055, 6, 5).translate(-0.17, 0.04, 0.46).toNonIndexed(),
+    new THREE.SphereGeometry(0.055, 6, 5).translate(0.17, 0.04, 0.46).toNonIndexed(),
+    new THREE.TorusGeometry(0.09, 0.025, 5, 8, Math.PI).rotateZ(Math.PI).translate(0, -0.12, 0.47).toNonIndexed()
+  ]), MAXN);
+  npcParts.face.material = new THREE.MeshBasicMaterial({ color: 0x33232C });
+  npcParts.hand = mk(new THREE.SphereGeometry(0.14, 8, 6), MAXN * 2);
+  npcParts.foot = mk(new THREE.SphereGeometry(0.19, 8, 6), MAXN * 2);
+  npcParts.gift = mk(mergeGeometries([
+    new THREE.BoxGeometry(0.5, 0.4, 0.5).toNonIndexed(),
+    new THREE.BoxGeometry(0.58, 0.1, 0.58).translate(0, 0.22, 0).toNonIndexed()
+  ]), MAXN);
+
+  var wrng = mulberry32(777);
+  for (var i = 0; i < MAXN; i++) {
+    npcs.push({
+      active: false, kind: 'walker',
+      pathIdx: i % 2 === 0 ? 1 : 0, u: wrng(), dir: wrng() < 0.5 ? 1 : -1,
+      speed: 0.014 + wrng() * 0.014,
+      phase: wrng() * 6.28,
+      clothes: PAL.clothes[i % PAL.clothes.length],
+      hair: PAL.hairs[i % PAL.hairs.length],
+      skin: PAL.skins[i % PAL.skins.length],
+      carrying: wrng() < 0.3, carryGlow: false,
+      pos: new THREE.Vector3(), heading: 0, scale: 0, targetScale: 0,
+      jumpT: 99, homeX: 0, homeZ: 0
+    });
+    npcParts.body.setColorAt(i, _c.set(npcs[i].clothes));
+    npcParts.head.setColorAt(i, _c.set(npcs[i].skin));
+    npcParts.hair.setColorAt(i, _c.set(npcs[i].hair));
+    npcParts.hand.setColorAt(i * 2, _c.set(npcs[i].skin));
+    npcParts.hand.setColorAt(i * 2 + 1, _c.set(npcs[i].skin));
+    npcParts.foot.setColorAt(i * 2, _c.set(0x5A4638));
+    npcParts.foot.setColorAt(i * 2 + 1, _c.set(0x5A4638));
+    npcParts.gift.setColorAt(i, _c.set([0xD4456A, 0xC9A961, 0x8A5D9E, 0x4A8A7E][i % 4]));
+  }
+  // 員工固定位（宮殿前）
+  var spots = [[0, -2.2], [-3, -1.5], [3, -1.5], [-5.2, 1], [5.2, 1]];
+  for (var s = 0; s < 5; s++) {
+    var n2 = npcs[22 + s];
+    n2.kind = 'staff';
+    n2.homeX = spots[s][0]; n2.homeZ = spots[s][1];
+    n2.pos.set(spots[s][0], 0.5, spots[s][1]);
+    n2.heading = 0; // 面向廣場（+z，鏡頭常用側）
+    n2.carrying = false;
+  }
+  for (var c5 = 27; c5 < 30; c5++) { npcs[c5].kind = 'courier'; npcs[c5].carrying = true; npcs[c5].carryGlow = true; }
+
+  // 假陰影
+  npcParts.shadow = mk(new THREE.CircleGeometry(0.55, 12).rotateX(-Math.PI / 2), MAXN);
+  npcParts.shadow.material = new THREE.MeshBasicMaterial({
+    map: glowTexture('rgba(0,0,0,.85)'), transparent: true, opacity: 0.35, depthWrite: false, color: 0x000000
+  });
+}
+
+function buildStaff() {
+  // 清掉舊名牌
+  staffTags.forEach(function (t) { scene.remove(t); t.material.dispose(); });
+  staffTags = [];
   var seen = {}, merged = [];
   (((D.yesterday || {}).agents) || []).concat(D.agents || []).forEach(function (a) {
     var nm = agentDisplayName(a.name);
     if (!seen[nm]) { seen[nm] = true; merged.push({ name: nm, rev: a.rev || 0 }); }
   });
   merged.sort(function (a, b) { return b.rev - a.rev; });
-
-  SLOTS.forEach(function (slot, i) {
-    var agent = merged[i];
-    var name = agent ? agent.name : slot.role + '組';
-    var rev = agent ? agent.rev : 1;
-    var mvp = i === 0 && !!agent;
-    var el = makeWorker(slot, name, SUITS[i % SUITS.length], mvp);
-    g.appendChild(el.root);
-    workerList.push({ name: name, rev: rev, el: el.root, bubble: el.bubble, bubbleLine1: el.line1, bubbleLine2: el.line2 });
-  });
-}
-
-var SVGNS = 'http://www.w3.org/2000/svg';
-function svgEl(tag, attrs, cls) {
-  var e = document.createElementNS(SVGNS, tag);
-  for (var k in attrs) e.setAttribute(k, attrs[k]);
-  if (cls) e.setAttribute('class', cls);
-  return e;
-}
-
-function makeWorker(slot, name, suit, mvp) {
-  var root = svgEl('g', { transform: 'translate(' + slot.x + ',' + slot.y + ')' }, 'worker');
-  var fig = svgEl('g', {}, 'figure');
-
-  // 左臂（肩點為局部原點 → CSS rotate 不會覆蓋定位）
-  var armLPos = svgEl('g', { transform: 'translate(-30,-84)' });
-  var armL = svgEl('g', {}, 'arm arm-l');
-  armL.appendChild(svgEl('rect', { x: -6, y: 0, width: 12, height: 46, rx: 6, fill: suit }));
-  armL.appendChild(svgEl('circle', { cx: 0, cy: 48, r: 7, fill: '#f3d9c6' }));
-  armLPos.appendChild(armL); fig.appendChild(armLPos);
-  // 右臂
-  var armRPos = svgEl('g', { transform: 'translate(30,-84)' });
-  var armR = svgEl('g', {}, 'arm arm-r');
-  armR.appendChild(svgEl('rect', { x: -6, y: 0, width: 12, height: 46, rx: 6, fill: suit }));
-  armR.appendChild(svgEl('circle', { cx: 0, cy: 48, r: 7, fill: '#f3d9c6' }));
-  armRPos.appendChild(armR); fig.appendChild(armRPos);
-
-  // 軀幹
-  fig.appendChild(svgEl('path', { d: 'M-36 0 C-36 -68 -20 -96 0 -96 C20 -96 36 -68 36 0 Z', fill: suit }));
-  fig.appendChild(svgEl('path', { d: 'M-10 -96 L0 -80 L10 -96', stroke: '#C9A961', 'stroke-width': 3, fill: 'none' }));
-  // 頭
-  fig.appendChild(svgEl('circle', { cx: 0, cy: -122, r: 25, fill: '#f3d9c6' }));
-  fig.appendChild(svgEl('path', { d: 'M-25 -128 A25 25 0 0 1 25 -128 L25 -122 Q0 -142 -25 -122 Z', fill: '#42303a' }));
-  fig.appendChild(svgEl('circle', { cx: -8, cy: -120, r: 2.4, fill: '#33232c' }));
-  fig.appendChild(svgEl('circle', { cx: 8, cy: -120, r: 2.4, fill: '#33232c' }));
-  fig.appendChild(svgEl('path', { d: 'M-6 -110 Q0 -105 6 -110', stroke: '#b0755f', 'stroke-width': 2, fill: 'none', 'stroke-linecap': 'round' }));
-  if (slot.headset) {
-    fig.appendChild(svgEl('path', { d: 'M-25 -126 A25 25 0 0 1 25 -126', stroke: '#C9A961', 'stroke-width': 4, fill: 'none' }));
-    fig.appendChild(svgEl('circle', { cx: -25, cy: -120, r: 6, fill: '#C9A961' }));
-    fig.appendChild(svgEl('path', { d: 'M-25 -114 Q-22 -102 -10 -102', stroke: '#C9A961', 'stroke-width': 3, fill: 'none' }));
+  workerList = [];
+  for (var s = 0; s < 5; s++) {
+    var agent = merged[s];
+    var npc = npcs[22 + s];
+    var name = agent ? agent.name : ['接單組', '包裝組', '收銀組', '客服組', '小幫手'][s];
+    workerList.push({ name: name, rev: agent ? agent.rev : 1, npcSlot: 22 + s });
+    npc.targetScale = 1;
+    if (!world.ok) continue;
+    var tag = makeLabel((s === 0 && agent ? '★ ' : '') + name, 'name');
+    tag.position.set(npc.homeX, 2.5, npc.homeZ - 8 + 0.0);
+    tag.position.z = npc.homeZ - 8; // 員工站宮殿前（宮殿在 z=-8 平移前座標系）
+    staffTags.push(tag);
+    scene.add(tag);
+    if (s === 0 && agent) {
+      var mvp = makeLabel('昨日 MVP', 'mvp');
+      mvp.position.set(npc.homeX, 3.35, npc.homeZ - 8);
+      staffTags.push(mvp);
+      scene.add(mvp);
+    }
   }
-  root.appendChild(fig);
-
-  // 名牌
-  var tag = svgEl('g', {}, 'nametag');
-  var tagW = Math.max(96, name.length * 22 + 40);
-  tag.appendChild(svgEl('rect', { x: -tagW / 2, y: 14, width: tagW, height: 34, rx: 8, fill: 'rgba(0,0,0,.45)', stroke: '#C9A961', 'stroke-width': 1.5 }));
-  var tagText = svgEl('text', { x: mvp ? 8 : 0, y: 38, 'font-size': 19, fill: '#F5EFE4', 'text-anchor': 'middle', 'letter-spacing': 1 }, 'zh');
-  tagText.textContent = name;
-  tag.appendChild(tagText);
-  if (mvp) {
-    var star = svgEl('path', { d: 'M0 -7 L2 -2 L7 -2 L3 1.5 L4.6 7 L0 3.6 L-4.6 7 L-3 1.5 L-7 -2 L-2 -2 Z', fill: '#C9A961', transform: 'translate(' + (-tagW / 2 + 18) + ',31)' });
-    tag.appendChild(star);
-    var mvpTxt = svgEl('text', { x: 0, y: 66, 'font-size': 12, fill: '#C9A961', 'text-anchor': 'middle' }, 'zh');
-    mvpTxt.textContent = '昨日 MVP';
-    tag.appendChild(mvpTxt);
+  // 員工實際世界座標 = home + 宮殿前排（宮殿中心 z=-8、門在 z=-4）
+  for (var s2 = 0; s2 < 5; s2++) {
+    var np2 = npcs[22 + s2];
+    np2.pos.set(np2.homeX, 0.5, np2.homeZ - 8 + 6.5); // 門前廣場
   }
-  root.appendChild(tag);
-
-  // 泡泡（每位員工一顆，重複使用）
-  var bubble = svgEl('g', {}, 'bubble');
-  bubble.appendChild(svgEl('path', { d: 'M-8 -158 L0 -146 L8 -158 Z', fill: '#F5EFE4' }));
-  bubble.appendChild(svgEl('rect', { x: -125, y: -224, width: 250, height: 68, rx: 12, fill: '#F5EFE4' }));
-  var line1 = svgEl('text', { x: 0, y: -196, 'font-size': 17, fill: '#4a3340', 'text-anchor': 'middle', 'font-weight': 500 }, 'zh');
-  var line2 = svgEl('text', { x: 0, y: -170, 'font-size': 19, fill: '#D4456A', 'text-anchor': 'middle', 'font-weight': 700 }, 'num');
-  bubble.appendChild(line1); bubble.appendChild(line2);
-  root.appendChild(bubble);
-
-  return { root: root, bubble: bubble, line1: line1, line2: line2 };
-}
-
-/* ═══════════════ 6. 禮盒池 / 彩紙池 ═══════════════ */
-var BOX_COLORS = ['#D4456A', '#C9A961', '#8a5d9e', '#4a8a7e'];
-var boxPool = [], boxNext = 0, boxShown = 0;
-function buildBoxPool() {
-  var g = $('boxShelf');
-  for (var i = 0; i < 12; i++) {
-    var col = i % 6, row = Math.floor(i / 6);
-    var x = 1522 + col * 44, y = row === 0 ? 706 : 792;
-    var box = svgEl('g', { transform: 'translate(' + x + ',' + y + ')' }, 'giftbox');
-    var c = BOX_COLORS[i % BOX_COLORS.length];
-    box.appendChild(svgEl('rect', { x: 0, y: -34, width: 38, height: 34, rx: 4, fill: c }));
-    box.appendChild(svgEl('rect', { x: 16, y: -34, width: 6, height: 34, fill: 'rgba(255,255,255,.55)' }));
-    box.appendChild(svgEl('rect', { x: 0, y: -22, width: 38, height: 5, fill: 'rgba(255,255,255,.55)' }));
-    box.appendChild(svgEl('path', { d: 'M19 -34 q-8 -12 -14 -4 q6 6 14 4 q8 2 14 -4 q-6 -8 -14 4', fill: 'rgba(255,255,255,.7)' }));
-    g.appendChild(box);
-    boxPool.push(box);
-  }
-}
-function spawnBox() {
-  var box = boxPool[boxNext];
-  box.classList.remove('on');
-  void box.getBoundingClientRect(); // 重觸發動畫
-  box.classList.add('on');
-  boxNext = (boxNext + 1) % boxPool.length;
-  boxShown = Math.min(boxShown + 1, boxPool.length);
-}
-function syncBoxes(n) {
-  if (boxShown >= n) return;
-  for (var i = 0; i < n; i++) boxPool[i].classList.add('on');
-  boxShown = n; boxNext = n % boxPool.length;
-}
-function clearBoxes() {
-  boxPool.forEach(function (b) { b.classList.remove('on'); });
-  boxShown = 0; boxNext = 0;
-}
-
-function buildConfetti() {
-  var g = $('confetti');
-  var cols = ['#D4456A', '#C9A961', '#F5EFE4', '#e88ca3'];
-  for (var i = 0; i < 40; i++) {
-    var r = svgEl('rect', {
-      x: 660 + (i * 157) % 600, y: -30,
-      width: 8 + (i % 3) * 3, height: 12 + (i % 4) * 3,
-      fill: cols[i % cols.length]
-    }, 'cf');
-    r.style.setProperty('--dx', (((i * 73) % 260) - 130) + 'px');
-    r.style.setProperty('--rot', (((i * 131) % 720) - 360) + 'deg');
-    r.style.setProperty('--dur', (2.4 + (i % 5) * 0.28) + 's');
-    r.style.setProperty('--delay', ((i % 8) * 0.09) + 's');
-    g.appendChild(r);
+  // 名牌跟著實際位置
+  var ti = 0;
+  for (var s3 = 0; s3 < 5; s3++) {
+    if (ti < staffTags.length) { staffTags[ti].position.set(npcs[22 + s3].pos.x, 2.5, npcs[22 + s3].pos.z); ti++; }
+    if (s3 === 0 && merged[0] && ti < staffTags.length) { staffTags[ti].position.set(npcs[22 + s3].pos.x, 3.35, npcs[22 + s3].pos.z); ti++; }
   }
 }
 
-var bannerTimer = null, confettiTimer = null;
+var censusTarget = 22;
+function updateCensus(hour) {
+  var t = (hour >= 8 && hour < 19) ? (LITE ? 10 : 22) : (hour >= 19 || hour < 1) ? (LITE ? 8 : 16) : (LITE ? 3 : 5);
+  censusTarget = t;
+  for (var i = 0; i < 22; i++) npcs[i].targetScale = i < t ? 1 : 0;
+}
+
+function updateNPCs(dt) {
+  var wob;
+  for (var i = 0; i < MAXN; i++) {
+    var n = npcs[i];
+    // 淡入淡出
+    n.scale += (n.targetScale - n.scale) * Math.min(1, dt * 1.6);
+    var active = n.scale > 0.02;
+    if (!active) {
+      if (n.wasActive) { hideNPC(i); n.wasActive = false; }
+      continue;
+    }
+    n.wasActive = true;
+
+    if (n.kind === 'walker') {
+      n.u = (n.u + n.dir * n.speed * dt + 1) % 1;
+      PATHS[n.pathIdx].getPointAt(n.u, n.pos);
+      PATHS[n.pathIdx].getTangentAt(n.u, _v2);
+      n.heading = Math.atan2(_v2.x * n.dir, _v2.z * n.dir);
+    } else if (n.kind === 'staff') {
+      // 原地小晃 + 接單跳躍
+      if (n.jumpT < 1.5) n.jumpT += dt;
+    } else if (n.kind === 'courier' && n.courierT !== undefined) {
+      n.courierT += dt / n.courierDur;
+      if (n.courierT >= 1) { n.targetScale = 0; n.courierT = undefined; }
+      else {
+        courierCurve.getPointAt(Math.min(n.courierT, 1), n.pos);
+        courierCurve.getTangentAt(Math.min(n.courierT, 1), _v2);
+        n.heading = Math.atan2(_v2.x, _v2.z);
+      }
+    }
+
+    var wt = et * 8 + n.phase;
+    var moving = n.kind === 'walker' || (n.kind === 'courier' && n.courierT !== undefined);
+    var bob = moving ? 0.07 * Math.abs(Math.sin(wt)) : 0.04 * Math.sin(et * 2 + n.phase);
+    var jump = 0;
+    if (n.kind === 'staff' && n.jumpT < 1.5) jump = 1.1 * Math.abs(Math.sin(n.jumpT / 1.5 * Math.PI * 3));
+    var roll = moving ? 0.09 * Math.sin(wt) : 0;
+    var y = n.pos.y + bob + jump;
+
+    // 身體
+    _e.set(0, n.heading, roll); _q.setFromEuler(_e);
+    _s.set(n.scale, n.scale * 0.92, n.scale * 0.86);
+    _m.compose(_v.set(n.pos.x, y + 0.62 * n.scale, n.pos.z), _q, _s);
+    npcParts.body.setMatrixAt(i, _m);
+    // 頭 + 髮
+    _e.set(0.06 * Math.sin(wt * 0.5), n.heading, -roll * 0.5); _q.setFromEuler(_e);
+    _s.set(n.scale, n.scale, n.scale);
+    _m.compose(_v.set(n.pos.x, y + 1.32 * n.scale, n.pos.z), _q, _s);
+    npcParts.head.setMatrixAt(i, _m);
+    npcParts.face.setMatrixAt(i, _m);
+    _m.compose(_v.set(n.pos.x, y + 1.42 * n.scale, n.pos.z), _q, _s);
+    npcParts.hair.setMatrixAt(i, _m);
+    // 手（抱禮盒時固定在前）
+    var hswing = moving ? 0.14 * Math.sin(wt) : 0;
+    for (var h2 = 0; h2 < 2; h2++) {
+      var side = h2 === 0 ? -1 : 1;
+      if (n.carrying) _v.set(side * 0.2, 0.82, 0.4);
+      else _v.set(side * 0.5, 0.7, hswing * side);
+      _v.multiplyScalar(n.scale).applyAxisAngle(UP, n.heading);
+      _v.add(_v2.set(n.pos.x, y, n.pos.z));
+      _m.compose(_v, _q, _s);
+      npcParts.hand.setMatrixAt(i * 2 + h2, _m);
+    }
+    // 腳
+    for (var f2 = 0; f2 < 2; f2++) {
+      var fs = f2 === 0 ? 0 : Math.PI;
+      var lift = moving ? Math.max(0, 0.14 * Math.sin(wt + fs)) : 0;
+      var fz = moving ? 0.12 * Math.cos(wt + fs) : 0;
+      _v.set((f2 === 0 ? -0.2 : 0.2), 0.12 + lift - 0.42, fz).multiplyScalar(n.scale).applyAxisAngle(UP, n.heading);
+      _v.add(_v2.set(n.pos.x, y + 0.42 * n.scale, n.pos.z));
+      _m.compose(_v, _q, _s);
+      npcParts.foot.setMatrixAt(i * 2 + f2, _m);
+    }
+    // 禮盒
+    if (n.carrying) {
+      _v.set(0, 1.0, 0.48).multiplyScalar(n.scale).applyAxisAngle(UP, n.heading).add(_v2.set(n.pos.x, y, n.pos.z));
+      var gs = n.carryGlow ? n.scale * 1.15 : n.scale;
+      _s.set(gs, gs, gs);
+      _m.compose(_v, _q, _s);
+      npcParts.gift.setMatrixAt(i, _m);
+    } else {
+      _m.compose(_v.set(0, -99, 0), _q.identity(), _s.set(0.001, 0.001, 0.001));
+      npcParts.gift.setMatrixAt(i, _m);
+    }
+    // 陰影
+    _m.compose(_v.set(n.pos.x, 0.52, n.pos.z), _q.identity(), _s.set(n.scale, 1, n.scale));
+    npcParts.shadow.setMatrixAt(i, _m);
+  }
+  for (var k in npcParts) npcParts[k].instanceMatrix.needsUpdate = true;
+}
+function hideNPC(i) {
+  _m.compose(_v.set(0, -99, 0), _q.identity(), _s.set(0.001, 0.001, 0.001));
+  npcParts.body.setMatrixAt(i, _m);
+  npcParts.head.setMatrixAt(i, _m);
+  npcParts.face.setMatrixAt(i, _m);
+  npcParts.hair.setMatrixAt(i, _m);
+  npcParts.hand.setMatrixAt(i * 2, _m); npcParts.hand.setMatrixAt(i * 2 + 1, _m);
+  npcParts.foot.setMatrixAt(i * 2, _m); npcParts.foot.setMatrixAt(i * 2 + 1, _m);
+  npcParts.gift.setMatrixAt(i, _m);
+  npcParts.shadow.setMatrixAt(i, _m);
+}
+var courierCurve = new THREE.CatmullRomCurve3([
+  new THREE.Vector3(2, 0.5, -3.5), new THREE.Vector3(6, 0.5, -0.5),
+  new THREE.Vector3(9.5, 0.5, 4), new THREE.Vector3(13, 0.5, 10)
+], false, 'catmullrom', 0.4);
+
+/* ═══════════════ 10. 粒子 ═══════════════ */
+var sparklePts, sparkleData;
+var coinInst, coinData;
+var fwPts, fwData, fwGeoAttr, fwColAttr;
+var orbPts, orbData;
+var balloonInst, balloonData;
+var launchBalloons = [];
+var birdInst, birdData, bflyInst, bflyData;
+var airships = [];
+
+function buildParticles() {
+  // 環境閃粉
+  var spN = LITE ? 120 : 300;
+  var pos = new Float32Array(spN * 3), col = new Float32Array(spN * 3);
+  sparkleData = [];
+  var srng = mulberry32(55);
+  var tint = [new THREE.Color(0xF2A9C0), new THREE.Color(0xC9A961), new THREE.Color(0xFFFFFF)];
+  for (var i = 0; i < spN; i++) {
+    sparkleData.push({ x: (srng() - 0.5) * 80, y: srng() * 25, z: (srng() - 0.5) * 80, v: 0.3 + srng() * 0.5, w: srng() * 6.28 });
+    var tc = tint[i % 3];
+    col[i * 3] = tc.r; col[i * 3 + 1] = tc.g; col[i * 3 + 2] = tc.b;
+  }
+  var spg = new THREE.BufferGeometry();
+  spg.setAttribute('position', new THREE.BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage));
+  spg.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  sparklePts = new THREE.Points(spg, new THREE.PointsMaterial({
+    size: 0.35, vertexColors: true, transparent: true, opacity: 0.8,
+    map: glowTexture('rgba(255,255,255,1)'), blending: THREE.AdditiveBlending, depthWrite: false
+  }));
+  scene.add(sparklePts);
+
+  // 金幣
+  coinInst = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.22, 0.22, 0.06, 10), goldMat, 80);
+  coinData = [];
+  for (var c6 = 0; c6 < 80; c6++) {
+    coinData.push({ active: false, p: new THREE.Vector3(), v: new THREE.Vector3(), w: 0 });
+    _m.compose(_v.set(0, -99, 0), _q.identity(), _s.set(0.001, 0.001, 0.001));
+    coinInst.setMatrixAt(c6, _m);
+  }
+  scene.add(coinInst);
+
+  // 煙火
+  var fwN = 600;
+  fwData = [];
+  var fpos = new Float32Array(fwN * 3), fcol = new Float32Array(fwN * 3);
+  for (var f3 = 0; f3 < fwN; f3++) { fpos[f3 * 3 + 1] = -999; fwData.push({ active: false, p: new THREE.Vector3(), v: new THREE.Vector3(), life: 0 }); }
+  var fg = new THREE.BufferGeometry();
+  fwGeoAttr = new THREE.BufferAttribute(fpos, 3).setUsage(THREE.DynamicDrawUsage);
+  fwColAttr = new THREE.BufferAttribute(fcol, 3).setUsage(THREE.DynamicDrawUsage);
+  fg.setAttribute('position', fwGeoAttr);
+  fg.setAttribute('color', fwColAttr);
+  fwPts = new THREE.Points(fg, new THREE.PointsMaterial({
+    size: 0.6, vertexColors: true, transparent: true, opacity: 0.95,
+    map: glowTexture('rgba(255,255,255,1)'), blending: THREE.AdditiveBlending, depthWrite: false
+  }));
+  scene.add(fwPts);
+
+  // 光軌飛珠（宮殿→塔→巨幕環線）
+  var orbRail = closedCurve([[0, 8, -8], [-14, 10, 2], [-18, 14, 8], [-6, 12, 16], [13, 6, 10], [24, 10, -8], [30, 13, -22], [16, 15, -18]]);
+  var orbN = LITE ? 6 : 12, tail = 7;
+  var opos = new Float32Array(orbN * tail * 3), ocol = new Float32Array(orbN * tail * 3);
+  orbData = { rail: orbRail, n: orbN, tail: tail, us: [] };
+  for (var o = 0; o < orbN; o++) {
+    orbData.us.push(o / orbN);
+    for (var t2 = 0; t2 < tail; t2++) {
+      var fade = 1 - t2 / tail;
+      var oc = o % 2 ? new THREE.Color(0xC9A961) : new THREE.Color(0xE88CA3);
+      ocol[(o * tail + t2) * 3] = oc.r * fade;
+      ocol[(o * tail + t2) * 3 + 1] = oc.g * fade;
+      ocol[(o * tail + t2) * 3 + 2] = oc.b * fade;
+    }
+  }
+  var og = new THREE.BufferGeometry();
+  og.setAttribute('position', new THREE.BufferAttribute(opos, 3).setUsage(THREE.DynamicDrawUsage));
+  og.setAttribute('color', new THREE.BufferAttribute(ocol, 3));
+  orbPts = new THREE.Points(og, new THREE.PointsMaterial({
+    size: 0.8, vertexColors: true, transparent: true,
+    map: glowTexture('rgba(255,255,255,1)'), blending: THREE.AdditiveBlending, depthWrite: false
+  }));
+  scene.add(orbPts);
+}
+
+function buildCritters() {
+  // 禮物氣球（環境 6 顆漂移 + 3 顆訂單發射）
+  var balloonGeo = mergeGeometries([
+    new THREE.SphereGeometry(0.9, 12, 9).toNonIndexed(),
+    new THREE.CylinderGeometry(0.02, 0.02, 1.6, 4).translate(0, -1.6, 0).toNonIndexed(),
+    new THREE.BoxGeometry(0.55, 0.45, 0.55).translate(0, -2.6, 0).toNonIndexed()
+  ]);
+  balloonInst = new THREE.InstancedMesh(balloonGeo, toonMat(0xffffff), 9);
+  balloonData = [];
+  var brng = mulberry32(31);
+  var bcols = [0xE58BA4, 0x9FD8D4, 0xF2D377, 0xCBB3E6, 0xA8CDF0, 0xF5B48A];
+  for (var b = 0; b < 9; b++) {
+    balloonInst.setColorAt(b, _c.set(bcols[b % 6]));
+    if (b < 6) {
+      balloonData.push({ kind: 'drift', x: (brng() - 0.5) * 110, y: 17 + brng() * 10, z: (brng() - 0.5) * 110, vx: 0.6 + brng() * 0.7, ph: brng() * 6.28 });
+    } else {
+      balloonData.push({ kind: 'launch', active: false, x: 0, y: -99, z: 0, t: 0 });
+    }
+  }
+  scene.add(balloonInst);
+
+  // 鳥
+  if (!LITE) {
+    var birdGeo = mergeGeometries([
+      new THREE.ConeGeometry(0.16, 1.1, 4).rotateZ(Math.PI / 2).translate(-0.5, 0, 0).toNonIndexed(),
+      new THREE.ConeGeometry(0.16, 1.1, 4).rotateZ(-Math.PI / 2).translate(0.5, 0, 0).toNonIndexed()
+    ]);
+    birdInst = new THREE.InstancedMesh(birdGeo, toonMat(0xF5EFE4), 8);
+    birdData = [];
+    for (var bd = 0; bd < 8; bd++) birdData.push({ r: 40 + (bd % 4) * 5, y: 14 + (bd % 3) * 3, ph: bd * 0.8, sp: 0.1 + (bd % 3) * 0.03 });
+    scene.add(birdInst);
+    // 蝴蝶
+    bflyInst = new THREE.InstancedMesh(birdGeo, toonMat(0xF2D377), 10);
+    bflyData = [];
+    var frng = mulberry32(41);
+    for (var bf = 0; bf < 10; bf++) {
+      var spot = ringSpot(8, 30, []) || { x: 12, z: 12 };
+      bflyData.push({ cx: spot.x, cz: spot.z, ph: frng() * 6.28, s1: 0.7 + frng() * 0.7, s2: 0.5 + frng() * 0.9 });
+      bflyInst.setColorAt(bf, _c.set([0xF2D377, 0xE88CA3, 0xCBB3E6, 0xA8CDF0][bf % 4]));
+    }
+    scene.add(bflyInst);
+  }
+
+  // 小飛船 ×2
+  var shipRoutes = [
+    closedCurve([[0, 13, -30], [20, 12, -28], [32, 14, -14], [20, 15, 6], [-4, 13, 10], [-20, 14, -8]]),
+    closedCurve([[-30, 16, 10], [-12, 17, 24], [12, 15, 26], [30, 17, 8], [10, 18, -6], [-16, 16, -2]])
+  ];
+  for (var a2 = 0; a2 < 2; a2++) {
+    var ship = new THREE.Group();
+    var hull = new THREE.Mesh(new THREE.CapsuleGeometry(1.1, 2.6, 4, 10).rotateZ(Math.PI / 2), toonMat(a2 ? 0x9FD8D4 : 0xE58BA4));
+    ship.add(hull);
+    var gondola = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.6, 0.8), toonMat(PAL.wood));
+    gondola.position.y = -1.3;
+    ship.add(gondola);
+    var fin = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1, 4).rotateZ(-Math.PI / 2), goldMat);
+    fin.position.x = -2.4;
+    ship.add(fin);
+    var prop = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.6, 0.2), goldMat);
+    prop.position.x = -2.9;
+    ship.add(prop);
+    ship.userData = { route: shipRoutes[a2], period: a2 ? 85 : 60, prop: prop, ph: a2 * 0.5 };
+    airships.push(ship);
+    scene.add(ship);
+  }
+}
+
+function burstCoins(x, y, z, n) {
+  var used = 0;
+  for (var i = 0; i < coinData.length && used < n; i++) {
+    var cd = coinData[i];
+    if (cd.active) continue;
+    cd.active = true;
+    cd.p.set(x, y, z);
+    var a = Math.random() * Math.PI * 2, r = 1 + Math.random() * 2.5;
+    cd.v.set(Math.cos(a) * r, 5 + Math.random() * 3.5, Math.sin(a) * r);
+    cd.w = (Math.random() - 0.5) * 14;
+    used++;
+  }
+}
+function firework(x, y, z, hex) {
+  var used = 0;
+  _c2.set(hex);
+  for (var i = 0; i < fwData.length && used < 80; i++) {
+    var fd = fwData[i];
+    if (fd.active) continue;
+    fd.active = true; fd.life = 1.9;
+    fd.p.set(x, y, z);
+    var th = Math.random() * Math.PI * 2, ph = Math.acos(2 * Math.random() - 1);
+    var sp2 = 6 + Math.random() * 4;
+    fd.v.set(Math.sin(ph) * Math.cos(th) * sp2, Math.cos(ph) * sp2, Math.sin(ph) * Math.sin(th) * sp2);
+    fwColAttr.setXYZ(i, _c2.r, _c2.g, _c2.b);
+    used++;
+  }
+}
+function launchBalloon(x, y, z) {
+  for (var b = 6; b < 9; b++) {
+    if (!balloonData[b].active && balloonData[b].kind === 'launch') {
+      balloonData[b].active = true;
+      balloonData[b].x = x; balloonData[b].y = y + 2.8; balloonData[b].z = z;
+      balloonData[b].t = 0;
+      return;
+    }
+  }
+}
+
+function updateParticles(dt) {
+  // 閃粉
+  var pa = sparklePts.geometry.attributes.position;
+  for (var i = 0; i < sparkleData.length; i++) {
+    var sd = sparkleData[i];
+    sd.y += sd.v * dt;
+    if (sd.y > 25) sd.y = 0;
+    pa.setXYZ(i, sd.x + Math.sin(et * 0.7 + sd.w) * 1.2, sd.y, sd.z + Math.cos(et * 0.5 + sd.w) * 1.2);
+  }
+  pa.needsUpdate = true;
+
+  // 金幣
+  var anyCoin = false;
+  for (var c7 = 0; c7 < coinData.length; c7++) {
+    var cd = coinData[c7];
+    if (!cd.active) continue;
+    anyCoin = true;
+    cd.v.y -= 14 * dt;
+    cd.p.addScaledVector(cd.v, dt);
+    if (cd.p.y < 0.1) {
+      cd.active = false;
+      _m.compose(_v.set(0, -99, 0), _q.identity(), _s.set(0.001, 0.001, 0.001));
+    } else {
+      _e.set(et * cd.w, 0, et * cd.w * 0.7); _q.setFromEuler(_e);
+      _m.compose(cd.p, _q, _s.set(1, 1, 1));
+    }
+    coinInst.setMatrixAt(c7, _m);
+  }
+  if (anyCoin) coinInst.instanceMatrix.needsUpdate = true;
+
+  // 煙火
+  var anyFw = false;
+  for (var f4 = 0; f4 < fwData.length; f4++) {
+    var fd = fwData[f4];
+    if (!fd.active) continue;
+    anyFw = true;
+    fd.life -= dt;
+    if (fd.life <= 0) { fd.active = false; fwGeoAttr.setY(f4, -999); continue; }
+    fd.v.y -= 3 * dt;
+    fd.p.addScaledVector(fd.v, dt);
+    fwGeoAttr.setXYZ(f4, fd.p.x, fd.p.y, fd.p.z);
+    var fade = clamp(fd.life / 1.9, 0, 1);
+    fwColAttr.setXYZ(f4, fwColAttr.getX(f4) * (0.97), fwColAttr.getY(f4) * 0.97, fwColAttr.getZ(f4) * 0.97);
+  }
+  if (anyFw) { fwGeoAttr.needsUpdate = true; fwColAttr.needsUpdate = true; }
+
+  // 光軌
+  var oa = orbPts.geometry.attributes.position;
+  for (var o2 = 0; o2 < orbData.n; o2++) {
+    orbData.us[o2] = (orbData.us[o2] + dt * 0.035) % 1;
+    for (var t3 = 0; t3 < orbData.tail; t3++) {
+      var u2 = (orbData.us[o2] - t3 * 0.008 + 1) % 1;
+      orbData.rail.getPointAt(u2, _v);
+      oa.setXYZ(o2 * orbData.tail + t3, _v.x, _v.y, _v.z);
+    }
+  }
+  oa.needsUpdate = true;
+
+  // 氣球
+  for (var b2 = 0; b2 < 9; b2++) {
+    var bd2 = balloonData[b2];
+    if (bd2.kind === 'drift') {
+      bd2.x += bd2.vx * dt;
+      if (bd2.x > 60) bd2.x = -60;
+      _v.set(bd2.x, bd2.y + Math.sin(et * 0.5 + bd2.ph) * 1.4, bd2.z);
+      _e.set(0, 0, 0.06 * Math.sin(et * 0.7 + bd2.ph)); _q.setFromEuler(_e);
+      _m.compose(_v, _q, _s.set(1, 1, 1));
+    } else if (bd2.active) {
+      bd2.t += dt;
+      bd2.y += 3 * dt;
+      var sway = Math.sin(bd2.t * 2.2) * 0.4;
+      if (bd2.y > 30) { bd2.active = false; _m.compose(_v.set(0, -99, 0), _q.identity(), _s.set(0.001, 0.001, 0.001)); }
+      else {
+        _e.set(0, 0, 0.1 * Math.sin(bd2.t * 2)); _q.setFromEuler(_e);
+        _m.compose(_v.set(bd2.x + sway, bd2.y, bd2.z), _q, _s.set(1, 1, 1));
+      }
+    } else {
+      _m.compose(_v.set(0, -99, 0), _q.identity(), _s.set(0.001, 0.001, 0.001));
+    }
+    balloonInst.setMatrixAt(b2, _m);
+  }
+  balloonInst.instanceMatrix.needsUpdate = true;
+
+  // 鳥 / 蝴蝶
+  if (birdInst) {
+    for (var bd3 = 0; bd3 < 8; bd3++) {
+      var B = birdData[bd3];
+      var ba = et * B.sp + B.ph;
+      var flap = 0.5 + 0.5 * Math.abs(Math.sin(et * 7 + B.ph));
+      _e.set(0, -ba - Math.PI / 2, 0); _q.setFromEuler(_e);
+      _m.compose(_v.set(Math.cos(ba) * B.r, B.y + Math.sin(et * 1.2 + B.ph) * 1.2, Math.sin(ba) * B.r), _q, _s.set(1, flap, 1));
+      birdInst.setMatrixAt(bd3, _m);
+    }
+    birdInst.instanceMatrix.needsUpdate = true;
+    for (var bf2 = 0; bf2 < 10; bf2++) {
+      var F = bflyData[bf2];
+      var flap2 = 0.4 + 0.6 * Math.abs(Math.sin(et * 11 + F.ph));
+      _q.setFromAxisAngle(UP, et * 0.8 + F.ph);
+      _m.compose(_v.set(F.cx + Math.sin(et * F.s1 + F.ph) * 2.4, 1.2 + Math.sin(et * F.s2 * 2 + F.ph) * 0.7, F.cz + Math.cos(et * F.s2 + F.ph) * 2.4), _q, _s.set(0.32, 0.32 * flap2, 0.32));
+      bflyInst.setMatrixAt(bf2, _m);
+    }
+    bflyInst.instanceMatrix.needsUpdate = true;
+  }
+
+  // 飛船
+  for (var a3 = 0; a3 < airships.length; a3++) {
+    var sh = airships[a3];
+    var u3 = ((et / sh.userData.period) + sh.userData.ph) % 1;
+    sh.userData.route.getPointAt(u3, sh.position);
+    sh.userData.route.getTangentAt(u3, _v2);
+    sh.rotation.y = Math.atan2(_v2.x, _v2.z) - Math.PI / 2;
+    sh.userData.prop.rotation.x = et * 12;
+  }
+
+  // 禮盒上架動畫
+  for (var da = dockAnims.length - 1; da >= 0; da--) {
+    var an = dockAnims[da];
+    an.t += dt * 2.4;
+    var k2 = Math.min(an.t, 1);
+    var pop = k2 < 0.7 ? (0.4 + 0.9 * (k2 / 0.7)) : (1.3 - 0.3 * ((k2 - 0.7) / 0.3));
+    var slot = dockSlotPos(an.idx);
+    _m.compose(_v.set(slot.x, slot.y, slot.z), _q.identity(), _s.set(pop, pop, pop));
+    dockBoxes.setMatrixAt(an.idx, _m);
+    dockBoxes.instanceMatrix.needsUpdate = true;
+    if (k2 >= 1) dockAnims.splice(da, 1);
+  }
+
+  // 彈窗
+  for (var pp = 0; pp < popupPool.length; pp++) {
+    var P2 = popupPool[pp];
+    if (!P2.active) continue;
+    P2.t += dt;
+    P2.sprite.position.y += dt * 1.1;
+    P2.sprite.material.opacity = clamp(1 - P2.t / P2.dur, 0, 1);
+    if (P2.t >= P2.dur) { P2.active = false; P2.sprite.visible = false; }
+  }
+
+  // 門脈衝
+  if (doorPulseT < 2) {
+    doorPulseT += dt;
+    doorMat.opacity = 0.35 + 0.5 * Math.abs(Math.sin(doorPulseT * 9));
+  } else if (doorMat.opacity !== doorBaseOpacity) {
+    doorMat.opacity = doorBaseOpacity;
+  }
+
+  // 瀑布
+  if (!LITE) for (var wf2 = 0; wf2 < waterfallTexs.length; wf2++) waterfallTexs[wf2].offset.y -= dt * 0.55;
+
+  // 品牌水晶
+  brandCrystal.rotation.y += dt * 0.15;
+  brandCrystal.position.y = 21 + Math.sin(et * 0.9) * 0.5;
+  brandCore.rotation.y -= dt * 0.3;
+
+  // 看板漂浮 + 面向鏡頭
+  for (var bb2 = 0; bb2 < billboards.length; bb2++) {
+    var B2 = billboards[bb2];
+    B2.group.position.y += Math.sin(et * 0.8 + B2.bobPhase) * dt * 0.25;
+    B2.group.lookAt(camera.position);
+  }
+  // 巨幕小島浮動
+  screenIslandGroup.position.y = 9 + Math.sin(et * 0.55) * 0.6;
+  // EQ 條重繪（2Hz）
+  jumboEqT += dt;
+  if (world.metaData && jumboEqT - (paintJumbo._last || 0) > 0.5) { paintJumbo._last = jumboEqT; paintJumbo(); }
+}
+
+/* ═══════════════ 11. 事件編排 ═══════════════ */
+var doorPulseT = 99, doorBaseOpacity = 0.35;
+var workingTimers = [];
+function fireEvent(ev) {
+  if (!world.ok) return;
+  var wk = workerList[ev.worker];
+  var tScale = DEMO ? 4 : 1;
+  doorPulseT = 0;
+  if (wk) {
+    var npc = npcs[wk.npcSlot];
+    npc.jumpT = 0;
+    popupAt(npc.pos.x, npc.pos.y + 2.6, npc.pos.z, '新訂單 ✦ ' + ev.product, fmt(ev.amount));
+  }
+  // 快遞員：門口 → 發射台
+  workingTimers.push(setTimeout(function () {
+    for (var c8 = 27; c8 < 30; c8++) {
+      if (npcs[c8].courierT === undefined && npcs[c8].targetScale === 0) {
+        npcs[c8].courierT = 0;
+        npcs[c8].courierDur = 5 / tScale;
+        npcs[c8].targetScale = 1;
+        npcs[c8].scale = 0.6;
+        break;
+      }
+    }
+  }, 800 / tScale));
+  // 到達發射台：氣球升空 + 金幣 + 飄字 + 禮盒上架
+  workingTimers.push(setTimeout(function () {
+    launchBalloon(13, 0.4, 10);
+    burstCoins(13, 1.2, 10, 24);
+    popupAt(13, 4.2, 10, '+' + fmt(ev.amount), null);
+    world.setBoxCount(Math.min(dockShown + 1, 12));
+  }, 6000 / tScale));
+  if (workingTimers.length > 60) workingTimers.splice(0, 30);
+  requestFly('order');
+}
+
+var bannerSprite = null, bannerTimer = null;
 function celebrate(text) {
-  $('bannerText').textContent = text;
-  var banner = $('banner'), conf = $('confetti');
-  banner.classList.add('show');
-  conf.classList.remove('boom');
-  void conf.getBoundingClientRect();
-  conf.classList.add('boom');
-  workerList.forEach(function (wk) { wk.el.classList.remove('working'); wk.el.classList.add('celebrate'); });
-  clearTimeout(bannerTimer); clearTimeout(confettiTimer);
+  if (!world.ok) return;
+  if (bannerSprite) { scene.remove(bannerSprite); bannerSprite.material.dispose(); bannerSprite = null; }
+  bannerSprite = makeLabel(text, 'banner');
+  bannerSprite.position.set(0, 14, -2);
+  bannerSprite.scale.multiplyScalar(2.4);
+  scene.add(bannerSprite);
+  var isMilestone = text.indexOf('%') >= 0;
+  var bursts = isMilestone ? 8 : 3;
+  var cols = [0xE88CA3, 0xC9A961, 0xF5EFE4, 0xD4456A];
+  for (var b3 = 0; b3 < bursts; b3++) {
+    (function (bi) {
+      workingTimers.push(setTimeout(function () {
+        firework((Math.random() - 0.5) * 30, 24 + Math.random() * 8, -14 + (Math.random() - 0.5) * 16, cols[bi % 4]);
+      }, bi * 700));
+    })(b3);
+  }
+  burstCoins(0, 6, -2, 40);
+  workerList.forEach(function (wk) { npcs[wk.npcSlot].jumpT = 0; });
+  clearTimeout(bannerTimer);
   bannerTimer = setTimeout(function () {
-    banner.classList.remove('show');
-    workerList.forEach(function (wk) { wk.el.classList.remove('celebrate'); });
+    if (bannerSprite) { scene.remove(bannerSprite); bannerSprite.material.dispose(); bannerSprite = null; }
   }, 5200);
-  confettiTimer = setTimeout(function () { conf.classList.remove('boom'); }, 4200);
+  requestFly(isMilestone ? 'milestone' : 'daily');
 }
 
-/* ═══════════════ 7. 靜態渲染（每次資料更新） ═══════════════ */
-function renderStatic() {
-  var m = D.meta || {};
-  $('calMonth').textContent = m.report_month || '';
-  $('calDay').textContent = '第 ' + (m.days_elapsed || '—') + ' / ' + (m.days_total || '—') + ' 天';
-  $('asOf').textContent = '資料截至 ' + (m.data_as_of || '—') + (m.data_as_of_iso ? ' ' + String(m.data_as_of_iso).slice(11, 16) : '');
-  $('gaugeTarget').textContent = fmt(D.target || 0);
-  $('gaugeTargetLabel').textContent = (m.report_month || '本月') + ' 目標';
-  updateStalePlaque(null);
+/* ═══════════════ 12. 鏡頭導演 ═══════════════ */
+var SHOTS = [
+  { name: 'orbitWide', dur: 50, pose: function (k, out) {
+      var th = camCycleTheta + k * Math.PI;
+      out.pos.set(Math.cos(th) * 66, 30, Math.sin(th) * 66);
+      out.look.set(0, 7, 0);
+  }},
+  { name: 'streetDolly', dur: 45, pose: function (k, out) {
+      var u = k * 0.55;
+      PATHS.length ? PATHS[1].getPointAt(u, out.pos) : out.pos.set(0, 3, 20);
+      out.pos.y += 2.1;
+      PATHS.length && PATHS[1].getPointAt((u + 0.06) % 1, out.look);
+      out.look.y += 1.4;
+  }},
+  { name: 'shopCloseup', dur: 35, pose: function (k, out) {
+      out.pos.set(17 - k * 7, 7.5 - k * 2.5, 22 - k * 8);
+      out.look.set(0, 3 - k * 0.6, -4);
+  }},
+  { name: 'jumboPass', dur: 30, pose: function (k, out) {
+      out.pos.set(8 + k * 8, 13 - k * 1.5, 6 - k * 10);
+      out.look.set(30, 11, -22);
+  }},
+  { name: 'towerRise', dur: 35, pose: function (k, out) {
+      var e2 = k * k * (3 - 2 * k);
+      out.pos.set(-28 + e2 * 2, 2 + e2 * 19, 16 - e2 * 4);
+      out.look.set(-18, 3 + e2 * 16, 8);
+  }},
+  { name: 'crystalHalo', dur: 30, pose: function (k, out) {
+      var th = k * Math.PI * 1.5;
+      out.pos.set(Math.cos(th) * 15, 25, -8 + Math.sin(th) * 15);
+      out.look.set(0, 21, -8);
+  }}
+];
+var CAM_TOTAL = SHOTS.reduce(function (a, s) { return a + s.dur; }, 0);
+var camCycleTheta = 0;
+var poseA = { pos: new THREE.Vector3(), look: new THREE.Vector3() };
+var poseB = { pos: new THREE.Vector3(), look: new THREE.Vector3() };
+var camLook = new THREE.Vector3(0, 7, 0);
+var fly = { mode: 'auto', t: 0, from: { pos: new THREE.Vector3(), look: new THREE.Vector3() }, target: { pos: new THREE.Vector3(), look: new THREE.Vector3() }, lastOrder: -999, lastCele: -999 };
+var FLY_SHOTS = {
+  order:     { pos: [11, 4.5, 9],  look: [4, 1.5, -1], hold: 7 },
+  daily:     { pos: [14, 10, 16],  look: [0, 8, -6],   hold: 8 },
+  milestone: { pos: [-27, 8, 18],  look: [-18, 12, 8], hold: 8 }
+};
+function requestFly(kind) {
+  var nowS = et;
+  if (fly.mode !== 'auto') return;
+  if (kind === 'order' && nowS - fly.lastOrder < 45) return;
+  if (kind !== 'order' && nowS - fly.lastCele < 20) return;
+  if (kind === 'order') fly.lastOrder = nowS; else fly.lastCele = nowS;
+  var fs = FLY_SHOTS[kind];
+  fly.mode = 'flyin'; fly.t = 0;
+  fly.from.pos.copy(camera.position);
+  fly.from.look.copy(camLook);
+  fly.target.pos.set(fs.pos[0], fs.pos[1], fs.pos[2]);
+  fly.target.look.set(fs.look[0], fs.look[1], fs.look[2]);
+  fly.hold = fs.hold;
+}
+function schedulePose(tSec, out) {
+  var cyc = tSec % CAM_TOTAL;
+  camCycleTheta = Math.floor(tSec / CAM_TOTAL) * 2.399;
+  var acc = 0, idx = 0, lt = 0;
+  for (var i = 0; i < SHOTS.length; i++) {
+    if (cyc < acc + SHOTS[i].dur) { idx = i; lt = cyc - acc; break; }
+    acc += SHOTS[i].dur;
+  }
+  var shot = SHOTS[idx];
+  shot.pose(lt / shot.dur, out);
+  var TR = 3;
+  if (lt < TR) {
+    var prev = SHOTS[(idx - 1 + SHOTS.length) % SHOTS.length];
+    prev.pose(1, poseB);
+    var e2 = easeInOut(lt / TR);
+    out.pos.lerpVectors(poseB.pos, out.pos, e2);
+    out.look.lerpVectors(poseB.look, out.look, e2);
+  }
+}
+var FORCE_SHOT = q.get('shot'); // 測試用：?shot=0..5&k=0.5 固定鏡位
+function updateCamera(dt) {
+  if (FORCE_SHOT !== null && FORCE_SHOT !== '') {
+    SHOTS[clamp(+FORCE_SHOT | 0, 0, SHOTS.length - 1)].pose(clamp(+(q.get('k') || 0.5), 0, 1), poseA);
+    camera.position.copy(poseA.pos);
+    camLook.copy(poseA.look);
+    camera.lookAt(camLook);
+    return;
+  }
+  var tSec = Date.now() / 1000; // 真實時間 → 重載後鏡位一致，且 DEMO 不會亂飛
+  schedulePose(tSec, poseA);
+  if (fly.mode === 'auto') {
+    camera.position.copy(poseA.pos);
+    camLook.copy(poseA.look);
+  } else {
+    fly.t += dt;
+    if (fly.mode === 'flyin') {
+      var k3 = easeInOut(clamp(fly.t / 2.5, 0, 1));
+      camera.position.lerpVectors(fly.from.pos, fly.target.pos, k3);
+      camLook.lerpVectors(fly.from.look, fly.target.look, k3);
+      if (fly.t >= 2.5) { fly.mode = 'hold'; fly.t = 0; }
+    } else if (fly.mode === 'hold') {
+      camera.position.copy(fly.target.pos);
+      camLook.copy(fly.target.look);
+      if (fly.t >= fly.hold) {
+        fly.mode = 'flyback'; fly.t = 0;
+        fly.from.pos.copy(camera.position);
+        fly.from.look.copy(camLook);
+      }
+    } else { // flyback
+      var k4 = easeInOut(clamp(fly.t / 3, 0, 1));
+      camera.position.lerpVectors(fly.from.pos, poseA.pos, k4);
+      camLook.lerpVectors(fly.from.look, poseA.look, k4);
+      if (fly.t >= 3) fly.mode = 'auto';
+    }
+  }
+  camera.position.y += 0.15 * Math.sin(et * 0.35); // 手持呼吸感
+  camera.lookAt(camLook);
 }
 
-function buildTicker() {
-  var track = $('tickerTrack');
-  var rows = (D.customers || []).slice().sort(function (a, b) { return String(b.time).localeCompare(String(a.time)); }).slice(0, 14);
-  var html = rows.map(function (c) {
-    var t = String(c.time || '').slice(11, 16);
-    return '<span class="tick-item">' + (t ? t + '　' : '') + (c.customer || '') +
-      '<span class="sep">✦</span>' + shortProduct(c.products) +
-      '<span class="sep">✦</span><span class="amt">' + fmt(c.amount || 0) + '</span></span>';
-  }).join('');
-  if (!html) html = '<span class="tick-item">尚無近期訂單資料</span>';
-  track.innerHTML = html + html; // 兩份內容 → translateX(-50%) 無縫循環
-  var len = track.textContent.length;
-  track.style.setProperty('--tickDur', clamp(len * 0.28, 30, 150) + 's');
+/* ═══════════════ 13. 氛圍（晝夜） ═══════════════ */
+var SKY = [
+  { h: 0,    top: '#141230', bot: '#241a3a' },
+  { h: 4.5,  top: '#141230', bot: '#241a3a' },
+  { h: 6,    top: '#3a2a55', bot: '#c96a7e' },
+  { h: 7.5,  top: '#7e9cc9', bot: '#f3d9b0' },
+  { h: 10,   top: '#8ECBEE', bot: '#dcd3e8' },
+  { h: 15.5, top: '#8ECBEE', bot: '#dcd3e8' },
+  { h: 17,   top: '#c98a6a', bot: '#e8b891' },
+  { h: 18,   top: '#8a4a6a', bot: '#e88a6a' },
+  { h: 20,   top: '#1c1840', bot: '#3a2a55' },
+  { h: 24,   top: '#141230', bot: '#241a3a' }
+];
+var lastAmbHour = -1;
+function updateAmbience(t) {
+  if (!world.ok) return;
+  var d = new Date(t);
+  var hour = d.getHours() + d.getMinutes() / 60;
+  var a = SKY[0], b = SKY[SKY.length - 1], f = 0;
+  for (var i = 0; i < SKY.length - 1; i++) {
+    if (hour >= SKY[i].h && hour < SKY[i + 1].h) {
+      a = SKY[i]; b = SKY[i + 1];
+      f = (hour - a.h) / (b.h - a.h);
+      break;
+    }
+  }
+  var top = lerpColor(a.top, b.top, f), bot = lerpColor(a.bot, b.bot, f);
+  _c.set(top); _c2.set(bot);
+  // 天穹頂點色
+  var colAttr = skyDome.geometry.attributes.color;
+  for (var v4 = 0; v4 < colAttr.count; v4++) {
+    var fac = skyFactors[v4];
+    colAttr.setXYZ(v4, _c2.r + (_c.r - _c2.r) * fac, _c2.g + (_c.g - _c2.g) * fac, _c2.b + (_c.b - _c2.b) * fac);
+  }
+  colAttr.needsUpdate = true;
+  scene.fog.color.copy(_c2);
+
+  // 太陽 / 月亮軌道
+  var sunTh = (hour - 6) / 12 * Math.PI;
+  sunMesh.position.set(Math.cos(sunTh) * 120, Math.sin(sunTh) * 90 + 4, -60);
+  sunMesh.visible = hour > 5.5 && hour < 18.5;
+  var moonTh = (hour - 18) / 12 * Math.PI;
+  moonMesh.position.set(Math.cos(moonTh) * 120, Math.sin(moonTh) * 80 + 6, -60);
+  moonMesh.visible = hour >= 18.5 || hour < 5.8;
+
+  // 燈光強度
+  var dayF = clamp(Math.sin(sunTh), 0, 1);
+  sunLight.intensity = 0.25 + dayF * 0.95;
+  sunLight.position.copy(sunMesh.visible ? sunMesh.position : moonMesh.position);
+  sunLight.color.set(sunMesh.visible ? 0xFFF2D8 : 0x8FA3D8);
+  hemiLight.intensity = 0.45 + dayF * 0.5;
+  hemiLight.color.set(lerpColor('#3E436B', '#BFE3FF', dayF));
+
+  var nightF = clamp(1 - dayF * 1.6, 0, 1);
+  var isNightHours = hour >= 18 || hour < 7;
+  lampGlowPts.material.opacity = isNightHours ? 0.85 : 0;
+  windowsMat.opacity = isNightHours ? 0.95 : 0;
+  shopLight.intensity = isNightHours ? 2.2 : 0;
+  stars.material.opacity = nightF * 0.95;
+
+  // 深夜 Zzz + 人口
+  var deepNight = hour >= 1 && hour < 8;
+  for (var z2 = 0; z2 < zzzSprites.length; z2++) {
+    zzzSprites[z2].material.opacity = deepNight ? 0.5 + 0.4 * Math.sin(et * 1.5 + z2) : 0;
+    if (deepNight) zzzSprites[z2].position.y = 4.6 + 0.3 * Math.sin(et * 0.8 + z2);
+  }
+  if (Math.floor(hour * 60) !== lastAmbHour) {
+    lastAmbHour = Math.floor(hour * 60);
+    updateCensus(hour);
+  }
 }
 
-/* ═══════════════ 8. 收銀機補間 ═══════════════ */
+/* ═══════════════ 14. 主渲染迴圈 ═══════════════ */
+var rafActive = false;
+var fpsEMA = 60, dbgT = 0;
+function loop() {
+  if (document.hidden) { rafActive = false; return; }
+  rafActive = true;
+  requestAnimationFrame(loop);
+  var dt = Math.min(clock3.getDelta(), 0.1);
+  et += dt;
+  updateNPCs(dt);
+  updateParticles(dt);
+  updateCamera(dt);
+  renderer.render(scene, camera);
+  if (DEBUG) {
+    fpsEMA = fpsEMA * 0.95 + (dt > 0 ? 1 / dt : 60) * 0.05;
+    dbgT += dt;
+    if (dbgT > 0.5) {
+      dbgT = 0;
+      var inf = renderer.info;
+      $('debugHud').textContent =
+        'fps  ' + fpsEMA.toFixed(0) +
+        '\ncalls ' + inf.render.calls +
+        '\ntris  ' + inf.render.triangles +
+        '\ngeo   ' + inf.memory.geometries +
+        '\ntex   ' + inf.memory.textures;
+      document.title = 'fps:' + fpsEMA.toFixed(0) + ' calls:' + inf.render.calls;
+    }
+  }
+}
+document.addEventListener('visibilitychange', function () {
+  if (!document.hidden) {
+    if (D) renderNow(true);
+    if (world.ok && !rafActive) { clock3.getDelta(); requestAnimationFrame(loop); }
+  }
+});
+
+/* ═══════════════ 15. 主迴圈（1 Hz 數字） ═══════════════ */
 var regShown = 0, regTarget = 0, tweenRAF = null;
+world.todayOrders = 0; world.monthRev = 0; world.monthOrders = 0;
 function setRegister(target) {
   if (Math.round(target) === Math.round(regTarget)) return;
   regTarget = target;
-  if (document.hidden) { regShown = regTarget; drawRegister(); return; }
+  if (document.hidden || !world.ok) { regShown = regTarget; paintToday(); return; }
   var from = regShown, start = performance.now(), dur = 1300;
   cancelAnimationFrame(tweenRAF);
-  var el = $('regToday');
-  el.classList.remove('pulse'); void el.getBoundingClientRect(); el.classList.add('pulse');
   (function step(ts) {
     var p = clamp((ts - start) / dur, 0, 1);
-    var e = 1 - Math.pow(1 - p, 3); // ease-out cubic
-    regShown = from + (regTarget - from) * e;
-    drawRegister();
+    var e2 = 1 - Math.pow(1 - p, 3);
+    regShown = from + (regTarget - from) * e2;
+    if (Math.round(regShown) !== lastTodayInt) { lastTodayInt = Math.round(regShown); paintToday(); }
     if (p < 1) tweenRAF = requestAnimationFrame(step);
   })(start);
 }
-function drawRegister() { $('regToday').textContent = fmt(regShown); }
 
-/* ═══════════════ 9. 事件觸發 ═══════════════ */
-var workingTimers = [];
-function fireEvent(ev) {
-  var wk = workerList[ev.worker] || workerList[0];
-  if (!wk) return;
-  var el = wk.el;
-  el.classList.add('working');
-  wk.bubbleLine1.textContent = '新訂單 ✦ ' + ev.product;
-  wk.bubbleLine2.textContent = fmt(ev.amount);
-  wk.bubble.classList.add('show');
-  workingTimers.push(setTimeout(function () {
-    el.classList.remove('working');
-    wk.bubble.classList.remove('show');
-  }, 4600 / (DEMO ? 4 : 1)));
-  // 6 秒後包裝完成 → 禮盒上架
-  workingTimers.push(setTimeout(spawnBox, 6000 / (DEMO ? 6 : 1)));
-  if (workingTimers.length > 60) workingTimers.splice(0, 30);
-}
-
-/* ═══════════════ 10. 主迴圈（1 Hz） ═══════════════ */
 function renderNow(skipAnim) {
   if (!D) return;
   var t = now();
 
-  // 跨日 → 重建排程（新種子）
   if (startOfDay(t) !== sim.dayStart) { buildSim(); skipAnim = true; }
 
   var msOfDay = t - sim.dayStart;
@@ -1011,23 +2114,40 @@ function renderNow(skipAnim) {
   var displayedTodayOrders = sim.realTodayOrders + simCount;
   var pct = D.target > 0 ? (displayedMTD / D.target) * 100 : 0;
 
-  // 收銀機 + 本月掛牌
-  setRegister(displayedToday);
-  $('regOrders').textContent = '今日 ' + displayedTodayOrders + ' 筆';
-  $('regMonth').textContent = fmt(displayedMTD) + ' ・ ' + (ordersMtd + simCount) + ' 筆';
+  world.todayOrders = displayedTodayOrders;
+  var monthChanged = world.monthRev !== displayedMTD;
+  world.monthRev = displayedMTD;
+  world.monthOrders = ordersMtd + simCount;
 
-  // 禮盒架與今日模擬完成單數同步（頁面載入 / 補跑時直接對齊）
-  syncBoxes(Math.min(simCount, boxPool.length));
+  if (world.ok) {
+    setRegister(displayedToday);
+    if (monthChanged) paintMonth();
+    // 目標塔
+    var fillPct = clamp(pct, 0, 100);
+    gaugeFill.scale.y = Math.max(fillPct / 100, 0.01);
+    crownGroup.visible = pct >= 100;
+    var pctStr = pct.toFixed(1) + '%';
+    if (gaugePctSprite._last !== pctStr) {
+      gaugePctSprite._last = pctStr;
+      var g = gaugePctSprite.canvas.getContext('2d');
+      g.clearRect(0, 0, 256, 96);
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.font = '700 62px "Cormorant Garamond"';
+      g.lineWidth = 8; g.strokeStyle = 'rgba(20,10,16,.8)';
+      g.strokeText(pctStr, 128, 48);
+      g.fillStyle = '#C9A961';
+      g.fillText(pctStr, 128, 48);
+      gaugePctSprite.tex.needsUpdate = true;
+    }
+    world.setBoxCount(Math.max(dockShown, Math.min(simCount, 12)));
+  } else {
+    // 精簡 fallback
+    $('fbToday').textContent = fmt(displayedToday);
+    $('fbMonth').textContent = fmt(displayedMTD);
+    $('fbPct').textContent = pct.toFixed(1) + '%';
+  }
 
-  // 目標溫度計（0–100% 高 346px，底 y=553）
-  var fillPct = clamp(pct, 0, 100);
-  var h = 346 * fillPct / 100;
-  $('gaugeFill').setAttribute('y', 553 - h);
-  $('gaugeFill').setAttribute('height', Math.max(h, 7));
-  $('gaugePct').textContent = pct.toFixed(1) + '%';
-  $('crown').setAttribute('opacity', pct >= 100 ? 1 : 0);
-
-  // 慶祝時刻
+  // 慶祝
   var dayKey = ymd(t);
   if (displayedToday >= sim.dailyTarget && sim.dailyTarget > 0) {
     var dk = 'tzg_daily_' + dayKey;
@@ -1050,54 +2170,12 @@ function renderNow(skipAnim) {
   }
   prevPct = pct;
 
-  // 事件動畫（最多同時演 3 筆，避免補跑洪水）
   if (!skipAnim) newEvents.slice(-3).forEach(fireEvent);
 
   updateAmbience(t);
 }
 
-/* ═══════════════ 11. 氛圍（晝夜 / 夜間模式） ═══════════════ */
-var SKY = [
-  { h: 0,    c: ['#141230', '#241a3a'] },  // 深夜
-  { h: 4.5,  c: ['#141230', '#241a3a'] },  // 深夜維持
-  { h: 6,    c: ['#3a2a55', '#c96a7e'] },  // 破曉
-  { h: 7.5,  c: ['#7e9cc9', '#f3d9b0'] },  // 清晨
-  { h: 10,   c: ['#8fb6d9', '#dcd3e8'] },  // 白天
-  { h: 16,   c: ['#c98a6a', '#e8b891'] },  // 黃昏前
-  { h: 18,   c: ['#8a4a6a', '#e88a6a'] },  // 暮色
-  { h: 20,   c: ['#1c1840', '#3a2a55'] },  // 夜晚
-  { h: 24,   c: ['#141230', '#241a3a'] }
-];
-function updateAmbience(t) {
-  var d = new Date(t);
-  var hour = d.getHours() + d.getMinutes() / 60;
-  var a = SKY[0], b = SKY[SKY.length - 1], f = 0;
-  for (var i = 0; i < SKY.length - 1; i++) {
-    if (hour >= SKY[i].h && hour < SKY[i + 1].h) {
-      a = SKY[i]; b = SKY[i + 1];
-      f = (hour - a.h) / (b.h - a.h);
-      break;
-    }
-  }
-  $('skyStop1').setAttribute('stop-color', lerpColor(a.c[0], b.c[0], f));
-  $('skyStop2').setAttribute('stop-color', lerpColor(a.c[1], b.c[1], f));
-  var night = hour >= 1 && hour < 8;
-  document.body.classList.toggle('is-night', night);
-  $('moon').setAttribute('opacity', (hour >= 20 || hour < 6) ? 0.9 : 0);
-}
-function lerpColor(c1, c2, f) {
-  var p1 = parseInt(c1.slice(1), 16), p2 = parseInt(c2.slice(1), 16);
-  var r = Math.round(((p1 >> 16) & 255) + (((p2 >> 16) & 255) - ((p1 >> 16) & 255)) * f);
-  var g = Math.round(((p1 >> 8) & 255) + (((p2 >> 8) & 255) - ((p1 >> 8) & 255)) * f);
-  var bl = Math.round((p1 & 255) + ((p2 & 255) - (p1 & 255)) * f);
-  return 'rgb(' + r + ',' + g + ',' + bl + ')';
-}
-
-/* ═══════════════ 12. 強健性（24/7） ═══════════════ */
-document.addEventListener('visibilitychange', function () {
-  if (!document.hidden && D) renderNow(true); // 復原時直接對齊決定性排程
-});
-// 每日 04:30 自癒 reload（時間旅行 / 展示模式不重載）
+/* ═══════════════ 16. 強健性 / 啟動 ═══════════════ */
 setInterval(function () {
   if (TIME_TRAVEL) return;
   var d = new Date();
@@ -1112,9 +2190,39 @@ setInterval(function () {
   }
 }, 30e3);
 
-/* ═══════════════ 13. 啟動 ═══════════════ */
-buildBoxPool();
-buildConfetti();
+// 字型載入完成後重繪動態 canvas（首繪可能用到後備字型）
+if (document.fonts && document.fonts.ready) {
+  document.fonts.ready.then(function () {
+    if (!world.ok) return;
+    labelCache.forEach(function (v) { v.tex.dispose(); });
+    labelCache.clear();
+    paintToday(); paintMonth(); paintJumbo();
+    if (D) buildStaff();
+  });
+}
+
+// 驗證掛鉤
+window.__world = {
+  debugState: function () {
+    var act = 0;
+    for (var i = 0; i < npcs.length; i++) if (npcs[i].scale > 0.02) act++;
+    var m22 = new THREE.Matrix4();
+    if (world.ok && npcParts.body) npcParts.body.getMatrixAt(22, m22);
+    return {
+      ok: world.ok,
+      today: Math.round(regTarget),
+      pct: prevPct,
+      calls: world.ok ? renderer.info.render.calls : 0,
+      geometries: world.ok ? renderer.info.memory.geometries : 0,
+      textures: world.ok ? renderer.info.memory.textures : 0,
+      activeNPCs: act,
+      staff0: npcs[22] ? { s: +npcs[22].scale.toFixed(2), ts: npcs[22].targetScale, x: +npcs[22].pos.x.toFixed(1), z: +npcs[22].pos.z.toFixed(1) } : null,
+      bodyM: Array.from(m22.elements.slice(12, 15)).map(function (x) { return +x.toFixed(1); })
+    };
+  }
+};
+
+initWorld();
 loadData();
 loadMeta();
 setInterval(function () { if (D) renderNow(false); }, DEMO ? 250 : 1000);
@@ -1122,8 +2230,6 @@ if (!DEMO) {
   setInterval(loadData, 10 * 60e3);
   setInterval(loadMeta, 30 * 60e3);
 }
-
-})();
 </script>
 </body>
 </html>
