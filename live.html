@@ -74,6 +74,23 @@ body {
   white-space: pre; display: none;
 }
 
+/* ── 音樂按鈕 ── */
+#sndBtn {
+  position: fixed; left: 16px; bottom: 64px; z-index: 30;
+  width: 42px; height: 42px; border-radius: 50%;
+  background: rgba(18,10,15,.72); border: 1px solid rgba(201,169,97,.5);
+  color: #F5EFE4; font-size: 20px; cursor: pointer; display: none;
+  transition: opacity .6s;
+}
+#sndBtn.faded { opacity: 0.25; }
+#sndBtn:hover { opacity: 1; }
+
+/* ── 暈影（零 GPU 成本，跟著 #hud 防烙印漂移） ── */
+#vignette {
+  position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(18,11,16,.28) 100%);
+}
+
 /* ── 底部跑馬燈（僅真實訂單） ── */
 #ticker {
   position: fixed; left: 0; right: 0; bottom: 0; height: 52px;
@@ -126,6 +143,7 @@ body {
 <div id="gl"></div>
 
 <div id="hud">
+  <div id="vignette"></div>
   <div id="asOf">資料截至 —</div>
   <div id="stalePlaque"><span id="staleText">⚠ 資料更新失敗</span></div>
   <div id="disclaimer">今日數字為依歷史節奏之動態預估，實際以日報為準</div>
@@ -137,6 +155,8 @@ body {
   <div id="tickerLabel">近期訂單</div>
   <div id="tickerViewport"><div id="tickerTrack"></div></div>
 </div>
+
+<button id="sndBtn" title="背景音樂">🔊</button>
 
 <div id="loadingOverlay" class="overlay">
   <div class="spinner"></div>
@@ -617,6 +637,8 @@ function initWorld() {
     if (!renderer.getContext()) throw new Error('no ctx');
   } catch (e) { showGLFallback(); return; }
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, LITE ? 1 : 1.5));
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.08;
   sizeRenderer();
   $('gl').appendChild(renderer.domElement);
   renderer.domElement.addEventListener('webglcontextlost', function (ev) {
@@ -690,7 +712,7 @@ function buildSky() {
     skyFactors[i] = clamp((geo.attributes.position.getY(i) / 260 + 0.35) / 1.1, 0, 1);
   }
   geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-  skyDome = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false }));
+  skyDome = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false, toneMapped: false }));
   scene.add(skyDome);
 
   // 星星
@@ -719,6 +741,26 @@ function buildSky() {
   moonMesh.add(new THREE.Mesh(new THREE.SphereGeometry(4, 14, 10), new THREE.MeshBasicMaterial({ color: 0xF4ECD4, fog: false })));
   moonMesh.add(glowSprite('rgba(230,230,255,.7)', 18));
   scene.add(moonMesh);
+
+  // 彩虹拱（島後方，五色頂點色帶）
+  var rbGeo = new THREE.TorusGeometry(60, 2.5, 10, 48, Math.PI);
+  var rbBands = [0xF5A8A8, 0xF2D377, 0xB9E08F, 0xA8CDF0, 0xCBB3E6];
+  var rbPos = rbGeo.attributes.position;
+  var rbCol = new Float32Array(rbPos.count * 3);
+  for (var rv = 0; rv < rbPos.count; rv++) {
+    var rd = Math.sqrt(rbPos.getX(rv) * rbPos.getX(rv) + rbPos.getY(rv) * rbPos.getY(rv)) - 60; // -2.5..2.5
+    var bandI = clamp(Math.floor((rd + 2.5) / 5 * 5), 0, 4);
+    _c.set(rbBands[4 - bandI]);
+    rbCol[rv * 3] = _c.r; rbCol[rv * 3 + 1] = _c.g; rbCol[rv * 3 + 2] = _c.b;
+  }
+  rbGeo.setAttribute('color', new THREE.BufferAttribute(rbCol, 3));
+  var rainbow = new THREE.Mesh(rbGeo, new THREE.MeshBasicMaterial({
+    vertexColors: true, transparent: true, opacity: 0.32, depthWrite: false, fog: false, side: THREE.DoubleSide
+  }));
+  rainbow.scale.set(1.15, 0.92, 1);
+  rainbow.position.set(0, 0, -40);
+  rainbow.renderOrder = 1;
+  scene.add(rainbow);
 }
 
 var scRng = mulberry32(20260702); // 場景種子（固定，與資料無關）
@@ -761,7 +803,8 @@ var EXCLUDE = [
   { x: 30, z: -14, r: 4.5 },  // 發射台
   { x: 7, z: -19, r: 3.5 },   // 禮盒架
   { x: 40, z: 18, r: 3 },     // 導流招牌
-  { x: 19, z: -25, r: 2.5 }   // 礦場招牌
+  { x: 19, z: -25, r: 2.5 },  // 礦場招牌
+  { x: -30, z: -32, r: 4 }    // 風車
 ];
 
 function buildTerrain() {
@@ -824,13 +867,13 @@ function buildTerrain() {
   scene.add(trunks); scene.add(canopies);
 
   // 花
-  var flN = LITE ? 60 : 140;
+  var flN = LITE ? 80 : 220;
   var flowers = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.16, 0), toonMat(0xffffff), flN);
   var patches = [];
-  for (var p = 0; p < 8; p++) patches.push(ellipseSpot(0.15, 0.8, EXCLUDE) || { x: 10 + p * 2, z: -30 });
+  for (var p = 0; p < 12; p++) patches.push(ellipseSpot(0.15, 0.8, EXCLUDE) || { x: 10 + p * 2, z: -30 });
   var fPal = [0xF2A9C0, 0xF2D377, 0xCBB3E6, 0xFFFFFF, 0xF5B48A];
   for (var f = 0; f < flN; f++) {
-    var pc = patches[f % 8];
+    var pc = patches[f % 12];
     _m.compose(_v.set(pc.x + (scRng() - 0.5) * 4.5, 0.5, pc.z + (scRng() - 0.5) * 4.5), _q.identity(), _s.set(1, 1, 1));
     flowers.setMatrixAt(f, _m);
     flowers.setColorAt(f, _c.set(fPal[f % 5]));
@@ -1093,7 +1136,7 @@ function buildLandmarks() {
 
 /* ═══════════════ 7b. 城鎮靜殼（建一次） ═══════════════ */
 // 動態內容（招牌文字、樓高、包裹數…）由 rebuildDistricts() 掛上
-var fountainTex, clockHandH, clockHandM, craneArm;
+var fountainTex, clockHandH, clockHandM, craneArm, windmillRotor, buntingInst, buntingData = [];
 var shopShellX = [12, 17, 22, 27, 32, 37];       // 6 間店中心 x（z=10.5，面向 +z）
 var shopShellW = [4.6, 4.3, 4.0, 3.7, 3.4, 3.1]; // 店寬按名次遞減
 var TIER_CLUSTERS = [ // 客群住宅區五街坊 [cx, cz]
@@ -1293,6 +1336,76 @@ function buildTownStatic() {
     for (; fi2 < 24; fi2++) { _m.compose(_v.set(0, -99, 0), _q.identity(), _s.set(0.001, 0.001, 0.001)); fenceInst.setMatrixAt(fi2, _m); }
     scene.add(fenceInst);
   }
+
+  // ── 風車（-30,-32，北側）：塔身併入靜物，葉輪獨立旋轉 ──
+  T(xform(new THREE.CylinderGeometry(1.1, 1.6, 7, 8), -30, 3.5, -32, 1, 1, 1), PAL.cream);
+  T(xform(new THREE.ConeGeometry(1.3, 1.6, 8), -30, 8.1, -32, 1, 1, 1), PAL.roofRose);
+  T(xform(new THREE.BoxGeometry(0.9, 1.4, 0.15), -30, 0.9, -30.6, 1, 1, 1), PAL.wood);
+  var wmBlades = [];
+  for (var wb = 0; wb < 4; wb++) {
+    wmBlades.push(colorize(new THREE.BoxGeometry(0.24, 3.4, 0.06).translate(0, 1.9, 0).rotateZ(wb * Math.PI / 2).toNonIndexed(), PAL.sail));
+  }
+  wmBlades.push(colorize(new THREE.SphereGeometry(0.35, 8, 6).toNonIndexed(), PAL.wood));
+  windmillRotor = new THREE.Mesh(mergeGeometries(wmBlades), vertexToon);
+  windmillRotor.position.set(-30, 6.6, -30.55);
+  scene.add(windmillRotor);
+  wmBlades.forEach(function (g) { g.dispose(); });
+
+  // ── 草叢 ×120 + 蘑菇 ×24（靜態，0 draw call）──
+  for (var gt = 0; gt < (LITE ? 15 : 40); gt++) {
+    var gSpot = ellipseSpot(0.12, 0.9, EXCLUDE);
+    if (!gSpot) continue;
+    for (var gj = 0; gj < 3; gj++) {
+      T(xform(new THREE.ConeGeometry(0.14 + scRng() * 0.1, 0.5 + scRng() * 0.35, 5),
+        gSpot.x + (scRng() - 0.5) * 1.2, 0.62, gSpot.z + (scRng() - 0.5) * 1.2, 1, 1, 1, scRng() * 6.28),
+        [PAL.grassD, 0x7DBB6E, 0x96CE84][gj]);
+    }
+  }
+  var mushCaps = [0xE58BA4, 0xF2D377, 0xF5EFE4];
+  for (var ms = 0; ms < (LITE ? 8 : 24); ms++) {
+    var mSpot = ellipseSpot(0.25, 0.88, EXCLUDE);
+    if (!mSpot) continue;
+    T(xform(new THREE.CylinderGeometry(0.09, 0.12, 0.3, 6), mSpot.x, 0.58, mSpot.z, 1, 1, 1), PAL.cream);
+    T(xform(new THREE.SphereGeometry(0.22, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2), mSpot.x, 0.72, mSpot.z, 1, 0.85, 1), mushCaps[ms % 3]);
+  }
+
+  // ── 彩旗串（廣場 8 燈間 + 商品街，instanced）──
+  var flagGeo = new THREE.BufferGeometry();
+  flagGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array([0, 0, 0, 0.36, 0, 0, 0.18, -0.34, 0]), 3));
+  flagGeo.setAttribute('normal', new THREE.BufferAttribute(new Float32Array([0, 0, 1, 0, 0, 1, 0, 0, 1]), 3));
+  var flagN = LITE ? 56 : 80;
+  buntingInst = new THREE.InstancedMesh(flagGeo, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }), flagN);
+  buntingInst.frustumCulled = false;
+  buntingData = [];
+  var plazaLampPos = [];
+  for (var bp = 0; bp < 8; bp++) {
+    var ba3 = bp / 8 * Math.PI * 2 + 0.4;
+    plazaLampPos.push([Math.cos(ba3) * 12, -6 + Math.sin(ba3) * 12]);
+  }
+  var fIdx = 0;
+  function hangString(ax, az, bx, bz, count) {
+    for (var ff = 0; ff < count && fIdx < flagN; ff++) {
+      var tt = (ff + 0.5) / count;
+      buntingData.push({
+        x: ax + (bx - ax) * tt, z: az + (bz - az) * tt,
+        y: 3.05 - Math.sin(Math.PI * tt) * 0.45,
+        ph: fIdx * 0.7
+      });
+      buntingInst.setColorAt(fIdx, _c.set(PAL.clothes[fIdx % PAL.clothes.length]));
+      fIdx++;
+    }
+  }
+  for (var seg = 0; seg < 8; seg++) {
+    var pA = plazaLampPos[seg], pB = plazaLampPos[(seg + 1) % 8];
+    hangString(pA[0], pA[1], pB[0], pB[1], 7);
+  }
+  if (!LITE) {
+    hangString(11, 17.6, 20, 17.6, 8);
+    hangString(20, 17.6, 29, 17.6, 8);
+    hangString(29, 17.6, 38, 17.6, 8);
+  }
+  for (; fIdx < flagN; fIdx++) { _m.compose(_v.set(0, -99, 0), _q.identity(), _s.set(0.001, 0.001, 0.001)); buntingInst.setMatrixAt(fIdx, _m); }
+  scene.add(buntingInst);
 
   var townToon = new THREE.Mesh(mergeGeometries(toonParts.map(function (g) { return g.toNonIndexed(); })), vertexToon);
   scene.add(townToon);
@@ -2211,7 +2324,7 @@ function updateBoats(dt, idx) {
     } else if (B.state === 'sailIn') {
       var k1 = easeInOut(Math.min(B.t / 9, 1));
       boatPose(B, B.bx * 2.2 + (B.bx - B.bx * 2.2) * k1, 0.3, 84 + (56.5 - 84) * k1, Math.PI);
-      if (B.t >= 9) { B.state = 'docked'; B.t = 0; disembark(i); }
+      if (B.t >= 9) { B.state = 'docked'; B.t = 0; disembark(i); Music.sfx('boat'); }
     } else if (B.state === 'docked') {
       boatPose(B, B.bx, 0.3, 56.5, Math.PI);
       if (B.t >= 7) { B.state = 'sailOut'; B.t = 0; }
@@ -2250,6 +2363,41 @@ function updateTown(dt) {
     clockHandM.rotation.z = -(dNow.getMinutes() + dNow.getSeconds() / 60) / 60 * Math.PI * 2;
   }
   if (craneArm) craneArm.rotation.y = et * 0.12;
+  if (windmillRotor) windmillRotor.rotation.z = et * 0.7;
+  // 雲漂移
+  if (cloudInst) {
+    for (var cu = 0; cu < cloudData.length; cu++) {
+      var CU = cloudData[cu];
+      CU.x += CU.vx * dt;
+      if (CU.x > 130) CU.x = -130;
+      _q.identity();
+      _m.compose(_v.set(CU.x, CU.y + Math.sin(et * 0.3 + CU.ph) * 0.8, CU.z), _q, _s.set(CU.sc, CU.sc, CU.sc));
+      cloudInst.setMatrixAt(cu, _m);
+    }
+    cloudInst.instanceMatrix.needsUpdate = true;
+  }
+  // 彩旗擺動
+  if (buntingInst) {
+    for (var bf3 = 0; bf3 < buntingData.length; bf3++) {
+      var BF = buntingData[bf3];
+      _e.set(0, 0, 0.18 * Math.sin(et * 1.6 + BF.ph));
+      _q.setFromEuler(_e);
+      _m.compose(_v.set(BF.x, BF.y, BF.z), _q, _s.set(1, 1, 1));
+      buntingInst.setMatrixAt(bf3, _m);
+    }
+    buntingInst.instanceMatrix.needsUpdate = true;
+  }
+  // 花瓣飄落
+  if (petalPts) {
+    var pa2 = petalPts.geometry.attributes.position;
+    for (var pf = 0; pf < petalData.length; pf++) {
+      var PF = petalData[pf];
+      PF.y -= PF.v * dt;
+      if (PF.y < 0.4) { PF.y = 18 + (pf % 7); }
+      pa2.setXYZ(pf, PF.x + Math.sin(et * PF.sw + PF.ph) * 1.4, PF.y, PF.z + Math.cos(et * PF.sw * 0.8 + PF.ph) * 0.9);
+    }
+    pa2.needsUpdate = true;
+  }
   if (boats.length) updateBoats(dt);
   // 今日樓脈動
   if (DYN._towers7 && DYN._todayTower >= 0) {
@@ -2270,6 +2418,8 @@ var launchBalloons = [];
 var birdInst, birdData, bflyInst, bflyData;
 var bunnyInst, bunnyData = [];
 var airships = [];
+var cloudInst, cloudData = [];
+var petalPts, petalData = [];
 
 function buildParticles() {
   // 環境閃粉
@@ -2341,6 +2491,49 @@ function buildParticles() {
     map: glowTexture('rgba(255,255,255,1)'), blending: THREE.AdditiveBlending, depthWrite: false
   }));
   scene.add(orbPts);
+
+  // ── 蓬蓬雲（instanced，緩慢漂移）──
+  var cloudGeo = mergeGeometries([
+    new THREE.SphereGeometry(2.6, 8, 6).toNonIndexed(),
+    new THREE.SphereGeometry(1.9, 8, 6).translate(2.2, 0.5, 0.3).toNonIndexed(),
+    new THREE.SphereGeometry(1.7, 8, 6).translate(-2.1, 0.4, -0.2).toNonIndexed(),
+    new THREE.SphereGeometry(1.4, 8, 6).translate(0.4, 1.1, -0.6).toNonIndexed()
+  ]);
+  cloudGeo.scale(1, 0.72, 1);
+  var cloudN = LITE ? 5 : 10;
+  cloudInst = new THREE.InstancedMesh(cloudGeo, toonMat(0xFFFFFF), cloudN);
+  cloudInst.frustumCulled = false;
+  var crng = mulberry32(77);
+  for (var cn = 0; cn < cloudN; cn++) {
+    cloudData.push({
+      x: (crng() - 0.5) * 240, y: 36 + crng() * 12,
+      z: -30 - crng() * 70, // 全部在島後方（北側），不擋主鏡頭
+      sc: 1.0 + crng() * 1.2, vx: 0.4 + crng() * 0.6, ph: crng() * 6.28
+    });
+  }
+  scene.add(cloudInst);
+
+  // ── 櫻花瓣（Points，搖曳飄落）──
+  var petalN = LITE ? 50 : 120;
+  var pPos = new Float32Array(petalN * 3), pCol = new Float32Array(petalN * 3);
+  var pTint = [new THREE.Color(0xF2A9C0), new THREE.Color(0xF2D8DC), new THREE.Color(0xFFFFFF)];
+  var prng = mulberry32(66);
+  for (var pn = 0; pn < petalN; pn++) {
+    petalData.push({
+      x: (prng() - 0.5) * 80, y: prng() * 24, z: (prng() - 0.5) * 70,
+      v: 0.7 + prng() * 0.6, ph: prng() * 6.28, sw: 0.8 + prng() * 0.8
+    });
+    var pt = pTint[pn % 3];
+    pCol[pn * 3] = pt.r; pCol[pn * 3 + 1] = pt.g; pCol[pn * 3 + 2] = pt.b;
+  }
+  var pGeo = new THREE.BufferGeometry();
+  pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3).setUsage(THREE.DynamicDrawUsage));
+  pGeo.setAttribute('color', new THREE.BufferAttribute(pCol, 3));
+  petalPts = new THREE.Points(pGeo, new THREE.PointsMaterial({
+    size: 0.32, vertexColors: true, transparent: true, opacity: 0.85,
+    map: glowTexture('rgba(255,255,255,1)'), depthWrite: false
+  }));
+  scene.add(petalPts);
 }
 
 function buildCritters() {
@@ -2668,6 +2861,7 @@ function fireEvent(ev) {
   var wk = workerList[ev.worker];
   var tScale = DEMO ? 4 : 1;
   doorPulseT = 0;
+  Music.sfx('order');
   if (wk) {
     var npc = npcs[wk.npcSlot];
     npc.jumpT = 0;
@@ -2714,6 +2908,7 @@ function fireEvent(ev) {
 var bannerSprite = null, bannerTimer = null;
 function celebrate(text) {
   if (!world.ok) return;
+  Music.sfx('celebrate');
   if (bannerSprite) { scene.remove(bannerSprite); bannerSprite.material.dispose(); bannerSprite = null; }
   bannerSprite = makeLabel(text, 'banner');
   bannerSprite.position.set(0, 15, -16);
@@ -2944,6 +3139,242 @@ function updateAmbience(t) {
   }
 }
 
+/* ═══════════════ 13b. 音樂（動森風程序化配樂，原創旋律） ═══════════════ */
+// 純 Web Audio 合成，零音檔：卡林巴撥奏 + 口哨 + 柔和 pad + 低音 + 沙鈴，
+// 76 BPM 輕搖擺、和弦循環輪替、五聲音階 AABA 生成樂句 → 可連播數小時不膩。
+var Music = (function () {
+  var ctx = null, master, busMusic, busSfx, noiseBuf;
+  var muted = false, started = false;
+  var timer = null, nextT = 0, step = 0, bar = 0;
+  var mrng = mulberry32(hashStr(ymd(Date.now())) + new Date().getHours());
+  var BPM = 76, BEAT = 60 / BPM;
+  var STEP_DUR = [0.58 * BEAT, 0.42 * BEAT]; // 搖擺 8 分音符
+  function freq(semi) { return 196 * Math.pow(2, semi / 12); } // 以 G3=196Hz 起算
+  var CHORDS = {
+    I:  [0, 4, 7, 11], V: [7, 11, 14], vi: [9, 12, 16],
+    IV: [5, 9, 12, 16], iii: [4, 7, 11], ii: [2, 5, 9, 12]
+  };
+  var PROGS = [['I', 'V', 'vi', 'IV'], ['I', 'iii', 'IV', 'V'], ['vi', 'IV', 'I', 'V'], ['I', 'ii', 'V', 'I']];
+  var PENTA = [0, 2, 4, 7, 9];
+  var phraseA = null, phraseB = null, melIdx = 4;
+  var sfxLast = {};
+
+  function makeNoise() {
+    var buf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+    var d = buf.getChannelData(0);
+    for (var i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    return buf;
+  }
+  function init() {
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    master = ctx.createGain(); master.gain.value = 0.25;
+    var comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -18; comp.knee.value = 20; comp.ratio.value = 3;
+    comp.attack.value = 0.005; comp.release.value = 0.25;
+    master.connect(comp); comp.connect(ctx.destination);
+    busMusic = ctx.createGain(); busMusic.gain.value = 0.9; busMusic.connect(master);
+    busSfx = ctx.createGain(); busSfx.gain.value = 1; busSfx.connect(master);
+    noiseBuf = makeNoise();
+  }
+  function env(g, t, a, peak, tau) { // attack + 指數衰減
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(peak, t + a);
+    g.gain.setTargetAtTime(0, t + a, tau);
+  }
+  function playPluck(f, t, vel, dest) {
+    var o1 = ctx.createOscillator(), o2 = ctx.createOscillator();
+    o1.type = 'sine'; o1.frequency.value = f;
+    o2.type = 'sine'; o2.frequency.value = f * 2.01;
+    var g1 = ctx.createGain(), g2 = ctx.createGain();
+    env(g1, t, 0.002, 0.5 * vel, 0.18);
+    env(g2, t, 0.002, 0.13 * vel, 0.12);
+    var lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2400; lp.Q.value = 0.7;
+    o1.connect(g1); o2.connect(g2); g1.connect(lp); g2.connect(lp); lp.connect(dest || busMusic);
+    o1.start(t); o2.start(t); o1.stop(t + 1.2); o2.stop(t + 1.2);
+  }
+  function playWhistle(f, t, vel, len) {
+    var o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f * 2;
+    var lfo = ctx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 5;
+    var lg = ctx.createGain(); lg.gain.value = f * 2 * 0.0035;
+    lfo.connect(lg); lg.connect(o.frequency);
+    var g = ctx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.22 * vel, t + 0.06);
+    g.gain.setValueAtTime(0.22 * vel, t + Math.max(len - 0.2, 0.1));
+    g.gain.linearRampToValueAtTime(0, t + len + 0.1);
+    var lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3000;
+    o.connect(g); g.connect(lp); lp.connect(busMusic);
+    o.start(t); lfo.start(t); o.stop(t + len + 0.2); lfo.stop(t + len + 0.2);
+  }
+  function playPad(semis, t, len) {
+    semis.slice(0, 4).forEach(function (sm, i2) {
+      var o = ctx.createOscillator(); o.type = 'triangle';
+      o.frequency.value = freq(sm - 12);
+      o.detune.value = [-4, 4, -7, 5][i2];
+      var g = ctx.createGain();
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.05, t + 1.2);
+      g.gain.setValueAtTime(0.05, t + Math.max(len - 1.2, 1.3));
+      g.gain.linearRampToValueAtTime(0, t + len);
+      var lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900; lp.Q.value = 0.5;
+      o.connect(g); g.connect(lp); lp.connect(busMusic);
+      o.start(t); o.stop(t + len + 0.1);
+    });
+  }
+  function playBass(semi, t) {
+    var o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = freq(semi - 24);
+    var g = ctx.createGain();
+    env(g, t, 0.01, 0.32, 0.25);
+    var lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 400;
+    o.connect(g); g.connect(lp); lp.connect(busMusic);
+    o.start(t); o.stop(t + 0.9);
+  }
+  function playHat(t, vel) {
+    var src = ctx.createBufferSource(); src.buffer = noiseBuf;
+    var hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 6000;
+    var g = ctx.createGain();
+    env(g, t, 0.001, 0.07 * vel, 0.02);
+    src.connect(hp); hp.connect(g); g.connect(busMusic);
+    src.start(t); src.stop(t + 0.12);
+  }
+  function playBell(f, t, vel, dest) {
+    var o1 = ctx.createOscillator(), o2 = ctx.createOscillator();
+    o1.type = 'sine'; o1.frequency.value = f;
+    o2.type = 'sine'; o2.frequency.value = f * 3.02;
+    var g1 = ctx.createGain(), g2 = ctx.createGain();
+    env(g1, t, 0.001, 0.12 * vel, 0.12);
+    env(g2, t, 0.001, 0.025 * vel, 0.08);
+    o1.connect(g1); o2.connect(g2); g1.connect(dest); g2.connect(dest);
+    o1.start(t); o2.start(t); o1.stop(t + 0.8); o2.stop(t + 0.8);
+  }
+
+  function genPhrase() { // 2 小節 = 16 步
+    var ph = [];
+    for (var i2 = 0; i2 < 16; i2++) {
+      if (mrng() < 0.35) { ph.push(null); continue; }
+      melIdx = clamp(melIdx + Math.floor(mrng() * 5) - 2, 0, 9);
+      ph.push(melIdx);
+    }
+    return ph;
+  }
+  function pentaSemi(idx) {
+    var oct = Math.floor(idx / 5), deg = idx % 5;
+    return PENTA[deg] + oct * 12 + 12; // 主旋律高一個八度
+  }
+
+  function scheduleStep(st, t) {
+    var prog = PROGS[Math.floor(bar / 8) % PROGS.length];
+    var chord = CHORDS[prog[Math.floor(bar / 2) % 4]];
+    var barPhase = Math.floor(bar / 2) % 4; // AABA 位置
+
+    if (st === 0 && bar % 2 === 0) playPad(chord, t, 8 * BEAT);
+    if (st === 0) playBass(chord[0], t);
+    if (st === 4) playBass(mrng() < 0.7 ? chord[0] + 7 : chord[0] + 12, t);
+    var hatProb = [0.9, 0.4, 0.7, 0.3, 0.9, 0.4, 0.7, 0.5][st];
+    if (mrng() < hatProb) playHat(t, 0.6 + mrng() * 0.4);
+    // 旋律（AABA：B 樂句偶爾換口哨音色）
+    if (bar % 8 === 0 && st === 0) { if (bar % 32 === 0 || !phraseA) phraseA = genPhrase(); phraseB = genPhrase(); }
+    var ph = (barPhase === 2) ? phraseB : phraseA;
+    if (ph) {
+      var noteIdx = (bar % 2) * 8 + st;
+      var mi = ph[noteIdx];
+      if (mi !== null && mi !== undefined) {
+        var semi = pentaSemi(mi);
+        if (noteIdx === 0) { // 樂句首音貼齊和弦音
+          var best = chord[0], bd = 99;
+          chord.forEach(function (cs) { var d2 = Math.abs((semi % 12) - (cs % 12)); if (d2 < bd) { bd = d2; best = cs; } });
+          semi = best + 12;
+        }
+        var vel = 0.85 + mrng() * 0.3;
+        if (barPhase === 2 && mrng() < 0.25) playWhistle(freq(semi), t, vel, STEP_DUR[st % 2] * 1.8);
+        else playPluck(freq(semi), t, vel, busMusic);
+      }
+    }
+  }
+  function tick() {
+    while (nextT < ctx.currentTime + 0.12) {
+      scheduleStep(step, nextT);
+      nextT += STEP_DUR[step % 2];
+      step++;
+      if (step >= 8) { step = 0; bar++; }
+    }
+  }
+  function startScheduler() {
+    if (timer) return;
+    nextT = ctx.currentTime + 0.06;
+    timer = setInterval(tick, 25);
+    started = true;
+    updateBtn();
+    setTimeout(function () { if (!muted) $('sndBtn').classList.add('faded'); }, 8000);
+  }
+  function updateBtn() {
+    var b = $('sndBtn');
+    b.style.display = 'block';
+    b.textContent = muted ? '🔇' : '🔊';
+    b.classList.remove('faded');
+  }
+  function tryStart() {
+    if (muted || started) return;
+    if (!ctx) init();
+    ctx.resume().then(function () {
+      if (ctx.state === 'running') startScheduler();
+    }).catch(function () {});
+  }
+  return {
+    boot: function () {
+      try { muted = q.has('mute') || localStorage.getItem('tzg_live_muted') === '1'; } catch (e) { muted = q.has('mute'); }
+      if (muted) { updateBtn(); }
+      else {
+        tryStart();
+        setTimeout(function () { if (!started) updateBtn(); }, 800);
+        document.addEventListener('pointerdown', function once() { // 首次點擊解鎖
+          document.removeEventListener('pointerdown', once);
+          tryStart();
+        });
+      }
+      $('sndBtn').addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        muted = !muted;
+        try { localStorage.setItem('tzg_live_muted', muted ? '1' : '0'); } catch (e) {}
+        if (muted) { if (ctx) ctx.suspend(); updateBtn(); }
+        else { started = false; if (timer) { clearInterval(timer); timer = null; } updateBtn(); tryStart(); }
+      });
+    },
+    onVisibility: function (hidden) {
+      if (!ctx || muted) return;
+      if (hidden) ctx.suspend();
+      else { ctx.resume(); nextT = ctx.currentTime + 0.06; }
+    },
+    sfx: function (type) {
+      if (!ctx || ctx.state !== 'running' || muted) return;
+      var nowS = ctx.currentTime;
+      var throttle = { order: 1.5, celebrate: 10, boat: 8 }[type] || 2;
+      if (sfxLast[type] && nowS - sfxLast[type] < throttle) return;
+      sfxLast[type] = nowS;
+      if (type === 'order') {
+        playBell(1318.5, nowS, 1, busSfx);
+        playBell(1568, nowS + 0.09, 0.9, busSfx);
+      } else if (type === 'celebrate') {
+        [0, 4, 7, 12, 16].forEach(function (sm, i2) { playPluck(freq(sm + 12), nowS + i2 * 0.09, 1.1, busSfx); });
+      } else if (type === 'boat') {
+        var o = ctx.createOscillator(); o.type = 'triangle';
+        o.frequency.setValueAtTime(196, nowS);
+        o.frequency.linearRampToValueAtTime(147, nowS + 0.4);
+        var g = ctx.createGain();
+        env(g, nowS, 0.05, 0.08, 0.25);
+        var lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 600;
+        o.connect(g); g.connect(lp); lp.connect(busSfx);
+        o.start(nowS); o.stop(nowS + 0.7);
+      }
+    },
+    state: function () {
+      if (muted) return 'muted';
+      if (!ctx) return 'off';
+      return started && ctx.state === 'running' ? 'running' : ctx.state;
+    }
+  };
+})();
+
 /* ═══════════════ 14. 主渲染迴圈 ═══════════════ */
 var rafActive = false;
 var fpsEMA = 60, dbgT = 0;
@@ -2975,6 +3406,7 @@ function loop() {
   }
 }
 document.addEventListener('visibilitychange', function () {
+  Music.onVisibility(document.hidden);
   if (!document.hidden) {
     if (D) renderNow(true);
     if (world.ok && !rafActive) { clock3.getDelta(); requestAnimationFrame(loop); }
@@ -3139,6 +3571,7 @@ window.__world = {
       staff0: npcs[STAFF_BASE] ? { s: +npcs[STAFF_BASE].scale.toFixed(2), ts: npcs[STAFF_BASE].targetScale, x: +npcs[STAFF_BASE].pos.x.toFixed(1), z: +npcs[STAFF_BASE].pos.z.toFixed(1) } : null,
       bodyM: Array.from(m22.elements.slice(12, 15)).map(function (x) { return +x.toFixed(1); }),
       districts: !!DYN.monthly,
+      audio: Music.state(),
       boats: boats.filter(function (b) { return b.state !== 'cooldown'; }).length,
       labels: labelCache.size
     };
@@ -3146,6 +3579,7 @@ window.__world = {
 };
 
 initWorld();
+Music.boot();
 loadData();
 loadMeta();
 setInterval(function () { if (D) renderNow(false); }, DEMO ? 250 : 1000);
