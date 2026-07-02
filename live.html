@@ -184,6 +184,8 @@ var q = new URLSearchParams(location.search);
 var DEMO = q.has('demo');
 var LITE = q.has('lite');
 var DEBUG = q.has('debug');
+// 預設鎖定白天（陽光+滿街人潮）；加 ?real=1 才跟真實時間日夜循環（?hour/?time/?demo 也解除鎖定）
+var DAY_LOCK = !q.has('real') && !q.has('hour') && !q.has('time') && !DEMO;
 var SPEED = DEMO ? 60 : 1;
 var TIME_TRAVEL = DEMO || q.has('hour') || q.has('time');
 var bootReal = Date.now();
@@ -2885,7 +2887,8 @@ var lastAmbHour = -1;
 function updateAmbience(t) {
   if (!world.ok) return;
   var d = new Date(t);
-  var hour = d.getHours() + d.getMinutes() / 60;
+  // 白天鎖定：視覺氛圍固定在下午 1 點（數字/事件仍走真實時鐘，鐘樓指針也是真實時間）
+  var hour = DAY_LOCK ? 13 : (d.getHours() + d.getMinutes() / 60);
   var a = SKY[0], b = SKY[SKY.length - 1], f = 0;
   for (var i = 0; i < SKY.length - 1; i++) {
     if (hour >= SKY[i].h && hour < SKY[i + 1].h) {
