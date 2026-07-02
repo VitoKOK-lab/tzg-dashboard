@@ -43,15 +43,15 @@ body { font-family: 'Montserrat', 'PingFang TC', sans-serif; background: #fff; d
   padding: 0 14px;
   font-size: 12px;
   font-weight: 600;
-  color: #e8a0b0;
+  color: #f4a9d2;
   cursor: pointer;
   border-bottom: 2px solid transparent;
   transition: color .14s, border-color .14s;
   white-space: nowrap;
   user-select: none;
 }
-.tab:hover { color: #D4456A; }
-.tab.active { color: #D4456A; border-bottom-color: #D4456A; font-weight: 700; }
+.tab:hover { color: #B12468; }
+.tab.active { color: #E6007E; border-bottom-color: #E6007E; font-weight: 700; }
 
 /* ── CONTENT ── */
 .content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
@@ -74,8 +74,8 @@ iframe.active { display: block; }
 .loader.hidden { opacity: 0; pointer-events: none; }
 .spinner {
   width: 28px; height: 28px;
-  border: 2px solid #e8e4dc;
-  border-top-color: #C9A961;
+  border: 2px solid #efe7cf;
+  border-top-color: #C5B382;
   border-radius: 50%;
   animation: spin .6s linear infinite;
 }
@@ -91,6 +91,7 @@ iframe.active { display: block; }
   <div class="tab" onclick="show(2)">短影音</div>
   <div class="tab" onclick="show(3)">代理</div>
   <div class="tab" onclick="show(4)">即時</div>
+  <div class="tab" onclick="show(5)">品牌</div>
 </div>
 
 <div class="content">
@@ -100,6 +101,7 @@ iframe.active { display: block; }
   <iframe id="f2" src=""></iframe>
   <iframe id="f3" src=""></iframe>
   <iframe id="f4" allow="autoplay" src=""></iframe>
+  <iframe id="f5" src=""></iframe>
 </div>
 
 <script>
@@ -109,13 +111,14 @@ const urls = [
   'https://vitokok-lab.github.io/meta-dashboard/',
   'https://tzg-commission.fly.dev/review/2026-04?t=a301e31bce1565a771691b7ad3167e05',
   'https://vitokok-lab.github.io/tzg-dashboard/live.html',
+  'https://vitokok-lab.github.io/tzg-dashboard/brand/index.html',
 ];
 
-const loaded = [false, false, false, false, false];
+const loaded = [false, false, false, false, false, false];
 let cur = 0;
 
 const tabs   = document.querySelectorAll('.tab');
-const frames = [0,1,2,3,4].map(i => document.getElementById('f'+i));
+const frames = [0,1,2,3,4,5].map(i => document.getElementById('f'+i));
 const loader = document.getElementById('loader');
 
 // 第一個 iframe 監聽 load
