@@ -1,0 +1,28 @@
+<!DOCTYPE html><!-- @dsCard group="Components" -->
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0}
+  body{font-family:var(--font-sans-tc);background:var(--white);padding:26px 30px;color:var(--ink);display:flex;gap:20px}
+  .col{flex:1;display:flex;flex-direction:column;gap:14px}
+  .field label{display:block;font-family:var(--font-sans);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:6px}
+  .inp{width:100%;box-sizing:border-box;font-family:var(--font-sans-tc);font-size:15px;padding:12px 14px;border:1.5px solid var(--line);border-radius:var(--r-sm);color:var(--ink);background:#fff}
+  .inp.focus{border-color:var(--zana-pink);box-shadow:0 0 0 3px var(--pink-050)}
+  .inp.ph{color:var(--ink-faint)}
+  .search{position:relative}
+  .search .inp{padding-left:38px;border-radius:999px}
+  .search svg{position:absolute;left:14px;top:13px;color:var(--ink-faint)}
+  .toggle{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--ink-soft)}
+  .sw{width:42px;height:24px;border-radius:999px;background:var(--zana-pink);position:relative;flex:none}
+  .sw::after{content:"";position:absolute;width:18px;height:18px;border-radius:50%;background:#fff;top:3px;right:3px}
+</style></head>
+<body>
+  <div class="col">
+    <div class="field"><label>姓名 Name</label><input class="inp focus" value="陳札娜"></div>
+    <div class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input class="inp ph" value="搜尋商品…"></div>
+  </div>
+  <div class="col">
+    <div class="field"><label>Email</label><input class="inp ph" value="you@tahirzinab.com"></div>
+    <div class="toggle"><span class="sw"></span>接收新品通知</div>
+  </div>
+</body></html>

@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<!--
+  TZG 品牌分頁 — TAHIR ZAINAB 泰熙爾札娜 設計系統展示館
+  ─────────────────────────────────────────────────────
+  來源：claude.ai/design 專案「tahir zinab Design System」匯出
+  這整個 brand/ 資料夾是獨立附加的靜態頁面，不影響任何報表流程。
+  移除方式：刪掉 brand/ 資料夾 + index.html 的「品牌」分頁三行即可。
+-->
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TAHIR ZAINAB · 品牌設計系統</title>
+<link rel="stylesheet" href="colors_and_type.css">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:var(--font-sans-tc);background:var(--paper-warm);color:var(--ink);-webkit-font-smoothing:antialiased}
+
+/* ── HERO ── */
+.hero{background:var(--white);text-align:center;padding:64px 24px 44px;border-bottom:1px solid var(--line-gold)}
+.hero img.mark{height:96px;width:auto;display:block;margin:0 auto 22px}
+.hero .wordmark{font-family:var(--font-sans);font-size:clamp(22px,3.4vw,34px);font-weight:400;letter-spacing:.42em;text-indent:.42em;color:var(--ink)}
+.hero .zh{font-family:var(--font-serif-tc);font-size:17px;font-weight:500;color:var(--ink-soft);margin-top:10px;letter-spacing:.35em;text-indent:.35em}
+.hero .rule{width:120px;height:1px;background:var(--foil-gold);margin:26px auto 18px}
+.hero .sub{font-family:var(--font-sans);font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--gold-deep)}
+.hero .sparkle{color:var(--gold);font-size:13px;margin:0 10px}
+
+/* ── NAV CHIPS ── */
+.chips{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);display:flex;gap:8px;justify-content:center;flex-wrap:wrap;padding:12px 16px}
+.chips a{font-family:var(--font-sans-tc);font-size:12.5px;font-weight:500;color:var(--ink-soft);text-decoration:none;padding:6px 16px;border:1px solid var(--line);border-radius:999px;transition:all .3s ease-out;background:var(--white)}
+.chips a:hover{color:var(--zana-pink);border-color:var(--pink-200);background:var(--pink-050)}
+
+.wrap{max-width:1160px;margin:0 auto;padding:0 22px 90px}
+
+/* ── SECTION HEADINGS ── */
+.sec{margin-top:64px}
+.sec .eyebrow{font-family:var(--font-sans);font-size:11px;letter-spacing:.32em;text-transform:uppercase;color:var(--gold-deep)}
+.sec h2{font-family:var(--font-serif-tc);font-size:26px;font-weight:600;margin-top:6px;color:var(--ink)}
+.sec .lede{font-size:14px;color:var(--ink-soft);margin-top:8px;line-height:1.65;max-width:640px}
+.sec .goldline{width:56px;height:1px;background:var(--gold-300);margin-top:16px}
+
+/* ── CARD GRID ── */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:22px;margin-top:26px}
+.card{background:var(--white);border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 6px 22px -12px rgba(43,24,34,.14);transition:box-shadow .35s ease-out,transform .35s ease-out;display:block;text-decoration:none;color:inherit}
+.card:hover{box-shadow:0 14px 34px -14px rgba(43,24,34,.22);transform:translateY(-2px)}
+.frame{position:relative;overflow:hidden;background:var(--white);border-bottom:1px solid var(--line)}
+.frame iframe{border:0;display:block;transform-origin:0 0;pointer-events:none}
+.frame::after{content:'';position:absolute;inset:0}
+.cap{display:flex;align-items:baseline;justify-content:space-between;padding:13px 16px 14px}
+.cap .t{font-size:14px;font-weight:600;color:var(--ink)}
+.cap .en{font-family:var(--font-sans);font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint)}
+.card:hover .cap .t{color:var(--zana-pink)}
+
+/* ── UI KITS（一列一張，大圖） ── */
+.kits{display:flex;flex-direction:column;gap:26px;margin-top:26px}
+.kit{background:var(--white);border:1px solid var(--line-gold);border-radius:16px;overflow:hidden;box-shadow:0 10px 30px -16px rgba(43,24,34,.18)}
+.kit .frame{border-bottom:1px solid var(--line)}
+.kit .bar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 22px;flex-wrap:wrap}
+.kit .bar .t{font-family:var(--font-serif-tc);font-size:18px;font-weight:600}
+.kit .bar .d{font-size:13px;color:var(--ink-soft);margin-top:3px}
+.kit .open{font-family:var(--font-sans-tc);font-size:13px;font-weight:600;color:#fff;background:var(--zana-pink);padding:9px 26px;border-radius:999px;text-decoration:none;letter-spacing:.08em;box-shadow:0 6px 18px -6px rgba(230,0,126,.45);transition:background .3s ease-out,transform .2s ease-out;white-space:nowrap}
+.kit .open:hover{background:var(--dark-pink)}
+.kit .open:active{transform:scale(.97)}
+
+/* ── FOOTER ── */
+.foot{margin-top:80px;border-top:1px solid var(--line-gold);padding-top:28px;text-align:center}
+.foot .m{font-family:var(--font-sans);font-size:10.5px;letter-spacing:.26em;text-transform:uppercase;color:var(--ink-faint)}
+.foot a{color:var(--gold-deep);text-decoration:none;border-bottom:1px solid var(--line-gold)}
+.foot a:hover{color:var(--zana-pink);border-color:var(--pink-200)}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <img class="mark" src="assets/logo-pink.png" alt="TAHIR ZAINAB 標誌">
+  <div class="wordmark">TAHIR&nbsp;ZAINAB</div>
+  <div class="zh">泰熙爾札娜</div>
+  <div class="rule"></div>
+  <div class="sub"><span class="sparkle">✦</span>品牌設計系統 · Design System<span class="sparkle">✦</span></div>
+</header>
+
+<nav class="chips">
+  <a href="#kits">發文模板</a>
+  <a href="#brand">品牌識別</a>
+  <a href="#colors">色彩</a>
+  <a href="#type">字體</a>
+  <a href="#spacing">間距</a>
+  <a href="#comp">元件</a>
+</nav>
+
+<main class="wrap">
+
+  <section class="sec" id="kits">
+    <div class="eyebrow">UI Kits · 社群發文工具</div>
+    <h2>發文模板</h2>
+    <p class="lede">三套可直接開啟使用的互動模板 —— 貼文、限動與精選封面、社群主頁示範。點「開啟」進入後可拖入商品照片預覽排版。</p>
+    <div class="goldline"></div>
+    <div class="kits">
+      <div class="kit">
+        <div class="frame fit" data-w="1080" data-h="620"><iframe loading="lazy" src="ui_kits/post-templates/index.html" width="1080" height="620" title="貼文模板"></iframe></div>
+        <div class="bar">
+          <div><div class="t">貼文模板 · Post Templates</div><div class="d">新品 1:1、品牌語錄、4:5 主打商品、天球公告 —— 依實際輸出尺寸製作</div></div>
+          <a class="open" href="ui_kits/post-templates/index.html" target="_blank" rel="noopener">開啟 ✦</a>
+        </div>
+      </div>
+      <div class="kit">
+        <div class="frame fit" data-w="980" data-h="560"><iframe loading="lazy" src="ui_kits/story-highlights/index.html" width="980" height="560" title="限動與精選封面"></iframe></div>
+        <div class="bar">
+          <div><div class="t">限動・精選・大頭貼 · Stories &amp; Highlights</div><div class="d">9:16 限動模板、統一風格的精選封面圖示組、三款圓形大頭貼</div></div>
+          <a class="open" href="ui_kits/story-highlights/index.html" target="_blank" rel="noopener">開啟 ✦</a>
+        </div>
+      </div>
+      <div class="kit">
+        <div class="frame fit" data-w="910" data-h="600"><iframe loading="lazy" src="ui_kits/social-profile/index.html" width="910" height="600" title="社群主頁示範"></iframe></div>
+        <div class="bar">
+          <div><div class="t">社群主頁示範 · Social Profile</div><div class="d">品牌完整套用的主頁情境 —— 大頭貼、簡介、精選列、白色系編輯風格牆面</div></div>
+          <a class="open" href="ui_kits/social-profile/index.html" target="_blank" rel="noopener">開啟 ✦</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="brand">
+    <div class="eyebrow">Brand · 品牌識別</div>
+    <h2>標誌與花紋</h2>
+    <p class="lede">手寫書法標誌與兩側菱形星芒 ✦、品牌花紋、天球包裝紋樣（僅限實體包裝使用）。</p>
+    <div class="goldline"></div>
+    <div class="grid">
+      <a class="card" href="preview/brand-logos.html" target="_blank" rel="noopener"><div class="frame fit" data-w="720"><iframe loading="lazy" src="preview/brand-logos.html" width="720" title="標誌變體"></iframe></div><div class="cap"><span class="t">標誌色彩變體</span><span class="en">Logos</span></div></a>
+      <a class="card" href="preview/brand-lockup.html" target="_blank" rel="noopener"><div class="frame fit" data-w="720"><iframe loading="lazy" src="preview/brand-lockup.html" width="720" title="標準字組合"></iframe></div><div class="cap"><span class="t">標準字組合</span><span class="en">Lockup</span></div></a>
+      <a class="card" href="preview/brand-avatars.html" target="_blank" rel="noopener"><div class="frame fit" data-w="720"><iframe loading="lazy" src="preview/brand-avatars.html" width="720" title="大頭貼"></iframe></div><div class="cap"><span class="t">大頭貼</span><span class="en">Avatars</span></div></a>
+      <a class="card" href="preview/brand-motif.html" target="_blank" rel="noopener"><div class="frame fit" data-w="720"><iframe loading="lazy" src="preview/brand-motif.html" width="720" title="品牌花紋單元"></iframe></div><div class="cap"><span class="t">品牌花紋單元</span><span class="en">Motif</span></div></a>
+      <a class="card" href="preview/brand-pattern.html" target="_blank" rel="noopener"><div class="frame fit" data-w="720"><iframe loading="lazy" src="preview/brand-pattern.html" width="720" title="花紋拼貼"></iframe></div><div class="cap"><span class="t">花紋拼貼</span><span class="en">Pattern</span></div></a>
+      <a class="card" href="preview/brand-celestial.html" target="_blank" rel="noopener"><div class="frame fit" data-w="720"><iframe loading="lazy" src="preview/brand-celestial.html" width="720" title="天球包裝紋樣"></iframe></div><div class="cap"><span class="t">天球包裝紋樣</span><span class="en">Celestial</span></div></a>
+    </div>
+  </section>
+
+  <section class="sec" id="colors">
+    <div class="eyebrow">Colors · 五色制</div>
+    <h2>色彩系統</h2>
+    <p class="lede">純白為底、札娜紅（桃紅）主導、燙金點綴精緻細節、泰熙爾藍只留給緞帶與封印時刻。</p>
+    <div class="goldline"></div>
+    <div class="grid">
+      <a class="card" href="preview/colors-primary.html" target="_blank" rel="noopener"><div class="frame fit" data-w="720"><iframe loading="lazy" src="preview/colors-primary.html" width="720" title="五色制主色盤"></iframe></div><div class="cap"><span class="t">五色制主色盤</span><span class="en">Primary</span></div></a>
+      <a class="card" href="preview/colors-ratio.html" target="_blank" rel="noopener"><div class="frame fit" data-w="720"><iframe loading="lazy" src="preview/colors-ratio.html" width="720" title="社群配色比例"></iframe></div><div class="cap"><span class="t">社群配色比例</span><span class="en">Ratio</span></div></a>
+      <a class="card" href="preview/colors-tints.html" target="_blank" rel="noopener"><div class="frame fit" data-w="720"><iframe loading="lazy" src="preview/colors-tints.html" width="720" title="衍生淡彩"></iframe></div><div class="cap"><span class="t">衍生淡彩</span><span class="en">Tints</span></div></a>
+      <a class="card" href="preview/colors-ink.html" target="_blank" rel="noopener"><div class="frame fit" data-w="720"><iframe loading="lazy" src="preview/colors-ink.html" width="720" title="墨色中性色"></iframe></div><div class="cap"><span class="t">墨色中性色</span><span class="en">Ink</span></div></a>
+      <a class="card" href="preview/colors-foil.html" target="_blank" rel="noopener"><div class="frame fit" data-w="720"><iframe loading="lazy" src="preview/colors-foil.html" width="720" title="燙金漸層"></iframe></div><div class="cap"><span class="t">燙金漸層</span><span class="en">Foil</span></div></a>
+    </div>
+  </section>
+
+  <section class="sec" id="type">
+    <div class="eyebrow">Type · 四字體系統</div>
+    <h2>字體系統</h2>
+    <p class="lede">中文主字體思源黑體、英文主字體 Helvetica（品牌名與所有數字）、中文輔字體思源宋體、英文輔字體 Georgia。</p>
+    <div class="goldline"></div>
+    <div class="grid">
+      <a class="card" href="preview/type-display.html" target="_blank" rel="noopener"><div class="frame fit" data-w="720"><iframe loading="lazy" src="preview/type-display.html" width="720" title="標題展示"></iframe></div><div class="cap"><span class="t">標題展示</span><span class="en">Display</span></div></a>
+      <a class="card" href="preview/type-scale.html" target="_blank" rel="noopener"><div class="frame fit" data-w="720"><iframe loading="lazy" src="preview/type-scale.html" width="720" title="字級系統"></iframe></div><div class="cap"><span class="t">字級系統</span><span class="en">Scale</span></div></a>
+      <a class="card" href="preview/type-chinese.html" target="_blank" rel="noopener"><div class="frame fit" data-w="720"><iframe loading="lazy" src="preview/type-chinese.html" width="720" title="中文字體"></iframe></div><div class="cap"><span class="t">中文字體</span><span class="en">Chinese</span></div></a>
+    </div>
+  </section>
+
+  <section class="sec" id="spacing">
+    <div class="eyebrow">Spacing · 留白即語彙</div>
+    <h2>間距・圓角・陰影</h2>
+    <p class="lede">8pt 基準刻度、優雅收斂的圓角、低而柔的暖調陰影 —— 空氣感是品牌的一部分。</p>
+    <div class="goldline"></div>
+    <div class="grid">
+      <a class="card" href="preview/spacing-scale.html" target="_blank" rel="noopener"><div class="frame fit" data-w="720"><iframe loading="lazy" src="preview/spacing-scale.html" width="720" title="間距刻度"></iframe></div><div class="cap"><span class="t">間距刻度</span><span class="en">Scale</span></div></a>
+      <a class="card" href="preview/spacing-radii.html" target="_blank" rel="noopener"><div class="frame fit" data-w="720"><iframe loading="lazy" src="preview/spacing-radii.html" width="720" title="圓角"></iframe></div><div class="cap"><span class="t">圓角</span><span class="en">Radii</span></div></a>
+      <a class="card" href="preview/spacing-shadows.html" target="_blank" rel="noopener"><div class="frame fit" data-w="720"><iframe loading="lazy" src="preview/spacing-shadows.html" width="720" title="陰影"></iframe></div><div class="cap"><span class="t">陰影</span><span class="en">Shadows</span></div></a>
+    </div>
+  </section>
+
+  <section class="sec" id="comp">
+    <div class="eyebrow">Components · 介面元件</div>
+    <h2>元件</h2>
+    <p class="lede">按鈕、卡片、輸入欄與標籤 —— 髮絲線描邊、柔和陰影、藥丸圓角的一致語言。</p>
+    <div class="goldline"></div>
+    <div class="grid">
+      <a class="card" href="preview/comp-buttons.html" target="_blank" rel="noopener"><div class="frame fit" data-w="720"><iframe loading="lazy" src="preview/comp-buttons.html" width="720" title="按鈕"></iframe></div><div class="cap"><span class="t">按鈕</span><span class="en">Buttons</span></div></a>
+      <a class="card" href="preview/comp-cards.html" target="_blank" rel="noopener"><div class="frame fit" data-w="720"><iframe loading="lazy" src="preview/comp-cards.html" width="720" title="卡片"></iframe></div><div class="cap"><span class="t">卡片</span><span class="en">Cards</span></div></a>
+      <a class="card" href="preview/comp-fields.html" target="_blank" rel="noopener"><div class="frame fit" data-w="720"><iframe loading="lazy" src="preview/comp-fields.html" width="720" title="輸入欄"></iframe></div><div class="cap"><span class="t">輸入欄</span><span class="en">Fields</span></div></a>
+      <a class="card" href="preview/comp-tags.html" target="_blank" rel="noopener"><div class="frame fit" data-w="720"><iframe loading="lazy" src="preview/comp-tags.html" width="720" title="標籤"></iframe></div><div class="cap"><span class="t">標籤</span><span class="en">Tags</span></div></a>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <div class="m">TAHIR ZAINAB · 泰熙爾札娜 &nbsp;✦&nbsp; <a href="README.md" target="_blank" rel="noopener">完整規範文件</a> &nbsp;✦&nbsp; 五色制 · 四字體系統</div>
+  </footer>
+
+</main>
+
+<script>
+// 等比縮放預覽 iframe：以 data-w 的原尺寸渲染，縮到卡片寬度。
+// 高度：UI kit 用 data-h 固定；preview 卡片載入後量測同源文件實際高度。
+function fitFrames(){
+  document.querySelectorAll('.frame.fit').forEach(function(f){
+    var ifr = f.querySelector('iframe');
+    var w = parseInt(f.dataset.w, 10);
+    var scale = f.clientWidth / w;
+    var h = parseInt(f.dataset.h || ifr.dataset.mh || 0, 10);
+    if (!h) { h = 300; }
+    ifr.style.width = w + 'px';
+    ifr.style.height = h + 'px';
+    ifr.style.transform = 'scale(' + scale + ')';
+    f.style.height = (h * scale) + 'px';
+  });
+}
+document.querySelectorAll('.frame.fit iframe').forEach(function(ifr){
+  ifr.addEventListener('load', function(){
+    try {
+      var d = ifr.contentDocument;
+      if (d && d.body && !ifr.closest('.frame').dataset.h) {
+        ifr.dataset.mh = Math.max(120, Math.min(1400, d.body.scrollHeight));
+      }
+    } catch (e) { /* 跨源時保持預設高度 */ }
+    fitFrames();
+  });
+});
+window.addEventListener('resize', fitFrames);
+fitFrames();
+</script>
+</body>
+</html>

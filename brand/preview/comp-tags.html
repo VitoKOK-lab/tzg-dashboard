@@ -1,0 +1,46 @@
+<!DOCTYPE html><!-- @dsCard group="Components" -->
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0}
+  body{font-family:var(--font-sans-tc);background:var(--paper-warm);padding:26px 30px;color:var(--ink);display:flex;flex-direction:column;gap:18px}
+  .row{display:flex;gap:11px;align-items:center;flex-wrap:wrap}
+  .cap{font-family:var(--font-sans);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint)}
+  /* refined hairline pills */
+  .chip{font-family:var(--font-sans-tc);font-size:12.5px;letter-spacing:.06em;padding:7px 16px;border-radius:999px;background:#fff;line-height:1}
+  .c-pink{border:1px solid var(--pink-200);color:var(--dark-pink)}
+  .c-gold{border:1px solid var(--gold-300);color:var(--gold-deep)}
+  .c-teal{border:1px solid var(--teal-100);color:#2c8077}
+  .c-solid{background:var(--zana-pink);color:#fff;box-shadow:var(--shadow-pink)}
+  /* badges */
+  .badge{font-family:var(--font-sans);font-size:9.5px;letter-spacing:.22em;text-transform:uppercase;padding:5px 12px;border-radius:3px;font-weight:700}
+  .b-new{background:var(--zana-pink);color:#fff}
+  .b-foil{background:var(--foil-gold);color:#5a4c25;box-shadow:var(--shadow-xs)}
+  /* circular foil seal */
+  .seal{display:flex;align-items:center;gap:14px}
+  .stamp{width:72px;height:72px;border-radius:50%;background:radial-gradient(circle at 38% 32%,#FAF6EA,#EFE7CF 70%);border:1.5px solid var(--gold-deep);display:flex;align-items:center;justify-content:center;position:relative;box-shadow:var(--shadow-sm)}
+  .stamp::after{content:"";position:absolute;inset:5px;border-radius:50%;border:1px dashed var(--gold-300)}
+  .stamp img{width:42%;height:42%;object-fit:contain;position:relative}
+  .seal-txt .l1{font-family:var(--font-sans-tc);font-size:14px;color:var(--ink)}
+  .seal-txt .l2{font-family:var(--font-sans);font-size:9.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--gold-deep);margin-top:4px}
+</style></head>
+<body>
+  <div class="cap">Tags · 標籤</div>
+  <div class="row">
+    <span class="chip c-pink">本季主打</span>
+    <span class="chip c-gold">限量</span>
+    <span class="chip c-teal">會員專屬</span>
+    <span class="chip c-solid">熱賣</span>
+  </div>
+  <div class="cap">Badges &amp; authenticity seal · 封條</div>
+  <div class="row" style="gap:24px">
+    <div class="row">
+      <span class="badge b-new">New</span>
+      <span class="badge b-foil">Limited</span>
+    </div>
+    <div class="seal">
+      <div class="stamp"><img src="../assets/logo-square-gold.png"></div>
+      <div class="seal-txt"><div class="l1">泰熙爾認證</div><div class="l2">Authentic · 燙金封條</div></div>
+    </div>
+  </div>
+</body></html>
