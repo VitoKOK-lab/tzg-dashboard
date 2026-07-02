@@ -641,6 +641,7 @@ function initWorld() {
   renderer.toneMappingExposure = 1.08;
   sizeRenderer();
   $('gl').appendChild(renderer.domElement);
+  renderer.domElement.addEventListener('pointerdown', onScenePointer);
   renderer.domElement.addEventListener('webglcontextlost', function (ev) {
     ev.preventDefault();
     showGLFallback();
@@ -701,6 +702,7 @@ function showGLFallback() {
 
 /* ═══════════════ 6. 天空與地形 ═══════════════ */
 var skyDome, skyFactors, stars, zzzSprites = [];
+var treeData = [], treeCanopies = null, treeTrunks = null;
 var windowsMat, lampGlowPts, waterfallTexs = [];
 
 function buildSky() {
@@ -855,12 +857,15 @@ function buildTerrain() {
   ].map(function (g) { return g.toNonIndexed(); }));
   var trunks = new THREE.InstancedMesh(trunkGeo, toonMat(PAL.wood), treeN);
   var canopies = new THREE.InstancedMesh(canopyGeo, toonMat(0xffffff), treeN);
+  treeCanopies = canopies; treeTrunks = trunks;
   for (var t = 0; t < treeN; t++) {
     var spot = ellipseSpot(0.3, 0.92, EXCLUDE) || { x: 20 + t, z: -34 };
     var sc = 0.9 + scRng() * 0.9;
+    var yawT = scRng() * 6.28;
+    treeData.push({ x: spot.x, z: spot.z, sc: sc, yaw: yawT, shakeT: 99 });
     _m.compose(_v.set(spot.x, 0.8 * sc + 0.4, spot.z), _q.identity(), _s.set(sc, sc, sc));
     trunks.setMatrixAt(t, _m);
-    _m.compose(_v.set(spot.x, 2.2 * sc + 0.4, spot.z), _q.setFromAxisAngle(UP, scRng() * 6.28), _s.set(sc, sc, sc));
+    _m.compose(_v.set(spot.x, 2.2 * sc + 0.4, spot.z), _q.setFromAxisAngle(UP, yawT), _s.set(sc, sc, sc));
     canopies.setMatrixAt(t, _m);
     canopies.setColorAt(t, _c.set(PAL.treeGreens[t % 3]));
   }
@@ -956,8 +961,11 @@ function buildLandmarks() {
   for (var c4 = 0; c4 < 4; c4++) {
     var cx = c4 % 2 ? 4.6 : -4.6, cz = c4 < 2 ? 3.6 : -3.6;
     pParts.push(colorize(xform(new THREE.CylinderGeometry(1.1, 1.2, 6.2, 10), cx, 3.1, cz, 1, 1, 1), PAL.cream));
-    pParts.push(colorize(xform(new THREE.ConeGeometry(1.45, 2.2, 10), cx, 7.3, cz, 1, 1, 1), PAL.roofRose));
+    pParts.push(colorize(xform(new THREE.SphereGeometry(1.5, 10, 8), cx, 6.9, cz, 1, 1.2, 1), PAL.roofRose)); // 洋蔥圓頂
+    pParts.push(colorize(xform(new THREE.ConeGeometry(0.45, 0.9, 8), cx, 8.7, cz, 1, 1, 1), PAL.roofRose));
+    pParts.push(colorize(xform(new THREE.SphereGeometry(0.16, 6, 5), cx, 9.3, cz, 1, 1, 1), PAL.gold)); // 金頂飾
   }
+  pParts.push(colorize(xform(new THREE.ConeGeometry(0.5, 1.1, 8), 0, 9.1, 0, 1, 1, 1), PAL.gold)); // 主圓頂金尖飾
   var palaceMesh = new THREE.Mesh(mergeGeometries(pParts.map(function (g) { return g.toNonIndexed(); })), vertexToon);
   palace.add(palaceMesh);
   // 金飾邊
@@ -1233,9 +1241,24 @@ function buildTownStatic() {
     var yawC = Math.atan2(0 - cc[0], -6 - cc[1]); // 面向廣場
     for (var hh = 0; hh < 3; hh++) {
       var hx = cc[0] + HOUSE_OFFS[hh][0], hz = cc[1] + HOUSE_OFFS[hh][1];
-      T(xform(new THREE.BoxGeometry(3, 2.4, 3), hx, 1.2, hz, 1, 1, 1, yawC), PAL.cream);
-      T(xform(new THREE.ConeGeometry(2.5, 1.8, 4), hx, 3.3, hz, 1, 1, 1, yawC + Math.PI / 4), PAL.roofs[(cl + hh) % 6]);
-      T(xform(new THREE.BoxGeometry(0.9, 1.4, 0.15), hx + Math.sin(yawC) * 1.5, 0.7, hz + Math.cos(yawC) * 1.5, 1, 1, 1, yawC), PAL.wood);
+      var sand = [0xEADFC8, 0xE8D0B0, 0xF2E6D0][(cl + hh) % 3]; // 砂岩/赤陶/奶白
+      T(xform(new THREE.BoxGeometry(3, 2.4, 3), hx, 1.2, hz, 1, 1, 1, yawC), sand);
+      if ((cl + hh) % 2 === 0) {
+        // 洋蔥圓頂 + 金頂飾
+        T(xform(new THREE.SphereGeometry(1.55, 10, 8), hx, 3.35, hz, 1, 1.15, 1), PAL.roofs[(cl + hh) % 6]);
+        T(xform(new THREE.ConeGeometry(0.42, 0.8, 8), hx, 5.2, hz, 1, 1, 1), PAL.roofs[(cl + hh) % 6]);
+        G(xform(new THREE.SphereGeometry(0.14, 6, 5), hx, 5.7, hz, 1, 1, 1));
+      } else {
+        // 平頂 + 四角小圓頂
+        T(xform(new THREE.BoxGeometry(3.3, 0.3, 3.3), hx, 2.55, hz, 1, 1, 1, yawC), 0xD8C4A0);
+        for (var cnr = 0; cnr < 4; cnr++) {
+          var cxo = cnr % 2 ? 1.35 : -1.35, czo = cnr < 2 ? 1.35 : -1.35;
+          T(xform(new THREE.SphereGeometry(0.32, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2), hx + cxo, 2.7, hz + czo, 1, 1, 1), PAL.roofs[(cl + cnr) % 6]);
+        }
+      }
+      // 尖拱門
+      T(xform(new THREE.BoxGeometry(0.9, 1.2, 0.15), hx + Math.sin(yawC) * 1.5, 0.6, hz + Math.cos(yawC) * 1.5, 1, 1, 1, yawC), PAL.wood);
+      T(xform(new THREE.ConeGeometry(0.5, 0.55, 4), hx + Math.sin(yawC) * 1.5, 1.45, hz + Math.cos(yawC) * 1.5, 1, 1, 1, yawC + Math.PI / 4), PAL.wood);
       for (var ww = 0; ww < 2; ww++) {
         var wyaw = yawC + (ww ? 0.6 : -0.6);
         _e.set(0, yawC, 0); _q.setFromEuler(_e);
@@ -1371,7 +1394,7 @@ function buildTownStatic() {
 
   // ── 彩旗串（廣場 8 燈間 + 商品街，instanced）──
   var flagGeo = new THREE.BufferGeometry();
-  flagGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array([0, 0, 0, 0.36, 0, 0, 0.18, -0.34, 0]), 3));
+  flagGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array([0, 0, 0, 0.28, 0, 0, 0.14, -0.26, 0]), 3));
   flagGeo.setAttribute('normal', new THREE.BufferAttribute(new Float32Array([0, 0, 1, 0, 0, 1, 0, 0, 1]), 3));
   var flagN = LITE ? 56 : 80;
   buntingInst = new THREE.InstancedMesh(flagGeo, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }), flagN);
@@ -1384,11 +1407,18 @@ function buildTownStatic() {
   }
   var fIdx = 0;
   function hangString(ax, az, bx, bz, count) {
+    // 吊繩（細管，掛在路燈頂端；併入靜態網格）
+    var ropePts = [];
+    for (var rp = 0; rp <= 4; rp++) {
+      var rt = rp / 4;
+      ropePts.push(new THREE.Vector3(ax + (bx - ax) * rt, 3.3 - Math.sin(Math.PI * rt) * 0.25, az + (bz - az) * rt));
+    }
+    T(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(ropePts), 8, 0.03, 4, false), 0xEADFCC);
     for (var ff = 0; ff < count && fIdx < flagN; ff++) {
       var tt = (ff + 0.5) / count;
       buntingData.push({
         x: ax + (bx - ax) * tt, z: az + (bz - az) * tt,
-        y: 3.05 - Math.sin(Math.PI * tt) * 0.45,
+        y: 3.3 - Math.sin(Math.PI * tt) * 0.25, // 貼著吊繩垂掛
         ph: fIdx * 0.7
       });
       buntingInst.setColorAt(fIdx, _c.set(PAL.clothes[fIdx % PAL.clothes.length]));
@@ -1397,15 +1427,40 @@ function buildTownStatic() {
   }
   for (var seg = 0; seg < 8; seg++) {
     var pA = plazaLampPos[seg], pB = plazaLampPos[(seg + 1) % 8];
+    if (Math.abs((pA[0] + pB[0]) / 2) < 4) continue; // 大道出入口南北兩段不掛，鏡頭動線淨空
     hangString(pA[0], pA[1], pB[0], pB[1], 7);
   }
   if (!LITE) {
     hangString(11, 17.6, 20, 17.6, 8);
     hangString(20, 17.6, 29, 17.6, 8);
-    hangString(29, 17.6, 38, 17.6, 8);
+    hangString(29, 17.6, 38, 17.6, 8); // 商品街（shopDolly 鏡頭 y3.2 高於旗串谷底時視覺仍安全）
   }
   for (; fIdx < flagN; fIdx++) { _m.compose(_v.set(0, -99, 0), _q.identity(), _s.set(0.001, 0.001, 0.001)); buntingInst.setMatrixAt(fIdx, _m); }
   scene.add(buntingInst);
+
+  // ── 棕櫚樹 ×10（大道/碼頭/導流入口/宮殿側，中東綠洲感）──
+  function palm(px, pz, lean) {
+    var lx = Math.cos(lean) * 0.22, lz = Math.sin(lean) * 0.22;
+    for (var seg = 0; seg < 4; seg++) {
+      T(xform(new THREE.CylinderGeometry(0.15 - seg * 0.015, 0.2 - seg * 0.015, 1.15, 6),
+        px + lx * seg, 0.9 + seg * 1.02, pz + lz * seg, 1, 1, 1), 0xA9825A);
+    }
+    var topX = px + lx * 3.4, topZ = pz + lz * 3.4, topY = 5.05;
+    for (var fr = 0; fr < 6; fr++) {
+      var fg2 = new THREE.ConeGeometry(0.34, 2.3, 4).translate(0, 1.15, 0);
+      fg2.rotateZ(Math.PI / 2 + 0.55);
+      fg2.rotateY(fr / 6 * Math.PI * 2);
+      fg2.scale(1, 0.55, 1);
+      fg2.translate(topX, topY, topZ);
+      T(fg2, [0x7DBB6E, 0x96CE84][fr % 2]);
+    }
+    T(xform(new THREE.SphereGeometry(0.15, 6, 5), topX + 0.2, topY - 0.22, topZ, 1, 1, 1), 0x8A6A48);
+    T(xform(new THREE.SphereGeometry(0.15, 6, 5), topX - 0.18, topY - 0.26, topZ + 0.1, 1, 1, 1), 0x8A6A48);
+  }
+  [[-6.5, 30, 2.6], [6.5, 22, 0.4], [-6.4, 14, 3.1], [6.6, 33, 5.5], [37, 15.5, 1.2],
+   [43, 21, 4.2], [-4.6, 39.5, 2.0], [4.6, 39.5, 0.9], [15, -20, 5.8], [-15, -20, 0.6]].forEach(function (pp2) {
+    palm(pp2[0], pp2[1], pp2[2]);
+  });
 
   var townToon = new THREE.Mesh(mergeGeometries(toonParts.map(function (g) { return g.toNonIndexed(); })), vertexToon);
   scene.add(townToon);
@@ -1885,7 +1940,23 @@ function buildNPCBase() {
   };
   npcParts.body = mk(new THREE.CapsuleGeometry(0.42, 0.34, 4, 10), MAXN);
   npcParts.head = mk(new THREE.SphereGeometry(0.5, 12, 9), MAXN);
-  npcParts.hair = mk(new THREE.SphereGeometry(0.53, 10, 6, 0, Math.PI * 2, 0, 1.35), MAXN);
+  npcParts.hair = mk(new THREE.SphereGeometry(0.53, 10, 6, 0, Math.PI * 2, 0, 1.35), MAXN); // 0 短髮
+  npcParts.hairLong = mk(mergeGeometries([ // 1 長髮
+    new THREE.SphereGeometry(0.53, 10, 6, 0, Math.PI * 2, 0, 1.35).toNonIndexed(),
+    new THREE.BoxGeometry(0.52, 0.62, 0.22).translate(0, -0.32, -0.4).toNonIndexed()
+  ]), MAXN);
+  npcParts.hairBun = mk(mergeGeometries([ // 2 包包頭
+    new THREE.SphereGeometry(0.53, 10, 6, 0, Math.PI * 2, 0, 1.35).toNonIndexed(),
+    new THREE.SphereGeometry(0.17, 8, 6).translate(0, 0.52, 0).toNonIndexed()
+  ]), MAXN);
+  npcParts.hairHijab = mk(new THREE.SphereGeometry(0.6, 12, 8, 0, Math.PI * 2, 0, 2.05).translate(0, -0.04, 0), MAXN); // 3 頭紗
+  npcParts.hairTurban = mk(mergeGeometries([ // 4 頭巾（環繞+頂結+正面寶石）
+    new THREE.TorusGeometry(0.42, 0.17, 8, 14).rotateX(Math.PI / 2).translate(0, 0.18, 0).toNonIndexed(),
+    new THREE.SphereGeometry(0.21, 8, 6).translate(0, 0.42, 0).toNonIndexed(),
+    new THREE.OctahedronGeometry(0.09, 0).translate(0, 0.2, 0.55).toNonIndexed()
+  ]), MAXN);
+  var HAIR_MESHES = [npcParts.hair, npcParts.hairLong, npcParts.hairBun, npcParts.hairHijab, npcParts.hairTurban];
+  npcParts._hairMeshes = HAIR_MESHES; // 供 update/hide 使用（不參與 for-in needsUpdate 重複）
   // 臉（眼睛+微笑，朝局部 +z，跟著 heading 轉向）
   npcParts.face = mk(mergeGeometries([
     new THREE.SphereGeometry(0.055, 6, 5).translate(-0.17, 0.04, 0.46).toNonIndexed(),
@@ -1895,10 +1966,8 @@ function buildNPCBase() {
   npcParts.face.material = new THREE.MeshBasicMaterial({ color: 0x33232C });
   npcParts.hand = mk(new THREE.SphereGeometry(0.14, 8, 6), MAXN * 2);
   npcParts.foot = mk(new THREE.SphereGeometry(0.19, 8, 6), MAXN * 2);
-  npcParts.gift = mk(mergeGeometries([
-    new THREE.BoxGeometry(0.5, 0.4, 0.5).toNonIndexed(),
-    new THREE.BoxGeometry(0.58, 0.1, 0.58).translate(0, 0.22, 0).toNonIndexed()
-  ]), MAXN);
+  // 手持菱形水晶（八面體縱向拉伸）
+  npcParts.gift = mk(new THREE.OctahedronGeometry(0.3, 0).applyMatrix4(new THREE.Matrix4().makeScale(1, 1.5, 1)), MAXN);
   // 十字鎬（礦工）
   npcParts.pick = mk(mergeGeometries([
     new THREE.CylinderGeometry(0.045, 0.045, 0.9, 5).toNonIndexed(),
@@ -1922,6 +1991,7 @@ function buildNPCBase() {
       phase: wrng() * 6.28,
       clothes: PAL.clothes[i % PAL.clothes.length],
       hair: PAL.hairs[i % PAL.hairs.length],
+      hairStyle: [0, 1, 0, 2, 3, 0, 4, 1, 3, 2, 4, 0][i % 12], // 混合髮型（含中東頭紗/頭巾）
       skin: PAL.skins[i % PAL.skins.length],
       carrying: wrng() < 0.3, carryGlow: false,
       pos: new THREE.Vector3(), heading: 0, scale: 0, targetScale: 0,
@@ -1929,12 +1999,15 @@ function buildNPCBase() {
     });
     npcParts.body.setColorAt(i, _c.set(npcs[i].clothes));
     npcParts.head.setColorAt(i, _c.set(npcs[i].skin));
-    npcParts.hair.setColorAt(i, _c.set(npcs[i].hair));
+    // 髮/頭飾顏色：頭紗與頭巾用布料色，其餘用髮色
+    var FABRICS = [0xF5EFE4, 0xB9D8C4, 0xE8C4CE, 0xE0CFA8, 0x9FC9D8];
+    var hcol = npcs[i].hairStyle >= 3 ? FABRICS[i % 5] : npcs[i].hair;
+    HAIR_MESHES[npcs[i].hairStyle].setColorAt(i, _c.set(hcol));
     npcParts.hand.setColorAt(i * 2, _c.set(npcs[i].skin));
     npcParts.hand.setColorAt(i * 2 + 1, _c.set(npcs[i].skin));
     npcParts.foot.setColorAt(i * 2, _c.set(0x5A4638));
     npcParts.foot.setColorAt(i * 2 + 1, _c.set(0x5A4638));
-    npcParts.gift.setColorAt(i, _c.set([0xD4456A, 0xC9A961, 0x8A5D9E, 0x4A8A7E][i % 4]));
+    npcParts.gift.setColorAt(i, _c.set([0xF2A9C0, 0xCBB3E6, 0xA8E0F0, 0xF2E28A, 0xF5EFFA][i % 5])); // 粉晶/紫晶/海藍/黃水晶/白水晶
   }
   // 員工固定位（宮殿門前，絕對座標；門在 (0,·,-20)）
   var spots = [[0, -17], [-3, -16.3], [3, -16.3], [-5.2, -14.5], [5.2, -14.5]];
@@ -1958,6 +2031,17 @@ function buildNPCBase() {
     nm.heading = Math.atan2(24 - mineSpots[mi][0], -28 - mineSpots[mi][1]);
     nm.targetScale = 1;
   }
+  // 員工 5 人專屬造型：髮型 0-4 各一、專屬衣色與髮/布色 → 一眼可辨
+  var STAFF_CLOTHES = [0xE58BA4, 0x9FD8D4, 0xF2D377, 0xCBB3E6, 0xA8CDF0]; // 玫瑰/湖綠/杏黃/紫藤/天藍
+  var STAFF_HAIRCOL = [0x42303A, 0x8A6248, 0x2E2A38, 0xF5EFE4, 0xC9A961]; // 深棕/栗/黑/米白頭紗/金頭巾
+  for (var sd2 = 0; sd2 < 5; sd2++) {
+    var nsf = npcs[STAFF_BASE + sd2];
+    nsf.hairStyle = sd2;
+    nsf.clothes = STAFF_CLOTHES[sd2];
+    npcParts.body.setColorAt(STAFF_BASE + sd2, _c.set(STAFF_CLOTHES[sd2]));
+    HAIR_MESHES[sd2].setColorAt(STAFF_BASE + sd2, _c.set(STAFF_HAIRCOL[sd2]));
+  }
+
   // 船客 ×4：碼頭下船 → 大道 → 廣場散去
   for (var bv = 0; bv < BOAT_VIS_N; bv++) {
     var nb = npcs[BOAT_VIS_BASE + bv];
@@ -2059,8 +2143,10 @@ function updateNPCs(dt) {
     n.wasActive = true;
 
     var moving = false;
+    var fleeMul = 1;
+    if (n.fleeT > 0) { fleeMul = 4; n.fleeT -= dt; }
     if (n.kind === 'walker') {
-      n.u = (n.u + n.dir * n.speed * dt + 1) % 1;
+      n.u = (n.u + n.dir * n.speed * fleeMul * dt + 1) % 1;
       PATHS[n.pathIdx].getPointAt(n.u, n.pos);
       PATHS[n.pathIdx].getTangentAt(n.u, _v2);
       n.heading = Math.atan2(_v2.x * n.dir, _v2.z * n.dir);
@@ -2121,7 +2207,7 @@ function updateNPCs(dt) {
         V.wait -= dt;
         if (V.wait <= 0 && visitorGateOpen) { V.u = 0; n.targetScale = 1; n.scale = Math.max(n.scale, 0.3); }
       } else {
-        V.u += dt / (26 / (DEMO ? 2 : 1));
+        V.u += dt * fleeMul / (26 / (DEMO ? 2 : 1));
         var vk = Math.min(V.u, 1);
         visitorCurve.getPointAt(vk, n.pos);
         visitorCurve.getTangentAt(vk, _v2);
@@ -2133,7 +2219,7 @@ function updateNPCs(dt) {
     } else if (n.kind === 'boatVisitor') {
       var BV = n.boat;
       if (BV.u >= 0) {
-        BV.u += dt / (30 / (DEMO ? 2 : 1));
+        BV.u += dt * fleeMul / (30 / (DEMO ? 2 : 1));
         var bk2 = Math.min(BV.u, 1);
         boatWalkCurve.getPointAt(bk2, n.pos);
         n.pos.x += BV.offX * Math.max(0, 1 - bk2 * 3); // 前段依泊位平移
@@ -2157,7 +2243,7 @@ function updateNPCs(dt) {
     var wt = et * 8 + n.phase;
     var bob = moving ? 0.07 * Math.abs(Math.sin(wt)) : 0.04 * Math.sin(et * 2 + n.phase);
     var jump = 0;
-    if (n.kind === 'staff' && n.jumpT < 1.5) jump = 1.1 * Math.abs(Math.sin(n.jumpT / 1.5 * Math.PI * 3));
+    if (n.jumpT < 1.5) { jump = 1.1 * Math.abs(Math.sin(n.jumpT / 1.5 * Math.PI * 3)); if (n.kind !== 'staff') n.jumpT += dt; }
     var roll = moving ? 0.09 * Math.sin(wt) : 0;
     var y = n.pos.y + bob + jump;
 
@@ -2173,7 +2259,7 @@ function updateNPCs(dt) {
     npcParts.head.setMatrixAt(i, _m);
     npcParts.face.setMatrixAt(i, _m);
     _m.compose(_v.set(n.pos.x, y + 1.42 * n.scale, n.pos.z), _q, _s);
-    npcParts.hair.setMatrixAt(i, _m);
+    npcParts._hairMeshes[n.hairStyle || 0].setMatrixAt(i, _m);
     // 郵差小紅帽
     if (n.kind === 'postman') {
       _m.compose(_v.set(n.pos.x, y + 1.5 * n.scale, n.pos.z), _q, _s);
@@ -2242,14 +2328,14 @@ function updateNPCs(dt) {
     _m.compose(_v.set(n.pos.x, 0.52, n.pos.z), _q.identity(), _s.set(n.scale, 1, n.scale));
     npcParts.shadow.setMatrixAt(i, _m);
   }
-  for (var k in npcParts) npcParts[k].instanceMatrix.needsUpdate = true;
+  for (var k in npcParts) { if (k.charAt(0) === '_') continue; npcParts[k].instanceMatrix.needsUpdate = true; }
 }
 function hideNPC(i) {
   _m.compose(_v.set(0, -99, 0), _q.identity(), _s.set(0.001, 0.001, 0.001));
   npcParts.body.setMatrixAt(i, _m);
   npcParts.head.setMatrixAt(i, _m);
   npcParts.face.setMatrixAt(i, _m);
-  npcParts.hair.setMatrixAt(i, _m);
+  for (var hv = 0; hv < 5; hv++) npcParts._hairMeshes[hv].setMatrixAt(i, _m);
   npcParts.hand.setMatrixAt(i * 2, _m); npcParts.hand.setMatrixAt(i * 2 + 1, _m);
   npcParts.foot.setMatrixAt(i * 2, _m); npcParts.foot.setMatrixAt(i * 2 + 1, _m);
   npcParts.gift.setMatrixAt(i, _m);
@@ -2280,6 +2366,66 @@ var boatWalkCurve = new THREE.CatmullRomCurve3([
   new THREE.Vector3(0, 0.5, 24), new THREE.Vector3(1, 0.5, 10), new THREE.Vector3(0, 0.5, -3),
   new THREE.Vector3(-0.5, 0.5, -17.5)
 ], false, 'catmullrom', 0.4);
+
+/* ═══════════════ 9c. 點擊互動 ═══════════════ */
+// 點小人→驚嚇逃跑、點樹→搖晃落葉、點兔子→受驚逃離
+var raycaster = new THREE.Raycaster();
+var pointerV = new THREE.Vector2();
+var leafPts, leafData = [];
+function onScenePointer(ev) {
+  if (!world.ok) return;
+  var r = renderer.domElement.getBoundingClientRect();
+  pointerV.x = ((ev.clientX - r.left) / r.width) * 2 - 1;
+  pointerV.y = -((ev.clientY - r.top) / r.height) * 2 + 1;
+  raycaster.setFromCamera(pointerV, camera);
+  var hits = raycaster.intersectObjects([npcParts.body, npcParts.head], false);
+  if (hits.length && startleNPC(hits[0].instanceId)) return;
+  if (bunnyInst) {
+    hits = raycaster.intersectObject(bunnyInst, false);
+    if (hits.length) { scareBunny(hits[0].instanceId); return; }
+  }
+  if (treeCanopies) {
+    hits = raycaster.intersectObjects([treeCanopies, treeTrunks], false);
+    if (hits.length) shakeTree(hits[0].instanceId);
+  }
+}
+function startleNPC(i) {
+  var n = npcs[i];
+  if (!n || n.scale < 0.15) return false;
+  n.jumpT = 0;            // 嚇一跳
+  n.fleeT = 3;            // 走路類 4 倍速逃跑（定點類原地嚇跳）
+  popupAt(n.pos.x, n.pos.y + 2.5, n.pos.z, '❗', null);
+  Music.sfx('pop');
+  return true;
+}
+function scareBunny(i) {
+  var B = bunnyData[i];
+  if (!B) return;
+  B.fleeT = 2.5;
+  Music.sfx('pop');
+}
+function shakeTree(i) {
+  var td = treeData[i];
+  if (!td) return;
+  if (td.shakeT > 2) td.shakeT = 0;
+  spawnLeaves(td);
+  Music.sfx('rustle');
+}
+function spawnLeaves(td) {
+  if (!leafPts) return;
+  var need = 12;
+  for (var i = 0; i < leafData.length && need > 0; i++) {
+    var L = leafData[i];
+    if (L.life > 0) continue;
+    L.x = td.x + (Math.random() - 0.5) * 2.4 * td.sc;
+    L.y = 2.2 * td.sc + 0.6 + Math.random() * 1.4 * td.sc;
+    L.z = td.z + (Math.random() - 0.5) * 2.4 * td.sc;
+    L.vy = 0.6 + Math.random() * 0.5;
+    L.ph = Math.random() * 6.28;
+    L.life = 3.5;
+    need--;
+  }
+}
 
 /* ═══════════════ 9b. 來源碼頭船班 ═══════════════ */
 // 5 個泊位 = D.sources 五大來源；發船頻率 ∝ 訂單占比（boatIntervals 由 rebuildDistricts 更新）
@@ -2364,6 +2510,23 @@ function updateTown(dt) {
   }
   if (craneArm) craneArm.rotation.y = et * 0.12;
   if (windmillRotor) windmillRotor.rotation.z = et * 0.7;
+  // 被點的樹：樹冠衰減震盪
+  if (treeCanopies) {
+    var anyShake = false;
+    for (var ts2 = 0; ts2 < treeData.length; ts2++) {
+      var TD = treeData[ts2];
+      if (TD.shakeT > 1.7) continue;
+      anyShake = true;
+      TD.shakeT += dt;
+      var amp = TD.shakeT >= 1.6 ? 0 : Math.sin(TD.shakeT * 25) * 0.28 * (1 - TD.shakeT / 1.6);
+      if (TD.shakeT >= 1.6) TD.shakeT = 99; // 復原並停止
+      _e.set(amp * 0.4, TD.yaw, amp);
+      _q.setFromEuler(_e);
+      _m.compose(_v.set(TD.x, 2.2 * TD.sc + 0.4, TD.z), _q, _s.set(TD.sc, TD.sc, TD.sc));
+      treeCanopies.setMatrixAt(ts2, _m);
+    }
+    if (anyShake) treeCanopies.instanceMatrix.needsUpdate = true;
+  }
   // 雲漂移
   if (cloudInst) {
     for (var cu = 0; cu < cloudData.length; cu++) {
@@ -2491,6 +2654,25 @@ function buildParticles() {
     map: glowTexture('rgba(255,255,255,1)'), blending: THREE.AdditiveBlending, depthWrite: false
   }));
   scene.add(orbPts);
+
+  // ── 落葉池（點樹掉落）──
+  var leafN = 64;
+  var lPos = new Float32Array(leafN * 3), lCol = new Float32Array(leafN * 3);
+  var lTint = [new THREE.Color(0x7DBB6E), new THREE.Color(0x96CE84), new THREE.Color(0xB9E08F)];
+  for (var lf = 0; lf < leafN; lf++) {
+    leafData.push({ x: 0, y: -999, z: 0, vy: 0, ph: 0, life: 0 });
+    lPos[lf * 3 + 1] = -999;
+    var lt = lTint[lf % 3];
+    lCol[lf * 3] = lt.r; lCol[lf * 3 + 1] = lt.g; lCol[lf * 3 + 2] = lt.b;
+  }
+  var lGeo = new THREE.BufferGeometry();
+  lGeo.setAttribute('position', new THREE.BufferAttribute(lPos, 3).setUsage(THREE.DynamicDrawUsage));
+  lGeo.setAttribute('color', new THREE.BufferAttribute(lCol, 3));
+  leafPts = new THREE.Points(lGeo, new THREE.PointsMaterial({
+    size: 0.34, vertexColors: true, transparent: true, opacity: 0.95,
+    map: glowTexture('rgba(255,255,255,1)'), depthWrite: false
+  }));
+  scene.add(leafPts);
 
   // ── 蓬蓬雲（instanced，緩慢漂移）──
   var cloudGeo = mergeGeometries([
@@ -2778,16 +2960,34 @@ function updateParticles(dt) {
   if (bunnyInst) {
     for (var bn2 = 0; bn2 < bunnyData.length; bn2++) {
       var BY = bunnyData[bn2];
-      var go = Math.sin(et * 0.35 + BY.ph) > -0.25;
-      if (go) BY.a += dt * BY.sp;
+      var fleeing = BY.fleeT > 0;
+      if (fleeing) BY.fleeT -= dt;
+      var go = fleeing || Math.sin(et * 0.35 + BY.ph) > -0.25;
+      if (go) BY.a += dt * BY.sp * (fleeing ? 5 : 1);
       var bx = BY.x + Math.cos(BY.a) * BY.r;
       var bz = BY.z + Math.sin(BY.a) * BY.r;
-      var hop = go ? Math.max(0, Math.sin(et * 5 + BY.ph)) * 0.32 : 0;
+      var hop = go ? Math.max(0, Math.sin(et * (fleeing ? 10 : 5) + BY.ph)) * (fleeing ? 0.5 : 0.32) : 0;
       _q.setFromAxisAngle(UP, -BY.a);
       _m.compose(_v.set(bx, 0.6 + hop, bz), _q, _s.set(1, 1, 1));
       bunnyInst.setMatrixAt(bn2, _m);
     }
     bunnyInst.instanceMatrix.needsUpdate = true;
+  }
+
+  // 落葉
+  if (leafPts) {
+    var la2 = leafPts.geometry.attributes.position;
+    var anyLeaf = false;
+    for (var lf2 = 0; lf2 < leafData.length; lf2++) {
+      var L2 = leafData[lf2];
+      if (L2.life <= 0) continue;
+      anyLeaf = true;
+      L2.life -= dt;
+      L2.y -= L2.vy * dt;
+      if (L2.y < 0.45 || L2.life <= 0) { L2.life = 0; la2.setY(lf2, -999); continue; }
+      la2.setXYZ(lf2, L2.x + Math.sin(et * 2.2 + L2.ph) * 0.5, L2.y, L2.z + Math.cos(et * 1.8 + L2.ph) * 0.35);
+    }
+    if (anyLeaf) la2.needsUpdate = true;
   }
 
   // 飛船
@@ -2950,8 +3150,8 @@ var SHOTS = [
       out.look.set(0, 3 + k * 4, 4 - k * 26);
   }},
   { name: 'shopDolly', dur: 40, pose: function (k, out) { // 3 熱賣商品街推軌
-      out.pos.set(40 - k * 30, 3.2, 19.5);
-      out.look.set(37 - k * 30, 2.4, 10.5);
+      out.pos.set(40 - k * 30, 2.8, 19.5);
+      out.look.set(37 - k * 30, 2.2, 10.5);
   }},
   { name: 'skylinePass', dur: 35, pose: function (k, out) { // 4 七日天際線
       out.pos.set(-44 + k * 32, 4 + k * 5, 24);
@@ -3373,7 +3573,7 @@ var Music = (function () {
     sfx: function (type) {
       if (!ctx || ctx.state !== 'running' || muted) return;
       var nowS = ctx.currentTime;
-      var throttle = { order: 1.5, celebrate: 10, boat: 8 }[type] || 2;
+      var throttle = { order: 1.5, celebrate: 10, boat: 8, pop: 0.25, rustle: 0.8 }[type] || 2;
       if (sfxLast[type] && nowS - sfxLast[type] < throttle) return;
       sfxLast[type] = nowS;
       if (type === 'order') {
@@ -3381,6 +3581,21 @@ var Music = (function () {
         playBell(1568, nowS + 0.12, 0.45, busSfx);
       } else if (type === 'celebrate') {
         [0, 4, 7, 12, 16].forEach(function (sm, i2) { playCelesta(freq(sm + 24), nowS + i2 * 0.12, 0.5); });
+      } else if (type === 'pop') {
+        var op = ctx.createOscillator(); op.type = 'sine';
+        op.frequency.setValueAtTime(520, nowS);
+        op.frequency.linearRampToValueAtTime(880, nowS + 0.07);
+        var gp2 = ctx.createGain();
+        env(gp2, nowS, 0.004, 0.1, 0.05);
+        op.connect(gp2); gp2.connect(busSfx);
+        op.start(nowS); op.stop(nowS + 0.25);
+      } else if (type === 'rustle') {
+        var sr = ctx.createBufferSource(); sr.buffer = noiseBuf;
+        var bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1800; bp.Q.value = 0.8;
+        var gr = ctx.createGain();
+        env(gr, nowS, 0.02, 0.09, 0.14);
+        sr.connect(bp); bp.connect(gr); gr.connect(busSfx);
+        sr.start(nowS); sr.stop(nowS + 0.6);
       } else if (type === 'boat') {
         var o = ctx.createOscillator(); o.type = 'triangle';
         o.frequency.setValueAtTime(196, nowS);
@@ -3580,6 +3795,8 @@ if (document.fonts && document.fonts.ready) {
 
 // 驗證掛鉤
 window.__world = {
+  scene: function () { return scene; }, // 驗證用
+
   debugState: function () {
     var act = 0;
     for (var i = 0; i < npcs.length; i++) if (npcs[i].scale > 0.02) act++;
