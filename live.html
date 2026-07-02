@@ -3139,20 +3139,20 @@ function updateAmbience(t) {
   }
 }
 
-/* ═══════════════ 13b. 音樂（動森風程序化配樂，原創旋律） ═══════════════ */
-// 純 Web Audio 合成，零音檔：卡林巴撥奏 + 口哨 + 柔和 pad + 低音 + 沙鈴，
-// 76 BPM 輕搖擺、和弦循環輪替、五聲音階 AABA 生成樂句 → 可連播數小時不膩。
+/* ═══════════════ 13b. 音樂（水晶音樂盒・療癒輕音樂，原創旋律） ═══════════════ */
+// 純 Web Audio 合成，零音檔：水晶鈴/鋼片琴 + 豎琴輪撥 + 氣音 pad + 極輕低音，
+// 56 BPM 無節奏打擊、夢幻回聲、五聲音階緩慢漫步 → 珠寶世界的晶瑩療癒感。
 var Music = (function () {
   var ctx = null, master, busMusic, busSfx, noiseBuf;
   var muted = false, started = false;
   var timer = null, nextT = 0, step = 0, bar = 0;
   var mrng = mulberry32(hashStr(ymd(Date.now())) + new Date().getHours());
-  var BPM = 76, BEAT = 60 / BPM;
-  var STEP_DUR = [0.58 * BEAT, 0.42 * BEAT]; // 搖擺 8 分音符
+  var BPM = 56, BEAT = 60 / BPM;
+  var STEP_DUR = [BEAT, BEAT]; // 四分音符・不搖擺（每小節 4 步）
   function freq(semi) { return 196 * Math.pow(2, semi / 12); } // 以 G3=196Hz 起算
   var CHORDS = {
-    I:  [0, 4, 7, 11], V: [7, 11, 14], vi: [9, 12, 16],
-    IV: [5, 9, 12, 16], iii: [4, 7, 11], ii: [2, 5, 9, 12]
+    I:  [0, 4, 7, 11, 14], V: [7, 11, 14, 19], vi: [9, 12, 16, 21],
+    IV: [5, 9, 12, 16], iii: [4, 7, 11, 14], ii: [2, 5, 9, 12]
   };
   var PROGS = [['I', 'V', 'vi', 'IV'], ['I', 'iii', 'IV', 'V'], ['vi', 'IV', 'I', 'V'], ['I', 'ii', 'V', 'I']];
   var PENTA = [0, 2, 4, 7, 9];
@@ -3172,14 +3172,31 @@ var Music = (function () {
     comp.threshold.value = -18; comp.knee.value = 20; comp.ratio.value = 3;
     comp.attack.value = 0.005; comp.release.value = 0.25;
     master.connect(comp); comp.connect(ctx.destination);
+    master.gain.value = 0.18; // 很輕的背景音量
     busMusic = ctx.createGain(); busMusic.gain.value = 0.9; busMusic.connect(master);
-    busSfx = ctx.createGain(); busSfx.gain.value = 1; busSfx.connect(master);
+    busSfx = ctx.createGain(); busSfx.gain.value = 0.7; busSfx.connect(master);
+    // 夢幻回聲（延遲迴授）
+    var dly = ctx.createDelay(1); dly.delayTime.value = 0.42;
+    var fb = ctx.createGain(); fb.gain.value = 0.3;
+    var wet = ctx.createGain(); wet.gain.value = 0.24;
+    busMusic.connect(dly); dly.connect(fb); fb.connect(dly); dly.connect(wet); wet.connect(master);
     noiseBuf = makeNoise();
   }
   function env(g, t, a, peak, tau) { // attack + 指數衰減
     g.gain.setValueAtTime(0, t);
     g.gain.linearRampToValueAtTime(peak, t + a);
     g.gain.setTargetAtTime(0, t + a, tau);
+  }
+  function playCelesta(f, t, vel) { // 水晶鈴/鋼片琴：晶瑩長尾音
+    var o1 = ctx.createOscillator(), o2 = ctx.createOscillator();
+    o1.type = 'sine'; o1.frequency.value = f;
+    o2.type = 'sine'; o2.frequency.value = f * 4.02; // 高泛音=玻璃感
+    var g1 = ctx.createGain(), g2 = ctx.createGain();
+    env(g1, t, 0.004, 0.3 * vel, 0.5);
+    env(g2, t, 0.004, 0.035 * vel, 0.22);
+    var lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3600; lp.Q.value = 0.5;
+    o1.connect(g1); o2.connect(g2); g1.connect(lp); g2.connect(lp); lp.connect(busMusic);
+    o1.start(t); o2.start(t); o1.stop(t + 2.5); o2.stop(t + 2.5);
   }
   function playPluck(f, t, vel, dest) {
     var o1 = ctx.createOscillator(), o2 = ctx.createOscillator();
@@ -3213,10 +3230,10 @@ var Music = (function () {
       o.detune.value = [-4, 4, -7, 5][i2];
       var g = ctx.createGain();
       g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(0.05, t + 1.2);
-      g.gain.setValueAtTime(0.05, t + Math.max(len - 1.2, 1.3));
+      g.gain.linearRampToValueAtTime(0.035, t + 2.2);
+      g.gain.setValueAtTime(0.035, t + Math.max(len - 2.4, 2.3));
       g.gain.linearRampToValueAtTime(0, t + len);
-      var lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900; lp.Q.value = 0.5;
+      var lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 700; lp.Q.value = 0.5;
       o.connect(g); g.connect(lp); lp.connect(busMusic);
       o.start(t); o.stop(t + len + 0.1);
     });
@@ -3224,8 +3241,8 @@ var Music = (function () {
   function playBass(semi, t) {
     var o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = freq(semi - 24);
     var g = ctx.createGain();
-    env(g, t, 0.01, 0.32, 0.25);
-    var lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 400;
+    env(g, t, 0.04, 0.14, 1.2); // 極輕長音低音
+    var lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 350;
     o.connect(g); g.connect(lp); lp.connect(busMusic);
     o.start(t); o.stop(t + 0.9);
   }
@@ -3251,8 +3268,8 @@ var Music = (function () {
   function genPhrase() { // 2 小節 = 16 步
     var ph = [];
     for (var i2 = 0; i2 < 16; i2++) {
-      if (mrng() < 0.35) { ph.push(null); continue; }
-      melIdx = clamp(melIdx + Math.floor(mrng() * 5) - 2, 0, 9);
+      if (mrng() < 0.55) { ph.push(null); continue; } // 大量留白
+      melIdx = clamp(melIdx + Math.floor(mrng() * 3) - 1, 0, 9); // 緩慢漫步
       ph.push(melIdx);
     }
     return ph;
@@ -3267,28 +3284,36 @@ var Music = (function () {
     var chord = CHORDS[prog[Math.floor(bar / 2) % 4]];
     var barPhase = Math.floor(bar / 2) % 4; // AABA 位置
 
+    // 和弦氣墊（每 2 小節）與極輕低音長音
     if (st === 0 && bar % 2 === 0) playPad(chord, t, 8 * BEAT);
     if (st === 0) playBass(chord[0], t);
-    if (st === 4) playBass(mrng() < 0.7 ? chord[0] + 7 : chord[0] + 12, t);
-    var hatProb = [0.9, 0.4, 0.7, 0.3, 0.9, 0.4, 0.7, 0.5][st];
-    if (mrng() < hatProb) playHat(t, 0.6 + mrng() * 0.4);
-    // 旋律（AABA：B 樂句偶爾換口哨音色）
+    // 豎琴式輪撥：每小節第 1 拍把和弦音由低到高輕輕撥開
+    if (st === 0 && mrng() < 0.85) {
+      chord.slice(0, 4).forEach(function (cs, ci) {
+        playCelesta(freq(cs + 12), t + ci * 0.16, 0.4 + mrng() * 0.15);
+      });
+    }
+    // 水晶鈴主旋律（高音區、大量留白、緩慢漫步）
     if (bar % 8 === 0 && st === 0) { if (bar % 32 === 0 || !phraseA) phraseA = genPhrase(); phraseB = genPhrase(); }
     var ph = (barPhase === 2) ? phraseB : phraseA;
     if (ph) {
-      var noteIdx = (bar % 2) * 8 + st;
+      var noteIdx = (bar % 2) * 4 + st;
       var mi = ph[noteIdx];
       if (mi !== null && mi !== undefined) {
-        var semi = pentaSemi(mi);
-        if (noteIdx === 0) { // 樂句首音貼齊和弦音
+        var semi = pentaSemi(mi) + 12; // 再高一個八度＝珠寶般晶瑩
+        if (noteIdx === 0) {
           var best = chord[0], bd = 99;
           chord.forEach(function (cs) { var d2 = Math.abs((semi % 12) - (cs % 12)); if (d2 < bd) { bd = d2; best = cs; } });
-          semi = best + 12;
+          semi = best + 24;
         }
-        var vel = 0.85 + mrng() * 0.3;
-        if (barPhase === 2 && mrng() < 0.25) playWhistle(freq(semi), t, vel, STEP_DUR[st % 2] * 1.8);
-        else playPluck(freq(semi), t, vel, busMusic);
+        playCelesta(freq(semi), t, 0.5 + mrng() * 0.2);
       }
+    }
+    // 偶發「寶石亮片」：三連快速上行高音鈴，很輕
+    if (st === 2 && bar % 4 === 3 && mrng() < 0.4) {
+      [0, 7, 12].forEach(function (sm, i3) {
+        playCelesta(freq(chord[0] + 24 + sm), t + i3 * 0.11, 0.28);
+      });
     }
   }
   function tick() {
@@ -3296,7 +3321,7 @@ var Music = (function () {
       scheduleStep(step, nextT);
       nextT += STEP_DUR[step % 2];
       step++;
-      if (step >= 8) { step = 0; bar++; }
+      if (step >= 4) { step = 0; bar++; } // 每小節 4 步（四分音符）
     }
   }
   function startScheduler() {
@@ -3352,10 +3377,10 @@ var Music = (function () {
       if (sfxLast[type] && nowS - sfxLast[type] < throttle) return;
       sfxLast[type] = nowS;
       if (type === 'order') {
-        playBell(1318.5, nowS, 1, busSfx);
-        playBell(1568, nowS + 0.09, 0.9, busSfx);
+        playBell(1318.5, nowS, 0.55, busSfx);
+        playBell(1568, nowS + 0.12, 0.45, busSfx);
       } else if (type === 'celebrate') {
-        [0, 4, 7, 12, 16].forEach(function (sm, i2) { playPluck(freq(sm + 12), nowS + i2 * 0.09, 1.1, busSfx); });
+        [0, 4, 7, 12, 16].forEach(function (sm, i2) { playCelesta(freq(sm + 24), nowS + i2 * 0.12, 0.5); });
       } else if (type === 'boat') {
         var o = ctx.createOscillator(); o.type = 'triangle';
         o.frequency.setValueAtTime(196, nowS);
