@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+<!--
+  ═══════════════════════════════════════════════════════════════
+   TZG 即時動態儀表板（珠寶工坊即時場景）  live.html
+  ═══════════════════════════════════════════════════════════════
+   ▸ 純前端、零後端、零函式庫。唯讀 output/dashboard_latest.html
+     內嵌的 const D= JSON，不影響任何既有產生流程。
+   ▸ 移除方式：
+       1. 刪除本檔案（git rm live.html）
+       2. 還原 index.html 中的三處新增：
+          -「即時」tab、- f4 iframe、- urls 陣列最後一項
+          （loaded 陣列改回 4 個 false）
+   ▸ 測試參數：
+       ?hour=20              時鐘跳到今天 20:00
+       ?time=2026-07-15T20:30 指定完整時間
+       ?demo=1               內建範例資料 + 60 倍速時鐘
+  ═══════════════════════════════════════════════════════════════
+-->
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TZG 即時工坊</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@400;600&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  background: #120b10;
+  font-family: 'Montserrat', 'Noto Sans TC', 'PingFang TC', sans-serif;
+  color: #F5EFE4;
+}
+
+#stage {
+  position: fixed; inset: 0 0 52px 0;
+  display: flex; align-items: center; justify-content: center;
+  /* 防烙印：整體 90 秒 8 字形微漂移 */
+  animation: drift 90s ease-in-out infinite;
+}
+@keyframes drift {
+  0%   { transform: translate(0px, 0px); }
+  25%  { transform: translate(6px, -5px); }
+  50%  { transform: translate(0px, -8px); }
+  75%  { transform: translate(-6px, -4px); }
+  100% { transform: translate(0px, 0px); }
+}
+svg#scene { width: 100%; height: 100%; display: block; }
+
+text { user-select: none; }
+.serif  { font-family: 'Cormorant Garamond', serif; }
+.num    { font-family: 'Cormorant Garamond', serif; font-variant-numeric: tabular-nums; }
+.zh     { font-family: 'Noto Sans TC', 'PingFang TC', 'Montserrat', sans-serif; }
+
+/* ── 環境動畫（全 CSS，合成器執行緒） ── */
+.gem { animation: twinkle 4s ease-in-out infinite; }
+@keyframes twinkle { 0%,100% { opacity: .45; } 50% { opacity: 1; } }
+
+.chan-swing { animation: sway 6s ease-in-out infinite; transform-origin: 0 0; }
+@keyframes sway { 0%,100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg); } }
+
+.star { opacity: 0; transition: opacity 2s; }
+.is-night .star { animation: twinkle 3s ease-in-out infinite; opacity: .9; }
+
+/* ── 員工三態 ── */
+.figure { animation: breathe 2.8s ease-in-out infinite; }
+@keyframes breathe { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+
+.worker .arm { transition: transform .3s; }
+.worker.working .arm-l { animation: typeL .32s ease-in-out infinite alternate; }
+.worker.working .arm-r { animation: typeR .29s ease-in-out infinite alternate; }
+@keyframes typeL { from { transform: rotate(-14deg); } to { transform: rotate(10deg); } }
+@keyframes typeR { from { transform: rotate(12deg); }  to { transform: rotate(-12deg); } }
+.worker.working .figure { animation: workbob .5s ease-in-out infinite; }
+@keyframes workbob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+
+.worker.celebrate .figure { animation: jump .55s ease-in-out infinite; }
+@keyframes jump { 0%,100% { transform: translateY(0); } 40% { transform: translateY(-26px); } }
+.worker.celebrate .arm-l { transform: rotate(-150deg); }
+.worker.celebrate .arm-r { transform: rotate(150deg); }
+
+/* 泡泡 */
+.bubble { opacity: 0; pointer-events: none; transition: opacity .35s, transform .35s; transform: translateY(8px); }
+.bubble.show { opacity: 1; transform: translateY(0); }
+
+/* 夜間模式 */
+#nightDim { opacity: 0; transition: opacity 3s; pointer-events: none; }
+.is-night #nightDim { opacity: .52; }
+.is-night .figure, .is-night .nametag { opacity: 0; transition: opacity 2s; }
+.figure, .nametag { transition: opacity 2s; }
+#cat { opacity: 0; transition: opacity 2s; }
+.is-night #cat { opacity: 1; }
+#cat .cat-body { animation: breathe 3.4s ease-in-out infinite; }
+#lampGlow { opacity: 0; transition: opacity 3s; }
+.is-night #lampGlow { opacity: .22; }
+.zzz { opacity: 0; }
+.is-night .zzz { animation: zzz 3s ease-in-out infinite; }
+.zzz:nth-of-type(2) { animation-delay: 1s !important; }
+@keyframes zzz { 0% { opacity: 0; transform: translate(0,0); } 30% { opacity: .8; } 100% { opacity: 0; transform: translate(10px,-22px); } }
+
+/* 彩紙（池化，觸發時加 .boom） */
+#confetti .cf { opacity: 0; }
+#confetti.boom .cf { animation: fall var(--dur) var(--delay) cubic-bezier(.2,.6,.4,1) forwards; }
+@keyframes fall {
+  0%   { opacity: 1; transform: translate(0,0) rotate(0deg); }
+  100% { opacity: 0; transform: translate(var(--dx), 620px) rotate(var(--rot)); }
+}
+
+/* 綵帶橫幅 */
+#banner { opacity: 0; transition: opacity .5s, transform .5s; transform: translateY(-18px) scale(.92); transform-origin: 960px 300px; }
+#banner.show { opacity: 1; transform: translateY(0) scale(1); }
+
+/* 禮盒上架 */
+.giftbox { opacity: 0; }
+.giftbox.on { opacity: 1; animation: pop .5s cubic-bezier(.3,1.6,.5,1); }
+@keyframes pop { 0% { transform: translateY(14px) scale(.4); } 100% { transform: translateY(0) scale(1); } }
+
+/* 收銀機更新脈衝 */
+#regToday.pulse { animation: pulse .8s ease-out; }
+@keyframes pulse { 0% { fill: #ffe9b8; } 100% { fill: #C9A961; } }
+
+/* 短影音成效牆 */
+#metaTV { opacity: 0; transition: opacity 1.2s; }
+#metaTV.on { opacity: 1; }
+#metaTV .livedot { animation: livedot 1.6s ease-in-out infinite; }
+@keyframes livedot { 0%,100% { opacity: 1; } 50% { opacity: .25; } }
+#metaTV .eq { transform-origin: center bottom; transform-box: fill-box; animation: eq 1s ease-in-out infinite alternate; }
+@keyframes eq { from { transform: scaleY(.25); } to { transform: scaleY(1); } }
+.is-night #metaTV.on { opacity: .35; }
+
+/* 資料異常告示 */
+#stalePlaque { opacity: 0; transition: opacity 1s; }
+#stalePlaque.show { opacity: 1; }
+
+/* ── 底部跑馬燈（僅真實訂單） ── */
+#ticker {
+  position: fixed; left: 0; right: 0; bottom: 0; height: 52px;
+  background: rgba(18,10,15,.9);
+  border-top: 1px solid rgba(201,169,97,.4);
+  display: flex; align-items: center; overflow: hidden;
+}
+#tickerLabel {
+  flex-shrink: 0; padding: 0 18px; height: 100%;
+  display: flex; align-items: center;
+  background: rgba(201,169,97,.12);
+  border-right: 1px solid rgba(201,169,97,.35);
+  color: #C9A961; font-size: 13px; font-weight: 700; letter-spacing: 2px;
+  z-index: 1;
+}
+#tickerViewport { flex: 1; overflow: hidden; }
+#tickerTrack {
+  display: inline-flex; white-space: nowrap; width: max-content;
+  will-change: transform;
+  animation: tickmove var(--tickDur, 60s) linear infinite;
+}
+@keyframes tickmove { to { transform: translateX(-50%); } }
+.tick-item { padding: 0 34px; font-size: 14px; color: #e9dfcc; }
+.tick-item .amt { color: #C9A961; font-weight: 600; }
+.tick-item .sep { color: rgba(212,69,106,.8); padding: 0 10px; }
+
+/* ── 載入 / 錯誤覆蓋層 ── */
+.overlay {
+  position: fixed; inset: 0; z-index: 20;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+  background: #120b10; text-align: center; padding: 24px;
+}
+.overlay.hidden { display: none; }
+.spinner {
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 2px solid rgba(201,169,97,.25); border-top-color: #C9A961;
+  animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.overlay h2 { font-size: 17px; font-weight: 500; color: #F5EFE4; letter-spacing: 1px; }
+.overlay p  { font-size: 13px; color: rgba(245,239,228,.55); line-height: 1.9; }
+</style>
+</head>
+<body>
+
+<div id="stage">
+<svg id="scene" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid meet" aria-label="TZG 即時工坊">
+<defs>
+  <linearGradient id="wallGrad" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#31212c"/><stop offset="1" stop-color="#241722"/>
+  </linearGradient>
+  <linearGradient id="floorGrad" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#1c1119"/><stop offset="1" stop-color="#140b11"/>
+  </linearGradient>
+  <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
+    <stop id="skyStop1" offset="0" stop-color="#8fb6d9"/>
+    <stop id="skyStop2" offset="1" stop-color="#dcd3e8"/>
+  </linearGradient>
+  <linearGradient id="goldGrad" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#e3c98a"/><stop offset=".5" stop-color="#C9A961"/><stop offset="1" stop-color="#9a7c3e"/>
+  </linearGradient>
+  <linearGradient id="counterGrad" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#4a3341"/><stop offset="1" stop-color="#332230"/>
+  </linearGradient>
+  <linearGradient id="gaugeFillGrad" x1="0" y1="1" x2="0" y2="0">
+    <stop offset="0" stop-color="#D4456A"/><stop offset="1" stop-color="#e88ca3"/>
+  </linearGradient>
+  <radialGradient id="lampGlowGrad">
+    <stop offset="0" stop-color="#ffdf9e" stop-opacity=".9"/>
+    <stop offset="1" stop-color="#ffdf9e" stop-opacity="0"/>
+  </radialGradient>
+</defs>
+
+<!-- ═══ 房間 ═══ -->
+<g id="room">
+  <rect x="0" y="0" width="1920" height="800" fill="url(#wallGrad)"/>
+  <rect x="0" y="800" width="1920" height="280" fill="url(#floorGrad)"/>
+  <rect x="0" y="796" width="1920" height="6" fill="#171017"/>
+  <!-- 牆面金線飾條 -->
+  <rect x="0" y="60" width="1920" height="2" fill="rgba(201,169,97,.22)"/>
+  <rect x="0" y="740" width="1920" height="2" fill="rgba(201,169,97,.16)"/>
+
+  <!-- 左拱窗 -->
+  <g id="window1">
+    <path d="M170 460 L170 260 Q290 150 410 260 L410 460 Z" fill="url(#skyGrad)" stroke="#C9A961" stroke-width="5"/>
+    <line x1="290" y1="178" x2="290" y2="460" stroke="rgba(201,169,97,.7)" stroke-width="3"/>
+    <line x1="170" y1="330" x2="410" y2="330" stroke="rgba(201,169,97,.7)" stroke-width="3"/>
+    <circle id="moon" cx="345" cy="240" r="22" fill="#f4ecd4" opacity="0"/>
+    <g id="stars1">
+      <circle class="star" cx="215" cy="230" r="2.2" fill="#fff"/>
+      <circle class="star" cx="255" cy="290" r="1.6" fill="#fff" style="animation-delay:.8s"/>
+      <circle class="star" cx="330" cy="300" r="1.8" fill="#fff" style="animation-delay:1.5s"/>
+      <circle class="star" cx="380" cy="230" r="1.5" fill="#fff" style="animation-delay:2.2s"/>
+    </g>
+  </g>
+  <!-- 右拱窗 -->
+  <g id="window2">
+    <path d="M1510 460 L1510 260 Q1630 150 1750 260 L1750 460 Z" fill="url(#skyGrad)" stroke="#C9A961" stroke-width="5"/>
+    <line x1="1630" y1="178" x2="1630" y2="460" stroke="rgba(201,169,97,.7)" stroke-width="3"/>
+    <line x1="1510" y1="330" x2="1750" y2="330" stroke="rgba(201,169,97,.7)" stroke-width="3"/>
+    <g id="stars2">
+      <circle class="star" cx="1560" cy="240" r="2" fill="#fff" style="animation-delay:.4s"/>
+      <circle class="star" cx="1610" cy="300" r="1.6" fill="#fff" style="animation-delay:1.2s"/>
+      <circle class="star" cx="1690" cy="250" r="2.1" fill="#fff" style="animation-delay:1.9s"/>
+      <circle class="star" cx="1720" cy="320" r="1.4" fill="#fff" style="animation-delay:2.6s"/>
+    </g>
+  </g>
+
+  <!-- 招牌 -->
+  <g id="sign" text-anchor="middle">
+    <rect x="740" y="66" width="440" height="112" rx="8" fill="rgba(0,0,0,.18)" stroke="url(#goldGrad)" stroke-width="2.5"/>
+    <text class="serif" x="960" y="126" font-size="52" font-weight="700" fill="url(#goldGrad)" letter-spacing="10">TZG</text>
+    <text class="zh" x="960" y="160" font-size="19" fill="#e9dfcc" letter-spacing="7">泰熙爾札娜珠寶</text>
+  </g>
+
+  <!-- 吊燈 ×2 -->
+  <g transform="translate(620,0)">
+    <g class="chan-swing">
+      <line x1="0" y1="0" x2="0" y2="90" stroke="#C9A961" stroke-width="3"/>
+      <path d="M-46 90 Q0 68 46 90 L34 128 Q0 144 -34 128 Z" fill="url(#goldGrad)"/>
+      <circle cx="-30" cy="136" r="6" fill="#ffe9b8" opacity=".9"/>
+      <circle cx="0"   cy="146" r="6" fill="#ffe9b8" opacity=".9"/>
+      <circle cx="30"  cy="136" r="6" fill="#ffe9b8" opacity=".9"/>
+    </g>
+  </g>
+  <g transform="translate(1300,0)">
+    <g class="chan-swing" style="animation-delay:1.6s">
+      <line x1="0" y1="0" x2="0" y2="90" stroke="#C9A961" stroke-width="3"/>
+      <path d="M-46 90 Q0 68 46 90 L34 128 Q0 144 -34 128 Z" fill="url(#goldGrad)"/>
+      <circle cx="-30" cy="136" r="6" fill="#ffe9b8" opacity=".9"/>
+      <circle cx="0"   cy="146" r="6" fill="#ffe9b8" opacity=".9"/>
+      <circle cx="30"  cy="136" r="6" fill="#ffe9b8" opacity=".9"/>
+    </g>
+  </g>
+
+  <!-- 展示櫃（牆掛，寶石閃爍） -->
+  <g id="case1">
+    <rect x="470" y="415" width="290" height="130" rx="8" fill="rgba(255,255,255,.07)" stroke="#C9A961" stroke-width="2.5"/>
+    <line x1="470" y1="480" x2="760" y2="480" stroke="rgba(201,169,97,.5)" stroke-width="1.5"/>
+    <path class="gem" d="M520 457 l14 -16 14 16 -14 18 Z" fill="#e88ca3"/>
+    <path class="gem" d="M610 459 l12 -14 12 14 -12 16 Z" fill="#9fd8d4" style="animation-delay:1.1s"/>
+    <path class="gem" d="M695 457 l13 -15 13 15 -13 17 Z" fill="#cbb3e6" style="animation-delay:2.3s"/>
+    <path class="gem" d="M545 517 l11 -13 11 13 -11 15 Z" fill="#f2d377" style="animation-delay:.6s"/>
+    <path class="gem" d="M655 519 l12 -14 12 14 -12 16 Z" fill="#a8cdf0" style="animation-delay:1.8s"/>
+  </g>
+  <g id="case2">
+    <rect x="1470" y="480" width="290" height="130" rx="8" fill="rgba(255,255,255,.07)" stroke="#C9A961" stroke-width="2.5"/>
+    <line x1="1470" y1="545" x2="1760" y2="545" stroke="rgba(201,169,97,.5)" stroke-width="1.5"/>
+    <path class="gem" d="M1520 522 l13 -15 13 15 -13 17 Z" fill="#f2d377" style="animation-delay:.3s"/>
+    <path class="gem" d="M1610 524 l12 -14 12 14 -12 16 Z" fill="#e88ca3" style="animation-delay:1.4s"/>
+    <path class="gem" d="M1700 522 l13 -15 13 15 -13 17 Z" fill="#9fd8d4" style="animation-delay:2.6s"/>
+    <path class="gem" d="M1565 582 l11 -13 11 13 -11 15 Z" fill="#cbb3e6" style="animation-delay:.9s"/>
+  </g>
+</g>
+
+<!-- ═══ 牆面資訊 ═══ -->
+<g id="wallInfo">
+  <!-- 短影音成效牆（讀取 meta-dashboard，同源） -->
+  <g id="metaTV">
+    <rect x="182" y="492" width="246" height="168" rx="10" fill="#171019" stroke="url(#goldGrad)" stroke-width="2.5"/>
+    <circle class="livedot" cx="206" cy="518" r="5" fill="#D4456A"/>
+    <text class="zh" x="220" y="524" font-size="15" font-weight="700" fill="#F5EFE4" letter-spacing="2">短影音成效</text>
+    <text id="metaWindowLabel" class="zh" x="410" y="524" font-size="11" fill="rgba(245,239,228,.45)" text-anchor="end">近 7 日</text>
+    <text class="zh" x="206" y="560" font-size="13" fill="rgba(245,239,228,.6)">播放</text>
+    <text id="metaPlays" class="num" x="410" y="562" font-size="24" font-weight="700" fill="#C9A961" text-anchor="end">—</text>
+    <text class="zh" x="206" y="592" font-size="13" fill="rgba(245,239,228,.6)">互動</text>
+    <text id="metaEngage" class="num" x="410" y="594" font-size="24" font-weight="700" fill="#C9A961" text-anchor="end">—</text>
+    <text class="zh" x="206" y="624" font-size="13" fill="rgba(245,239,228,.6)">新粉絲</text>
+    <text id="metaFans" class="num" x="410" y="626" font-size="24" font-weight="700" fill="#e88ca3" text-anchor="end">—</text>
+    <g fill="#D4456A">
+      <rect class="eq" x="206" y="634" width="5" height="14" rx="2"/>
+      <rect class="eq" x="216" y="634" width="5" height="14" rx="2" style="animation-delay:.18s"/>
+      <rect class="eq" x="226" y="634" width="5" height="14" rx="2" style="animation-delay:.36s"/>
+      <rect class="eq" x="236" y="634" width="5" height="14" rx="2" style="animation-delay:.1s"/>
+      <rect class="eq" x="246" y="634" width="5" height="14" rx="2" style="animation-delay:.28s"/>
+    </g>
+    <text id="metaCount" class="zh" x="410" y="646" font-size="11" fill="rgba(245,239,228,.45)" text-anchor="end">— 支影片</text>
+  </g>
+
+  <!-- 月曆 -->
+  <g id="calendar" text-anchor="middle">
+    <rect x="490" y="180" width="250" height="120" rx="10" fill="rgba(0,0,0,.2)" stroke="#C9A961" stroke-width="2"/>
+    <rect x="490" y="180" width="250" height="34" rx="10" fill="rgba(212,69,106,.85)"/>
+    <rect x="490" y="200" width="250" height="14" fill="rgba(212,69,106,.85)"/>
+    <text id="calMonth" class="zh" x="615" y="204" font-size="18" font-weight="700" fill="#fff" letter-spacing="2">— 月</text>
+    <text id="calDay" class="zh" x="615" y="262" font-size="24" fill="#F5EFE4" font-weight="500">第 — / — 天</text>
+    <text class="zh" x="615" y="288" font-size="12" fill="rgba(245,239,228,.5)" letter-spacing="2">本 月 進 度</text>
+  </g>
+
+  <!-- 月目標金色溫度計（右側牆面獨立欄位） -->
+  <g id="gauge">
+    <g id="crown" opacity="0" transform="translate(1845,86)">
+      <path d="M-24 8 L-24 -10 L-12 0 L0 -16 L12 0 L24 -10 L24 8 Z" fill="url(#goldGrad)"/>
+    </g>
+    <text id="gaugePct" class="num" x="1845" y="142" font-size="40" font-weight="700" fill="#C9A961" text-anchor="middle">—%</text>
+    <rect x="1823" y="200" width="44" height="360" rx="22" fill="rgba(0,0,0,.32)" stroke="url(#goldGrad)" stroke-width="3"/>
+    <rect id="gaugeFill" x="1830" y="546" width="30" height="7" rx="14" fill="url(#gaugeFillGrad)"/>
+    <g id="gaugeTicks" font-size="13" fill="rgba(245,239,228,.6)" class="num" text-anchor="end">
+      <line x1="1809" y1="467" x2="1823" y2="467" stroke="rgba(201,169,97,.8)" stroke-width="2"/><text x="1803" y="472">25</text>
+      <line x1="1809" y1="380" x2="1823" y2="380" stroke="rgba(201,169,97,.8)" stroke-width="2"/><text x="1803" y="385">50</text>
+      <line x1="1809" y1="294" x2="1823" y2="294" stroke="rgba(201,169,97,.8)" stroke-width="2"/><text x="1803" y="299">75</text>
+      <line x1="1809" y1="207" x2="1823" y2="207" stroke="rgba(201,169,97,.8)" stroke-width="2"/><text x="1803" y="212">100</text>
+    </g>
+    <text id="gaugeTargetLabel" class="zh" x="1845" y="596" font-size="14" fill="rgba(245,239,228,.75)" text-anchor="middle">月目標</text>
+    <text id="gaugeTarget" class="num" x="1845" y="622" font-size="18" fill="#C9A961" text-anchor="middle">NT$ —</text>
+  </g>
+
+  <!-- 資料截至（右上） -->
+  <text id="asOf" class="zh" x="1880" y="44" font-size="14" fill="rgba(245,239,228,.55)" text-anchor="end" letter-spacing="1">資料截至 —</text>
+
+  <!-- 資料異常琥珀告示 -->
+  <g id="stalePlaque">
+    <rect x="1470" y="58" width="410" height="34" rx="8" fill="rgba(214,158,46,.16)" stroke="rgba(230,180,70,.7)" stroke-width="1.5"/>
+    <text id="staleText" class="zh" x="1675" y="80" font-size="14" fill="#e6b446" text-anchor="middle">⚠ 資料更新失敗</text>
+  </g>
+
+  <!-- 免責小字（右下） -->
+  <text class="zh" x="1896" y="1010" font-size="12" fill="rgba(245,239,228,.34)" text-anchor="end">今日數字為依歷史節奏之動態預估，實際以日報為準</text>
+</g>
+
+<!-- ═══ 家具 ═══ -->
+<g id="furniture">
+  <!-- 接單桌 A / B -->
+  <g id="deskA">
+    <rect x="180" y="700" width="270" height="24" rx="6" fill="url(#goldGrad)"/>
+    <rect x="192" y="724" width="246" height="96" fill="url(#counterGrad)"/>
+    <rect x="255" y="652" width="86" height="52" rx="5" fill="#241a22" stroke="#C9A961" stroke-width="2"/>
+    <rect x="262" y="660" width="72" height="36" rx="3" fill="#3d5e6e"/>
+    <rect x="292" y="704" width="12" height="10" fill="#8a734a"/>
+  </g>
+  <g id="deskB">
+    <rect x="480" y="700" width="270" height="24" rx="6" fill="url(#goldGrad)"/>
+    <rect x="492" y="724" width="246" height="96" fill="url(#counterGrad)"/>
+    <rect x="555" y="652" width="86" height="52" rx="5" fill="#241a22" stroke="#C9A961" stroke-width="2"/>
+    <rect x="562" y="660" width="72" height="36" rx="3" fill="#3d5e6e"/>
+    <rect x="592" y="704" width="12" height="10" fill="#8a734a"/>
+  </g>
+
+  <!-- 本月累計牆面掛牌 -->
+  <g id="monthPlaque" text-anchor="middle">
+    <rect x="790" y="462" width="400" height="88" rx="10" fill="rgba(0,0,0,.22)" stroke="url(#goldGrad)" stroke-width="2"/>
+    <text class="zh" x="990" y="490" font-size="14" fill="rgba(245,239,228,.65)" letter-spacing="4">本 月 累 計</text>
+    <text id="regMonth" class="num" x="990" y="532" font-size="31" font-weight="700" fill="#C9A961">NT$ —</text>
+  </g>
+
+  <!-- 收銀台 -->
+  <g id="counter">
+    <rect x="790" y="690" width="400" height="26" rx="7" fill="url(#goldGrad)"/>
+    <rect x="802" y="716" width="376" height="112" fill="url(#counterGrad)"/>
+    <ellipse id="lampGlow" cx="1000" cy="600" rx="230" ry="150" fill="url(#lampGlowGrad)"/>
+    <!-- 收銀機（置於櫃台右側，避開收銀員） -->
+    <g id="register">
+      <rect x="940" y="576" width="230" height="116" rx="10" fill="url(#goldGrad)"/>
+      <rect x="952" y="588" width="206" height="62" rx="6" fill="#1c1218"/>
+      <text class="zh" x="1055" y="607" font-size="13" fill="rgba(245,239,228,.65)" text-anchor="middle">今 日</text>
+      <text id="regToday" class="num" x="1055" y="640" font-size="30" font-weight="700" fill="#C9A961" text-anchor="middle">NT$ 0</text>
+      <text id="regOrders" class="zh" x="1035" y="676" font-size="14" fill="#3a2a20" text-anchor="middle" font-weight="700">今日 0 筆</text>
+      <circle cx="1146" cy="672" r="7" fill="#D4456A"/>
+    </g>
+    <!-- 睡貓（夜間） -->
+    <g id="cat" transform="translate(852,672)">
+      <g class="cat-body">
+        <ellipse cx="0" cy="0" rx="30" ry="16" fill="#4a3a44"/>
+        <circle cx="24" cy="-8" r="11" fill="#4a3a44"/>
+        <path d="M17 -16 l4 -8 5 6 Z" fill="#4a3a44"/>
+        <path d="M27 -17 l4 -8 5 6 Z" fill="#4a3a44"/>
+        <path d="M-28 4 q-12 -2 -8 -14" stroke="#4a3a44" stroke-width="5" fill="none" stroke-linecap="round"/>
+      </g>
+      <text class="zzz num" x="38" y="-26" font-size="15" fill="rgba(245,239,228,.8)">z</text>
+      <text class="zzz num" x="48" y="-38" font-size="12" fill="rgba(245,239,228,.6)">z</text>
+    </g>
+  </g>
+
+  <!-- 包裝桌 -->
+  <g id="packTable">
+    <rect x="1200" y="700" width="280" height="24" rx="6" fill="url(#goldGrad)"/>
+    <rect x="1212" y="724" width="256" height="96" fill="url(#counterGrad)"/>
+    <rect x="1240" y="668" width="56" height="36" rx="4" fill="#8a5d6e"/>
+    <path d="M1240 686 h56 M1268 668 v36" stroke="#C9A961" stroke-width="3"/>
+    <rect x="1330" y="676" width="44" height="28" rx="3" fill="rgba(255,255,255,.14)"/>
+  </g>
+
+  <!-- 成品架（禮盒池，最多 12 個） -->
+  <g id="shelf">
+    <rect x="1500" y="656" width="300" height="10" rx="4" fill="url(#goldGrad)"/>
+    <rect x="1500" y="742" width="300" height="10" rx="4" fill="url(#goldGrad)"/>
+    <rect x="1508" y="666" width="8"  height="162" fill="#5c4a2c"/>
+    <rect x="1784" y="666" width="8"  height="162" fill="#5c4a2c"/>
+    <rect x="1500" y="828" width="300" height="8" rx="4" fill="url(#goldGrad)"/>
+    <g id="boxShelf"></g>
+  </g>
+</g>
+
+<!-- ═══ 員工（JS 依真實人員動態建立） ═══ -->
+<g id="workers"></g>
+
+<!-- 夜幕 -->
+<rect id="nightDim" x="0" y="0" width="1920" height="1080" fill="#0a0510"/>
+
+<!-- ═══ 慶祝層 ═══ -->
+<g id="confetti"></g>
+<g id="banner">
+  <path d="M700 268 L680 330 L700 316 Z" fill="#a83553"/>
+  <path d="M1220 268 L1240 330 L1220 316 Z" fill="#a83553"/>
+  <rect x="690" y="256" width="540" height="64" rx="8" fill="#D4456A" stroke="url(#goldGrad)" stroke-width="3"/>
+  <text id="bannerText" class="zh" x="960" y="298" font-size="28" font-weight="700" fill="#fff" text-anchor="middle" letter-spacing="4">今日達標 🎉</text>
+</g>
+</svg>
+</div>
+
+<!-- 跑馬燈：僅重播日報中的真實訂單（姓名已由管線遮罩） -->
+<div id="ticker">
+  <div id="tickerLabel">近期訂單</div>
+  <div id="tickerViewport"><div id="tickerTrack"></div></div>
+</div>
+
+<div id="loadingOverlay" class="overlay">
+  <div class="spinner"></div>
+  <h2>資料載入中…</h2>
+</div>
+<div id="errorOverlay" class="overlay hidden">
+  <h2>資料載入失敗</h2>
+  <p id="errorMsg">請透過 http 開啟（例如 python3 -m http.server），<br>或在網址加上 ?demo=1 觀看展示模式。</p>
+</div>
+
+<script>
+(function () {
+'use strict';
+
+/* ═══════════════ 0. 時鐘（支援時間旅行 / 展示加速） ═══════════════ */
+var q = new URLSearchParams(location.search);
+var DEMO = q.has('demo');
+var SPEED = DEMO ? 60 : 1;
+var TIME_TRAVEL = DEMO || q.has('hour') || q.has('time');
+var bootReal = Date.now();
+var bootVirtual = (function () {
+  if (q.get('time')) { var t = new Date(q.get('time')).getTime(); if (!isNaN(t)) return t; }
+  if (q.get('hour') !== null && q.get('hour') !== undefined && q.get('hour') !== '') {
+    var d = new Date(); d.setHours(+q.get('hour') || 0, 0, 0, 0); return d.getTime();
+  }
+  if (DEMO) { var d2 = new Date(); d2.setHours(7, 30, 0, 0); return d2.getTime(); }
+  return bootReal;
+})();
+function now() { return bootVirtual + (Date.now() - bootReal) * SPEED; }
+function startOfDay(t) { var d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); }
+function ymd(t) { var d = new Date(t); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+
+/* ═══════════════ 1. 小工具 ═══════════════ */
+function $(id) { return document.getElementById(id); }
+function fmt(n) { return 'NT$ ' + Math.round(n).toLocaleString('en-US'); }
+function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
+function hashStr(s) { var h = 2166136261; for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+function mulberry32(seed) {
+  var a = seed >>> 0;
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    var t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function gauss(rng) { // Box-Muller
+  var u = Math.max(rng(), 1e-9), v = Math.max(rng(), 1e-9);
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+var CJK_NAME = /^[一-鿿]{2,4}$/;
+function agentDisplayName(full) {
+  var segs = String(full || '').split('/').map(function (s) { return s.trim(); }).filter(Boolean);
+  if (segs.length >= 2 && CJK_NAME.test(segs[1])) return segs[1];
+  for (var i = 1; i < segs.length; i++) if (CJK_NAME.test(segs[i])) return segs[i];
+  return segs[0] || '同仁';
+}
+function shortProduct(p) {
+  var first = String(p || '').split(/[\/｜|]/)[0].trim();
+  return first.length > 13 ? first.slice(0, 12) + '…' : (first || '珠寶訂單');
+}
+
+/* ═══════════════ 2. 展示模式範例資料 ═══════════════ */
+var DEMO_D = {
+  target: 4500000,
+  meta: { report_month: '示範月份', data_as_of: '（展示模式）', data_as_of_iso: ymd(now() - 864e5) + 'T23:30:00', days_elapsed: 16, days_total: 31, timezone: 'UTC+08:00' },
+  kpi: { rev_mtd: 2318400, orders_mtd: 497, avg_order: 4665, median_order: 1680, new_customers: 213, returning: 96 },
+  yesterday: { rev: 152300, orders: 31, agents: [
+    { name: '客服跟單/曉彤/深圳', orders: 12, rev: 66300, rank: 1 },
+    { name: '中控/佳穎/深圳', orders: 9, rev: 45100, rank: 2 },
+    { name: '店務客服/志明/彰化', orders: 6, rev: 28400, rank: 3 },
+    { name: '客服/雅婷/台北', orders: 4, rev: 12500, rank: 4 }
+  ]},
+  agents: [],
+  last_7_days: { daily_target: 150000, data: [
+    { date: '07/10', rev: 142000, orders: 30, is_today: false },
+    { date: '07/11', rev: 168000, orders: 36, is_today: false },
+    { date: '07/12', rev: 131000, orders: 27, is_today: false },
+    { date: '07/13', rev: 176500, orders: 39, is_today: false },
+    { date: '07/14', rev: 149800, orders: 33, is_today: false },
+    { date: '07/15', rev: 152300, orders: 31, is_today: false }
+  ]},
+  hour_dist: [1,1,0,0,0,0,1,2,4,6,8,9,10,12,14,15,16,18,20,26,28,24,18,8].map(function (n, h) { return { hour: h, orders: n }; }),
+  prod_qty: [
+    { name: '天然海藍寶裸石' }, { name: '925銀戒指 鴿子蛋粉水晶' }, { name: '坦桑石手鍊' },
+    { name: '幽靈水晶｜豼貅' }, { name: '太陽之石｜奧勒岡太陽石' }, { name: '碧璽裸石' }
+  ],
+  customers: [
+    { time: '21:18', customer: '徐O雯', products: '坦桑石手鍊', amount: 8223 },
+    { time: '20:42', customer: '林O徵', products: '925銀戒指 鴿子蛋粉水晶戒指', amount: 14563 },
+    { time: '19:05', customer: '戴O吟', products: 'Loggon碧璽裸石', amount: 1560 },
+    { time: '17:56', customer: '丁O芬', products: '太陽之石｜奧勒岡太陽石', amount: 3174 },
+    { time: '15:24', customer: 'cO6', products: '定制鉑金戒指', amount: 45063 }
+  ].map(function (c) { return { time: ymd(now()) + ' ' + c.time + ':00', customer: c.customer, products: c.products, amount: c.amount }; })
+};
+
+/* ═══════════════ 3. 資料層 ═══════════════ */
+var LS_KEY = 'tzg_live_D';
+var D = null;              // 目前生效的日報資料
+var fetchFailed = false;
+var retryDelay = 60e3;
+var retryTimer = null;
+
+function extractD(html) {
+  var i = html.indexOf('const D=');
+  if (i < 0) throw new Error('no const D');
+  var j = html.indexOf('\n', i);
+  if (j < 0) j = html.length;
+  var raw = html.slice(i + 8, j).trim().replace(/;$/, '');
+  return JSON.parse(raw);
+}
+
+function applyData(newD, fromCache) {
+  var changed = !D || !D.meta || D.meta.data_as_of_iso !== newD.meta.data_as_of_iso;
+  D = newD;
+  if (changed) {
+    buildWorkers();
+    buildTicker();
+    buildSim();
+    renderStatic();
+    renderNow(true);
+  }
+  $('loadingOverlay').classList.add('hidden');
+  $('errorOverlay').classList.add('hidden');
+  updateStalePlaque(fromCache ? '⚠ 資料更新失敗，顯示 ' + (D.meta.data_as_of || '快取') + ' 資料' : null);
+}
+
+function updateStalePlaque(forcedMsg) {
+  var el = $('stalePlaque'), txt = $('staleText');
+  if (forcedMsg) { txt.textContent = forcedMsg; el.classList.add('show'); return; }
+  if (D && D.meta && D.meta.data_as_of_iso && !DEMO) {
+    var ageH = (now() - new Date(D.meta.data_as_of_iso).getTime()) / 36e5;
+    if (ageH > 36) { txt.textContent = '⚠ 資料已 ' + Math.round(ageH) + ' 小時未更新'; el.classList.add('show'); return; }
+  }
+  el.classList.remove('show');
+}
+
+function loadData() {
+  if (DEMO) { applyData(DEMO_D, false); return; }
+  fetch('output/dashboard_latest.html?_live=' + Date.now(), { cache: 'no-store' })
+    .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
+    .then(function (html) {
+      var d = extractD(html);
+      fetchFailed = false; retryDelay = 60e3;
+      try { localStorage.setItem(LS_KEY, JSON.stringify(d)); } catch (e) {}
+      applyData(d, false);
+    })
+    .catch(function () {
+      fetchFailed = true;
+      if (D) { updateStalePlaque('⚠ 資料更新失敗，顯示 ' + (D.meta.data_as_of || '快取') + ' 資料'); }
+      else {
+        var cached = null;
+        try { cached = JSON.parse(localStorage.getItem(LS_KEY)); } catch (e) {}
+        if (cached && cached.meta) applyData(cached, true);
+        else { $('loadingOverlay').classList.add('hidden'); $('errorOverlay').classList.remove('hidden'); }
+      }
+      clearTimeout(retryTimer);
+      retryTimer = setTimeout(loadData, retryDelay);
+      retryDelay = Math.min(retryDelay * 2, 300e3);
+    });
+}
+
+/* ═══════════════ 3b. 短影音（Meta）成效 ═══════════════ */
+// 讀取同源的 meta-dashboard（vitokok-lab.github.io/meta-dashboard/）
+// 內嵌 STATIC_DATA；本機預覽抓不到時面板自動隱藏，不影響其他部分。
+function fmtCompact(n) {
+  n = Math.round(n);
+  return n >= 10000 ? (n / 10000).toFixed(1).replace(/\.0$/, '') + '萬' : n.toLocaleString('en-US');
+}
+function renderMeta(a) {
+  $('metaPlays').textContent = fmtCompact(a.plays);
+  $('metaEngage').textContent = fmtCompact(a.engage);
+  $('metaFans').textContent = '+' + fmtCompact(a.fans);
+  $('metaCount').textContent = a.count + ' 支影片';
+  $('metaTV').classList.add('on');
+}
+function aggMeta(S) {
+  var cutoff = ymd(now() - 7 * 864e5);
+  var plays = 0, engage = 0, fans = 0, count = 0;
+  (S.videos || []).forEach(function (v) {
+    if ((v.created_date || '') >= cutoff) {
+      count++;
+      plays += v.plays || 0;
+      engage += (v.likes || 0) + (v.comments || 0) + (v.shares || 0) + (v.saved || 0);
+      fans += v.newFollowers || 0;
+    }
+  });
+  return { plays: plays, engage: engage, fans: fans, count: count };
+}
+function loadMeta() {
+  if (DEMO) { renderMeta({ plays: 567366, engage: 7180, fans: 445, count: 77 }); return; }
+  fetch('/meta-dashboard/?_live=' + Date.now(), { cache: 'no-store' })
+    .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
+    .then(function (html) {
+      var i = html.indexOf('const STATIC_DATA =');
+      if (i < 0) throw new Error('no STATIC_DATA');
+      var j = html.indexOf('\n', i);
+      if (j < 0) j = html.length;
+      var S = JSON.parse(html.slice(i + 19, j).trim().replace(/;$/, ''));
+      renderMeta(aggMeta(S));
+    })
+    .catch(function () { /* 面板維持前次數字或隱藏 */ });
+}
+
+/* ═══════════════ 4. 模擬引擎 ═══════════════ */
+// 一切由（今天日期 + data_as_of_iso）決定：任何時刻刷新頁面，
+// 顯示數字都與從早上跑到現在的螢幕一致。
+var sim = { events: [], dayStart: 0, simStartMs: 0, realTodayRev: 0, realTodayOrders: 0, dailyTarget: 150000 };
+var lastTickMs = -1;
+var prevPct = null;
+var firedMilestones = {};
+
+function hourCurve() {
+  var counts = new Array(24).fill(0);
+  (D.hour_dist || []).forEach(function (h) { if (h && h.hour >= 0 && h.hour < 24) counts[h.hour] = +h.orders || 0; });
+  var total = counts.reduce(function (a, b) { return a + b; }, 0);
+  // 先驗曲線：凌晨低谷、19–22 高峰（源自 weekday_hour 峰值觀察）
+  var prior = [1,1,.4,.3,.3,.4,.8,1.5,2.5,3.5,4.5,5,5.5,6,6.5,7,7.5,8.5,9.5,11,11.5,11,8,4];
+  var pTotal = prior.reduce(function (a, b) { return a + b; }, 0);
+  var w = [], sum = 0;
+  for (var h = 0; h < 24; h++) {
+    var real = total > 0 ? counts[h] / total : 0;
+    // 3 點平滑
+    if (total > 0) {
+      var l = counts[(h + 23) % 24] / total, r = counts[(h + 1) % 24] / total;
+      real = (l + 2 * real + r) / 4;
+    }
+    var blend = total >= 100 ? 0.8 * real + 0.2 * (prior[h] / pTotal)
+                             : 0.5 * real + 0.5 * (prior[h] / pTotal);
+    blend += 0.002;
+    w.push(blend); sum += blend;
+  }
+  return w.map(function (x) { return x / sum; });
+}
+
+function buildSim() {
+  var t = now();
+  sim.dayStart = startOfDay(t);
+  var seed = hashStr(ymd(t) + '|' + (D.meta.data_as_of_iso || ''));
+  var rng = mulberry32(seed);
+  var w = hourCurve();
+
+  // 今日包絡：近 7 完整天平均營收（排除 is_today），fallback daily_target
+  var dt = (D.last_7_days && D.last_7_days.daily_target) || 150000;
+  sim.dailyTarget = dt;
+  var fullDays = ((D.last_7_days && D.last_7_days.data) || []).filter(function (d) { return !d.is_today && d.rev > 0; });
+  var estDaily = fullDays.length ? fullDays.reduce(function (a, d) { return a + d.rev; }, 0) / fullDays.length : dt;
+  estDaily = clamp(estDaily, 0.4 * dt, 1.6 * dt);
+  var dayTotal = estDaily * (0.85 + 0.3 * rng());
+  var avgOrder = (D.kpi && D.kpi.avg_order) || 4500;
+  var medOrder = (D.kpi && D.kpi.median_order) || Math.round(avgOrder * 0.4);
+  var estOrders = clamp(Math.round(dayTotal / avgOrder), 5, 80);
+
+  // 今日已有的真實數字（報表當天已跑過的情況）
+  sim.realTodayRev = 0; sim.realTodayOrders = 0;
+  var todayKey = String(new Date(t).getMonth() + 1).padStart(2, '0') + '/' + String(new Date(t).getDate()).padStart(2, '0');
+  (((D.last_7_days || {}).data) || []).forEach(function (d) {
+    if (d.date === todayKey) { sim.realTodayRev = d.rev || 0; sim.realTodayOrders = d.orders || 0; }
+  });
+
+  // 模擬只涵蓋 data_as_of 之後的時間
+  var asOf = new Date(D.meta.data_as_of_iso || 0).getTime();
+  sim.simStartMs = Math.max(0, asOf - sim.dayStart);
+
+  // 事件排程（Poisson 式）
+  var events = [];
+  for (var h = 0; h < 24; h++) {
+    var lam = estOrders * w[h];
+    var n = Math.floor(lam) + (rng() < (lam - Math.floor(lam)) ? 1 : 0);
+    for (var k = 0; k < n; k++) events.push({ t: h * 36e5 + rng() * 36e5 });
+  }
+  events.sort(function (a, b) { return a.t - b.t; });
+
+  // 金額：75% 中位數對數常態、25% 大單，總和縮放至 dayTotal
+  var rawSum = 0;
+  events.forEach(function (ev) {
+    ev.amount = rng() < 0.75 ? medOrder * Math.exp(gauss(rng) * 0.6) : avgOrder * (1 + 2 * rng());
+    rawSum += ev.amount;
+  });
+  var scale = rawSum > 0 ? dayTotal / rawSum : 1;
+  events.forEach(function (ev) { ev.amount = Math.max(200, Math.round(ev.amount * scale)); });
+
+  // 指派員工（依昨日業績佔比加權）與商品
+  var weights = workerList.map(function (wk) { return Math.max(wk.rev, 1); });
+  var wSum = weights.reduce(function (a, b) { return a + b; }, 0);
+  var prods = (D.prod_qty || []).map(function (p) { return shortProduct(p.name); });
+  events.forEach(function (ev) {
+    var r = rng() * wSum, idx = 0;
+    for (var i2 = 0; i2 < weights.length; i2++) { r -= weights[i2]; if (r <= 0) { idx = i2; break; } }
+    ev.worker = idx;
+    ev.product = prods.length ? prods[Math.floor(rng() * prods.length)] : '新訂單';
+  });
+
+  sim.events = events.filter(function (ev) { return ev.t > sim.simStartMs; });
+  lastTickMs = -1;
+  prevPct = null;
+  if (boxPool.length) clearBoxes();
+}
+
+/* ═══════════════ 5. 員工建立 ═══════════════ */
+var SLOTS = [
+  { x: 862,  y: 700, role: '收銀', headset: false }, // rank1 → 收銀台（MVP）
+  { x: 315,  y: 706, role: '接單', headset: true  },
+  { x: 1290, y: 706, role: '包裝', headset: false },
+  { x: 615,  y: 706, role: '接單', headset: true  },
+  { x: 1425, y: 706, role: '包裝', headset: false }
+];
+var SUITS = ['#3a2a35', '#453043', '#2f2436', '#41303c', '#372a3a'];
+var workerList = []; // {name, rev, el, bubble, mvp}
+
+function buildWorkers() {
+  var g = $('workers');
+  while (g.firstChild) g.removeChild(g.firstChild);
+  workerList = [];
+
+  // 合併 yesterday.agents + agents（去重、依 rank）
+  var seen = {}, merged = [];
+  (((D.yesterday || {}).agents) || []).concat(D.agents || []).forEach(function (a) {
+    var nm = agentDisplayName(a.name);
+    if (!seen[nm]) { seen[nm] = true; merged.push({ name: nm, rev: a.rev || 0 }); }
+  });
+  merged.sort(function (a, b) { return b.rev - a.rev; });
+
+  SLOTS.forEach(function (slot, i) {
+    var agent = merged[i];
+    var name = agent ? agent.name : slot.role + '組';
+    var rev = agent ? agent.rev : 1;
+    var mvp = i === 0 && !!agent;
+    var el = makeWorker(slot, name, SUITS[i % SUITS.length], mvp);
+    g.appendChild(el.root);
+    workerList.push({ name: name, rev: rev, el: el.root, bubble: el.bubble, bubbleLine1: el.line1, bubbleLine2: el.line2 });
+  });
+}
+
+var SVGNS = 'http://www.w3.org/2000/svg';
+function svgEl(tag, attrs, cls) {
+  var e = document.createElementNS(SVGNS, tag);
+  for (var k in attrs) e.setAttribute(k, attrs[k]);
+  if (cls) e.setAttribute('class', cls);
+  return e;
+}
+
+function makeWorker(slot, name, suit, mvp) {
+  var root = svgEl('g', { transform: 'translate(' + slot.x + ',' + slot.y + ')' }, 'worker');
+  var fig = svgEl('g', {}, 'figure');
+
+  // 左臂（肩點為局部原點 → CSS rotate 不會覆蓋定位）
+  var armLPos = svgEl('g', { transform: 'translate(-30,-84)' });
+  var armL = svgEl('g', {}, 'arm arm-l');
+  armL.appendChild(svgEl('rect', { x: -6, y: 0, width: 12, height: 46, rx: 6, fill: suit }));
+  armL.appendChild(svgEl('circle', { cx: 0, cy: 48, r: 7, fill: '#f3d9c6' }));
+  armLPos.appendChild(armL); fig.appendChild(armLPos);
+  // 右臂
+  var armRPos = svgEl('g', { transform: 'translate(30,-84)' });
+  var armR = svgEl('g', {}, 'arm arm-r');
+  armR.appendChild(svgEl('rect', { x: -6, y: 0, width: 12, height: 46, rx: 6, fill: suit }));
+  armR.appendChild(svgEl('circle', { cx: 0, cy: 48, r: 7, fill: '#f3d9c6' }));
+  armRPos.appendChild(armR); fig.appendChild(armRPos);
+
+  // 軀幹
+  fig.appendChild(svgEl('path', { d: 'M-36 0 C-36 -68 -20 -96 0 -96 C20 -96 36 -68 36 0 Z', fill: suit }));
+  fig.appendChild(svgEl('path', { d: 'M-10 -96 L0 -80 L10 -96', stroke: '#C9A961', 'stroke-width': 3, fill: 'none' }));
+  // 頭
+  fig.appendChild(svgEl('circle', { cx: 0, cy: -122, r: 25, fill: '#f3d9c6' }));
+  fig.appendChild(svgEl('path', { d: 'M-25 -128 A25 25 0 0 1 25 -128 L25 -122 Q0 -142 -25 -122 Z', fill: '#42303a' }));
+  fig.appendChild(svgEl('circle', { cx: -8, cy: -120, r: 2.4, fill: '#33232c' }));
+  fig.appendChild(svgEl('circle', { cx: 8, cy: -120, r: 2.4, fill: '#33232c' }));
+  fig.appendChild(svgEl('path', { d: 'M-6 -110 Q0 -105 6 -110', stroke: '#b0755f', 'stroke-width': 2, fill: 'none', 'stroke-linecap': 'round' }));
+  if (slot.headset) {
+    fig.appendChild(svgEl('path', { d: 'M-25 -126 A25 25 0 0 1 25 -126', stroke: '#C9A961', 'stroke-width': 4, fill: 'none' }));
+    fig.appendChild(svgEl('circle', { cx: -25, cy: -120, r: 6, fill: '#C9A961' }));
+    fig.appendChild(svgEl('path', { d: 'M-25 -114 Q-22 -102 -10 -102', stroke: '#C9A961', 'stroke-width': 3, fill: 'none' }));
+  }
+  root.appendChild(fig);
+
+  // 名牌
+  var tag = svgEl('g', {}, 'nametag');
+  var tagW = Math.max(96, name.length * 22 + 40);
+  tag.appendChild(svgEl('rect', { x: -tagW / 2, y: 14, width: tagW, height: 34, rx: 8, fill: 'rgba(0,0,0,.45)', stroke: '#C9A961', 'stroke-width': 1.5 }));
+  var tagText = svgEl('text', { x: mvp ? 8 : 0, y: 38, 'font-size': 19, fill: '#F5EFE4', 'text-anchor': 'middle', 'letter-spacing': 1 }, 'zh');
+  tagText.textContent = name;
+  tag.appendChild(tagText);
+  if (mvp) {
+    var star = svgEl('path', { d: 'M0 -7 L2 -2 L7 -2 L3 1.5 L4.6 7 L0 3.6 L-4.6 7 L-3 1.5 L-7 -2 L-2 -2 Z', fill: '#C9A961', transform: 'translate(' + (-tagW / 2 + 18) + ',31)' });
+    tag.appendChild(star);
+    var mvpTxt = svgEl('text', { x: 0, y: 66, 'font-size': 12, fill: '#C9A961', 'text-anchor': 'middle' }, 'zh');
+    mvpTxt.textContent = '昨日 MVP';
+    tag.appendChild(mvpTxt);
+  }
+  root.appendChild(tag);
+
+  // 泡泡（每位員工一顆，重複使用）
+  var bubble = svgEl('g', {}, 'bubble');
+  bubble.appendChild(svgEl('path', { d: 'M-8 -158 L0 -146 L8 -158 Z', fill: '#F5EFE4' }));
+  bubble.appendChild(svgEl('rect', { x: -125, y: -224, width: 250, height: 68, rx: 12, fill: '#F5EFE4' }));
+  var line1 = svgEl('text', { x: 0, y: -196, 'font-size': 17, fill: '#4a3340', 'text-anchor': 'middle', 'font-weight': 500 }, 'zh');
+  var line2 = svgEl('text', { x: 0, y: -170, 'font-size': 19, fill: '#D4456A', 'text-anchor': 'middle', 'font-weight': 700 }, 'num');
+  bubble.appendChild(line1); bubble.appendChild(line2);
+  root.appendChild(bubble);
+
+  return { root: root, bubble: bubble, line1: line1, line2: line2 };
+}
+
+/* ═══════════════ 6. 禮盒池 / 彩紙池 ═══════════════ */
+var BOX_COLORS = ['#D4456A', '#C9A961', '#8a5d9e', '#4a8a7e'];
+var boxPool = [], boxNext = 0, boxShown = 0;
+function buildBoxPool() {
+  var g = $('boxShelf');
+  for (var i = 0; i < 12; i++) {
+    var col = i % 6, row = Math.floor(i / 6);
+    var x = 1522 + col * 44, y = row === 0 ? 706 : 792;
+    var box = svgEl('g', { transform: 'translate(' + x + ',' + y + ')' }, 'giftbox');
+    var c = BOX_COLORS[i % BOX_COLORS.length];
+    box.appendChild(svgEl('rect', { x: 0, y: -34, width: 38, height: 34, rx: 4, fill: c }));
+    box.appendChild(svgEl('rect', { x: 16, y: -34, width: 6, height: 34, fill: 'rgba(255,255,255,.55)' }));
+    box.appendChild(svgEl('rect', { x: 0, y: -22, width: 38, height: 5, fill: 'rgba(255,255,255,.55)' }));
+    box.appendChild(svgEl('path', { d: 'M19 -34 q-8 -12 -14 -4 q6 6 14 4 q8 2 14 -4 q-6 -8 -14 4', fill: 'rgba(255,255,255,.7)' }));
+    g.appendChild(box);
+    boxPool.push(box);
+  }
+}
+function spawnBox() {
+  var box = boxPool[boxNext];
+  box.classList.remove('on');
+  void box.getBoundingClientRect(); // 重觸發動畫
+  box.classList.add('on');
+  boxNext = (boxNext + 1) % boxPool.length;
+  boxShown = Math.min(boxShown + 1, boxPool.length);
+}
+function syncBoxes(n) {
+  if (boxShown >= n) return;
+  for (var i = 0; i < n; i++) boxPool[i].classList.add('on');
+  boxShown = n; boxNext = n % boxPool.length;
+}
+function clearBoxes() {
+  boxPool.forEach(function (b) { b.classList.remove('on'); });
+  boxShown = 0; boxNext = 0;
+}
+
+function buildConfetti() {
+  var g = $('confetti');
+  var cols = ['#D4456A', '#C9A961', '#F5EFE4', '#e88ca3'];
+  for (var i = 0; i < 40; i++) {
+    var r = svgEl('rect', {
+      x: 660 + (i * 157) % 600, y: -30,
+      width: 8 + (i % 3) * 3, height: 12 + (i % 4) * 3,
+      fill: cols[i % cols.length]
+    }, 'cf');
+    r.style.setProperty('--dx', (((i * 73) % 260) - 130) + 'px');
+    r.style.setProperty('--rot', (((i * 131) % 720) - 360) + 'deg');
+    r.style.setProperty('--dur', (2.4 + (i % 5) * 0.28) + 's');
+    r.style.setProperty('--delay', ((i % 8) * 0.09) + 's');
+    g.appendChild(r);
+  }
+}
+
+var bannerTimer = null, confettiTimer = null;
+function celebrate(text) {
+  $('bannerText').textContent = text;
+  var banner = $('banner'), conf = $('confetti');
+  banner.classList.add('show');
+  conf.classList.remove('boom');
+  void conf.getBoundingClientRect();
+  conf.classList.add('boom');
+  workerList.forEach(function (wk) { wk.el.classList.remove('working'); wk.el.classList.add('celebrate'); });
+  clearTimeout(bannerTimer); clearTimeout(confettiTimer);
+  bannerTimer = setTimeout(function () {
+    banner.classList.remove('show');
+    workerList.forEach(function (wk) { wk.el.classList.remove('celebrate'); });
+  }, 5200);
+  confettiTimer = setTimeout(function () { conf.classList.remove('boom'); }, 4200);
+}
+
+/* ═══════════════ 7. 靜態渲染（每次資料更新） ═══════════════ */
+function renderStatic() {
+  var m = D.meta || {};
+  $('calMonth').textContent = m.report_month || '';
+  $('calDay').textContent = '第 ' + (m.days_elapsed || '—') + ' / ' + (m.days_total || '—') + ' 天';
+  $('asOf').textContent = '資料截至 ' + (m.data_as_of || '—') + (m.data_as_of_iso ? ' ' + String(m.data_as_of_iso).slice(11, 16) : '');
+  $('gaugeTarget').textContent = fmt(D.target || 0);
+  $('gaugeTargetLabel').textContent = (m.report_month || '本月') + ' 目標';
+  updateStalePlaque(null);
+}
+
+function buildTicker() {
+  var track = $('tickerTrack');
+  var rows = (D.customers || []).slice().sort(function (a, b) { return String(b.time).localeCompare(String(a.time)); }).slice(0, 14);
+  var html = rows.map(function (c) {
+    var t = String(c.time || '').slice(11, 16);
+    return '<span class="tick-item">' + (t ? t + '　' : '') + (c.customer || '') +
+      '<span class="sep">✦</span>' + shortProduct(c.products) +
+      '<span class="sep">✦</span><span class="amt">' + fmt(c.amount || 0) + '</span></span>';
+  }).join('');
+  if (!html) html = '<span class="tick-item">尚無近期訂單資料</span>';
+  track.innerHTML = html + html; // 兩份內容 → translateX(-50%) 無縫循環
+  var len = track.textContent.length;
+  track.style.setProperty('--tickDur', clamp(len * 0.28, 30, 150) + 's');
+}
+
+/* ═══════════════ 8. 收銀機補間 ═══════════════ */
+var regShown = 0, regTarget = 0, tweenRAF = null;
+function setRegister(target) {
+  if (Math.round(target) === Math.round(regTarget)) return;
+  regTarget = target;
+  if (document.hidden) { regShown = regTarget; drawRegister(); return; }
+  var from = regShown, start = performance.now(), dur = 1300;
+  cancelAnimationFrame(tweenRAF);
+  var el = $('regToday');
+  el.classList.remove('pulse'); void el.getBoundingClientRect(); el.classList.add('pulse');
+  (function step(ts) {
+    var p = clamp((ts - start) / dur, 0, 1);
+    var e = 1 - Math.pow(1 - p, 3); // ease-out cubic
+    regShown = from + (regTarget - from) * e;
+    drawRegister();
+    if (p < 1) tweenRAF = requestAnimationFrame(step);
+  })(start);
+}
+function drawRegister() { $('regToday').textContent = fmt(regShown); }
+
+/* ═══════════════ 9. 事件觸發 ═══════════════ */
+var workingTimers = [];
+function fireEvent(ev) {
+  var wk = workerList[ev.worker] || workerList[0];
+  if (!wk) return;
+  var el = wk.el;
+  el.classList.add('working');
+  wk.bubbleLine1.textContent = '新訂單 ✦ ' + ev.product;
+  wk.bubbleLine2.textContent = fmt(ev.amount);
+  wk.bubble.classList.add('show');
+  workingTimers.push(setTimeout(function () {
+    el.classList.remove('working');
+    wk.bubble.classList.remove('show');
+  }, 4600 / (DEMO ? 4 : 1)));
+  // 6 秒後包裝完成 → 禮盒上架
+  workingTimers.push(setTimeout(spawnBox, 6000 / (DEMO ? 6 : 1)));
+  if (workingTimers.length > 60) workingTimers.splice(0, 30);
+}
+
+/* ═══════════════ 10. 主迴圈（1 Hz） ═══════════════ */
+function renderNow(skipAnim) {
+  if (!D) return;
+  var t = now();
+
+  // 跨日 → 重建排程（新種子）
+  if (startOfDay(t) !== sim.dayStart) { buildSim(); skipAnim = true; }
+
+  var msOfDay = t - sim.dayStart;
+  var simSum = 0, simCount = 0;
+  var newEvents = [];
+  for (var i = 0; i < sim.events.length; i++) {
+    var ev = sim.events[i];
+    if (ev.t <= msOfDay) {
+      simSum += ev.amount; simCount++;
+      if (!skipAnim && ev.t > lastTickMs && msOfDay - ev.t < 15e3 * SPEED) newEvents.push(ev);
+    } else break;
+  }
+  lastTickMs = msOfDay;
+
+  var revMtd = (D.kpi && D.kpi.rev_mtd) || 0;
+  var ordersMtd = (D.kpi && D.kpi.orders_mtd) || 0;
+  var displayedToday = sim.realTodayRev + simSum;
+  var displayedMTD = revMtd + simSum;
+  var displayedTodayOrders = sim.realTodayOrders + simCount;
+  var pct = D.target > 0 ? (displayedMTD / D.target) * 100 : 0;
+
+  // 收銀機 + 本月掛牌
+  setRegister(displayedToday);
+  $('regOrders').textContent = '今日 ' + displayedTodayOrders + ' 筆';
+  $('regMonth').textContent = fmt(displayedMTD) + ' ・ ' + (ordersMtd + simCount) + ' 筆';
+
+  // 禮盒架與今日模擬完成單數同步（頁面載入 / 補跑時直接對齊）
+  syncBoxes(Math.min(simCount, boxPool.length));
+
+  // 目標溫度計（0–100% 高 346px，底 y=553）
+  var fillPct = clamp(pct, 0, 100);
+  var h = 346 * fillPct / 100;
+  $('gaugeFill').setAttribute('y', 553 - h);
+  $('gaugeFill').setAttribute('height', Math.max(h, 7));
+  $('gaugePct').textContent = pct.toFixed(1) + '%';
+  $('crown').setAttribute('opacity', pct >= 100 ? 1 : 0);
+
+  // 慶祝時刻
+  var dayKey = ymd(t);
+  if (displayedToday >= sim.dailyTarget && sim.dailyTarget > 0) {
+    var dk = 'tzg_daily_' + dayKey;
+    var already = false;
+    try { already = sessionStorage.getItem(dk) === '1'; } catch (e) {}
+    if (!already && !skipAnim) {
+      try { sessionStorage.setItem(dk, '1'); } catch (e) {}
+      celebrate('今日達標 🎉');
+    } else if (!already) {
+      try { sessionStorage.setItem(dk, '1'); } catch (e) {}
+    }
+  }
+  if (prevPct !== null && !skipAnim) {
+    [25, 50, 75, 100].forEach(function (mst) {
+      if (prevPct < mst && pct >= mst && !firedMilestones[dayKey + mst]) {
+        firedMilestones[dayKey + mst] = true;
+        celebrate('本月達成 ' + mst + '% 🏆');
+      }
+    });
+  }
+  prevPct = pct;
+
+  // 事件動畫（最多同時演 3 筆，避免補跑洪水）
+  if (!skipAnim) newEvents.slice(-3).forEach(fireEvent);
+
+  updateAmbience(t);
+}
+
+/* ═══════════════ 11. 氛圍（晝夜 / 夜間模式） ═══════════════ */
+var SKY = [
+  { h: 0,    c: ['#141230', '#241a3a'] },  // 深夜
+  { h: 4.5,  c: ['#141230', '#241a3a'] },  // 深夜維持
+  { h: 6,    c: ['#3a2a55', '#c96a7e'] },  // 破曉
+  { h: 7.5,  c: ['#7e9cc9', '#f3d9b0'] },  // 清晨
+  { h: 10,   c: ['#8fb6d9', '#dcd3e8'] },  // 白天
+  { h: 16,   c: ['#c98a6a', '#e8b891'] },  // 黃昏前
+  { h: 18,   c: ['#8a4a6a', '#e88a6a'] },  // 暮色
+  { h: 20,   c: ['#1c1840', '#3a2a55'] },  // 夜晚
+  { h: 24,   c: ['#141230', '#241a3a'] }
+];
+function updateAmbience(t) {
+  var d = new Date(t);
+  var hour = d.getHours() + d.getMinutes() / 60;
+  var a = SKY[0], b = SKY[SKY.length - 1], f = 0;
+  for (var i = 0; i < SKY.length - 1; i++) {
+    if (hour >= SKY[i].h && hour < SKY[i + 1].h) {
+      a = SKY[i]; b = SKY[i + 1];
+      f = (hour - a.h) / (b.h - a.h);
+      break;
+    }
+  }
+  $('skyStop1').setAttribute('stop-color', lerpColor(a.c[0], b.c[0], f));
+  $('skyStop2').setAttribute('stop-color', lerpColor(a.c[1], b.c[1], f));
+  var night = hour >= 1 && hour < 8;
+  document.body.classList.toggle('is-night', night);
+  $('moon').setAttribute('opacity', (hour >= 20 || hour < 6) ? 0.9 : 0);
+}
+function lerpColor(c1, c2, f) {
+  var p1 = parseInt(c1.slice(1), 16), p2 = parseInt(c2.slice(1), 16);
+  var r = Math.round(((p1 >> 16) & 255) + (((p2 >> 16) & 255) - ((p1 >> 16) & 255)) * f);
+  var g = Math.round(((p1 >> 8) & 255) + (((p2 >> 8) & 255) - ((p1 >> 8) & 255)) * f);
+  var bl = Math.round((p1 & 255) + ((p2 & 255) - (p1 & 255)) * f);
+  return 'rgb(' + r + ',' + g + ',' + bl + ')';
+}
+
+/* ═══════════════ 12. 強健性（24/7） ═══════════════ */
+document.addEventListener('visibilitychange', function () {
+  if (!document.hidden && D) renderNow(true); // 復原時直接對齊決定性排程
+});
+// 每日 04:30 自癒 reload（時間旅行 / 展示模式不重載）
+setInterval(function () {
+  if (TIME_TRAVEL) return;
+  var d = new Date();
+  if (d.getHours() === 4 && d.getMinutes() === 30) {
+    var key = 'tzg_live_reload';
+    try {
+      if (localStorage.getItem(key) !== ymd(Date.now())) {
+        localStorage.setItem(key, ymd(Date.now()));
+        location.reload();
+      }
+    } catch (e) { location.reload(); }
+  }
+}, 30e3);
+
+/* ═══════════════ 13. 啟動 ═══════════════ */
+buildBoxPool();
+buildConfetti();
+loadData();
+loadMeta();
+setInterval(function () { if (D) renderNow(false); }, DEMO ? 250 : 1000);
+if (!DEMO) {
+  setInterval(loadData, 10 * 60e3);
+  setInterval(loadMeta, 30 * 60e3);
+}
+
+})();
+</script>
+</body>
+</html>
