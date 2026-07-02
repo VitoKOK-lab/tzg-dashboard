@@ -379,7 +379,12 @@ function aggMeta(S) {
   });
   return { plays: plays, engage: engage, fans: fans, count: count };
 }
-function renderMeta(a) { world.metaData = a; paintJumbo(); }
+function renderMeta(a) {
+  world.metaData = a;
+  // 短影音流量 → 參觀人潮：每 10 萬次播放 ≈ 每分鐘 1 位訪客（1–8 上限）
+  visitorRate = clamp(a.plays / 100000, 1, 8);
+  paintJumbo();
+}
 function loadMeta() {
   if (DEMO) { renderMeta({ plays: 567366, engage: 7180, fans: 445, count: 77 }); return; }
   fetch('/meta-dashboard/?_live=' + Date.now(), { cache: 'no-store' })
@@ -671,7 +676,7 @@ function buildSky() {
   // 太陽 / 月亮
   sunMesh = new THREE.Group();
   sunMesh.add(new THREE.Mesh(new THREE.SphereGeometry(5, 14, 10), new THREE.MeshBasicMaterial({ color: 0xFFE9A8, fog: false })));
-  sunMesh.add(glowSprite('rgba(255,230,160,.9)', 26));
+  sunMesh.add(glowSprite('rgba(255,230,160,.95)', 38));
   scene.add(sunMesh);
   moonMesh = new THREE.Group();
   moonMesh.add(new THREE.Mesh(new THREE.SphereGeometry(4, 14, 10), new THREE.MeshBasicMaterial({ color: 0xF4ECD4, fog: false })));
@@ -700,6 +705,8 @@ var EXCLUDE = [
   { x: -18, z: 8, r: 5 },   // 目標塔
   { x: 13, z: 10, r: 4.5 }, // 發射台
   { x: 6.5, z: -4, r: 3.5 },// 禮盒架
+  { x: -7, z: 19, r: 6 },   // 珠寶礦場
+  { x: 20, z: 14, r: 3 },   // 導流招牌
   { x: 0, z: 0, r: 0 }
 ];
 
@@ -961,6 +968,47 @@ function buildLandmarks() {
   shelf1.position.y = 0.9;
   var shelf2 = shelf1.clone(); shelf2.position.y = 1.9;
   shelfG.add(shelf1); shelfG.add(shelf2);
+  // ── 珠寶礦場（-7,0,19）：礦工在此採礦，運到宮殿賣錢 ──
+  var mineParts = [];
+  var ROCK = 0x8D8398;
+  [[-9.5, 0, 18, 2.6], [-6, 0, 20.5, 3.2], [-4.5, 0, 17.5, 2.1], [-7.8, 0, 16.6, 1.6]].forEach(function (rk, ri) {
+    mineParts.push(colorize(xform(new THREE.IcosahedronGeometry(rk[3], 0), rk[0], rk[3] * 0.55, rk[2], 1, 0.78, 1, ri * 1.3), ROCK));
+  });
+  // 岩石上鑲嵌的寶石礦
+  [[-9.6, 2.6, 17, 0.7, PAL.crystalPink], [-6.2, 3.6, 20, 0.9, 0xF2D377], [-4.4, 2.3, 17, 0.6, 0xCBB3E6],
+   [-7.6, 1.9, 16, 0.5, 0x9FD8D4], [-5.4, 1.4, 19, 0.55, PAL.crystalPink]].forEach(function (gm, gi) {
+    mineParts.push(colorize(xform(new THREE.OctahedronGeometry(gm[3], 0), gm[0], gm[1], gm[2], 1, 1.5, 1, gi * 0.9), gm[4]));
+  });
+  var mine = new THREE.Mesh(mergeGeometries(mineParts.map(function (g) { return g.toNonIndexed(); })), vertexToon);
+  scene.add(mine);
+  var mineGlow = glowSprite('rgba(242,169,192,.5)', 9);
+  mineGlow.position.set(-6.5, 3, 18.5);
+  scene.add(mineGlow);
+  // 洞口
+  var cave = new THREE.Mesh(new THREE.CircleGeometry(1.1, 12), new THREE.MeshBasicMaterial({ color: 0x1c1218 }));
+  cave.position.set(-6, 1.1, 18.9);
+  cave.rotation.x = -0.08;
+  scene.add(cave);
+
+  // ── 木製招牌 ×2：礦場 / 短影音導流 ──
+  function signpost(x, z, ry, text) {
+    var g2 = new THREE.Group();
+    var post = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 1.7, 6), toonMat(PAL.wood));
+    post.position.y = 0.85;
+    g2.add(post);
+    var board = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.9, 0.12), toonMat(0xCBA173));
+    board.position.y = 1.7;
+    g2.add(board);
+    var lbl = makeLabel(text, 'name');
+    lbl.position.set(0, 1.72, 0.12);
+    g2.add(lbl);
+    g2.position.set(x, 0.4, z);
+    g2.rotation.y = ry;
+    scene.add(g2);
+  }
+  signpost(-3.2, 15.8, 0.5, '珠寶礦場');
+  signpost(20, 15, -0.5, '影音導流入口');
+
   var boxGeo = mergeGeometries([
     new THREE.BoxGeometry(0.72, 0.55, 0.72).toNonIndexed(),
     new THREE.BoxGeometry(0.8, 0.14, 0.8).translate(0, 0.3, 0).toNonIndexed()
@@ -1189,7 +1237,8 @@ function popupAt(x, y, z, line1, line2) {
 }
 
 /* ═══════════════ 9. NPC 系統 ═══════════════ */
-var MAXN = 30; // 0-21 散步、22-26 員工、27-29 快遞
+var MAXN = 45;
+var WALKER_N = 26, STAFF_BASE = 26, COURIER_BASE = 31, MINER_BASE = 34, VISITOR_BASE = 37, VISITOR_N = 8;
 var npcs = [];
 var npcParts = {};
 var staffTags = [];
@@ -1230,6 +1279,16 @@ function buildNPCBase() {
     new THREE.BoxGeometry(0.5, 0.4, 0.5).toNonIndexed(),
     new THREE.BoxGeometry(0.58, 0.1, 0.58).translate(0, 0.22, 0).toNonIndexed()
   ]), MAXN);
+  // 十字鎬（礦工）
+  npcParts.pick = mk(mergeGeometries([
+    new THREE.CylinderGeometry(0.045, 0.045, 0.9, 5).toNonIndexed(),
+    new THREE.CylinderGeometry(0.06, 0.02, 0.55, 5).rotateZ(Math.PI / 2).translate(0.25, 0.45, 0).toNonIndexed(),
+    new THREE.CylinderGeometry(0.06, 0.02, 0.55, 5).rotateZ(-Math.PI / 2).translate(-0.25, 0.45, 0).toNonIndexed()
+  ]), MAXN);
+  npcParts.pick.material = toonMat(0x8A6A48);
+  // 發光寶石（礦工搬運）
+  npcParts.gem = mk(new THREE.OctahedronGeometry(0.32, 0), MAXN);
+  npcParts.gem.material = new THREE.MeshBasicMaterial({ color: 0xF2A9C0, transparent: true, opacity: 0.95 });
 
   var wrng = mulberry32(777);
   for (var i = 0; i < MAXN; i++) {
@@ -1257,14 +1316,32 @@ function buildNPCBase() {
   // 員工固定位（宮殿前）
   var spots = [[0, -2.2], [-3, -1.5], [3, -1.5], [-5.2, 1], [5.2, 1]];
   for (var s = 0; s < 5; s++) {
-    var n2 = npcs[22 + s];
+    var n2 = npcs[STAFF_BASE + s];
     n2.kind = 'staff';
     n2.homeX = spots[s][0]; n2.homeZ = spots[s][1];
     n2.pos.set(spots[s][0], 0.5, spots[s][1]);
     n2.heading = 0; // 面向廣場（+z，鏡頭常用側）
     n2.carrying = false;
   }
-  for (var c5 = 27; c5 < 30; c5++) { npcs[c5].kind = 'courier'; npcs[c5].carrying = true; npcs[c5].carryGlow = true; }
+  for (var c5 = COURIER_BASE; c5 < COURIER_BASE + 3; c5++) { npcs[c5].kind = 'courier'; npcs[c5].carrying = true; npcs[c5].carryGlow = true; }
+  // 礦工 ×3：礦場採寶石 → 運到宮殿賣錢 → 走回礦場，永續循環
+  var mineSpots = [[-8.6, 16.9], [-5.2, 18.6], [-4.2, 16.6]];
+  for (var mi = 0; mi < 3; mi++) {
+    var nm = npcs[MINER_BASE + mi];
+    nm.kind = 'miner';
+    nm.carrying = false;
+    nm.mine = { phase: 'dig', t: mi * 2.4, spot: mineSpots[mi], express: null };
+    nm.pos.set(mineSpots[mi][0], 0.5, mineSpots[mi][1]);
+    nm.heading = Math.atan2(-6.5 - mineSpots[mi][0], 18.5 - mineSpots[mi][1]);
+    nm.targetScale = 1;
+  }
+  // 訪客 ×8：從導流入口走進宮殿參觀（人潮 ∝ 短影音播放量）
+  for (var vi = 0; vi < VISITOR_N; vi++) {
+    var nv = npcs[VISITOR_BASE + vi];
+    nv.kind = 'visitor';
+    nv.carrying = false;
+    nv.visit = { u: -1, wait: 2 + vi * 2.5 };
+  }
 
   // 假陰影
   npcParts.shadow = mk(new THREE.CircleGeometry(0.55, 12).rotateX(-Math.PI / 2), MAXN);
@@ -1286,7 +1363,7 @@ function buildStaff() {
   workerList = [];
   for (var s = 0; s < 5; s++) {
     var agent = merged[s];
-    var npc = npcs[22 + s];
+    var npc = npcs[STAFF_BASE + s];
     var name = agent ? agent.name : ['接單組', '包裝組', '收銀組', '客服組', '小幫手'][s];
     workerList.push({ name: name, rev: agent ? agent.rev : 1, npcSlot: 22 + s });
     npc.targetScale = 1;
@@ -1305,22 +1382,33 @@ function buildStaff() {
   }
   // 員工實際世界座標 = home + 宮殿前排（宮殿中心 z=-8、門在 z=-4）
   for (var s2 = 0; s2 < 5; s2++) {
-    var np2 = npcs[22 + s2];
+    var np2 = npcs[STAFF_BASE + s2];
     np2.pos.set(np2.homeX, 0.5, np2.homeZ - 8 + 6.5); // 門前廣場
   }
   // 名牌跟著實際位置
   var ti = 0;
   for (var s3 = 0; s3 < 5; s3++) {
-    if (ti < staffTags.length) { staffTags[ti].position.set(npcs[22 + s3].pos.x, 2.5, npcs[22 + s3].pos.z); ti++; }
-    if (s3 === 0 && merged[0] && ti < staffTags.length) { staffTags[ti].position.set(npcs[22 + s3].pos.x, 3.35, npcs[22 + s3].pos.z); ti++; }
+    if (ti < staffTags.length) { staffTags[ti].position.set(npcs[STAFF_BASE + s3].pos.x, 2.5, npcs[STAFF_BASE + s3].pos.z); ti++; }
+    if (s3 === 0 && merged[0] && ti < staffTags.length) { staffTags[ti].position.set(npcs[STAFF_BASE + s3].pos.x, 3.35, npcs[STAFF_BASE + s3].pos.z); ti++; }
   }
 }
 
-var censusTarget = 22;
+var censusTarget = 26;
 function updateCensus(hour) {
-  var t = (hour >= 8 && hour < 19) ? (LITE ? 10 : 22) : (hour >= 19 || hour < 1) ? (LITE ? 8 : 16) : (LITE ? 3 : 5);
+  var t = (hour >= 8 && hour < 19) ? (LITE ? 12 : 26) : (hour >= 19 || hour < 1) ? (LITE ? 9 : 18) : (LITE ? 3 : 5);
   censusTarget = t;
-  for (var i = 0; i < 22; i++) npcs[i].targetScale = i < t ? 1 : 0;
+  for (var i = 0; i < WALKER_N; i++) npcs[i].targetScale = i < t ? 1 : 0;
+  // 深夜礦工也休息
+  var minersOn = !(hour >= 1 && hour < 8);
+  for (var m2 = MINER_BASE; m2 < MINER_BASE + 3; m2++) npcs[m2].targetScale = minersOn ? 1 : 0;
+}
+
+// 參觀人潮 ∝ 短影音播放量（renderMeta 更新 visitorRate）
+var visitorRate = 2;      // 人 / 分鐘
+var visitorGateOpen = true;
+function visitorRespawnDelay(i) {
+  var d = Math.max(1.5, 60 / Math.max(visitorRate, 0.3) - 16);
+  return d * (0.6 + ((i * 37) % 100) / 125); // 依序錯開
 }
 
 function updateNPCs(dt) {
@@ -1331,16 +1419,27 @@ function updateNPCs(dt) {
     n.scale += (n.targetScale - n.scale) * Math.min(1, dt * 1.6);
     var active = n.scale > 0.02;
     if (!active) {
+      // 訪客在後台倒數，時間到就從導流入口進場
+      if (n.kind === 'visitor' && n.visit && n.visit.u < 0) {
+        n.visit.wait -= dt;
+        if (n.visit.wait <= 0 && visitorGateOpen) {
+          n.visit.u = 0;
+          visitorCurve.getPointAt(0, n.pos);
+          n.targetScale = 1; n.scale = 0.3;
+        }
+      }
       if (n.wasActive) { hideNPC(i); n.wasActive = false; }
       continue;
     }
     n.wasActive = true;
 
+    var moving = false;
     if (n.kind === 'walker') {
       n.u = (n.u + n.dir * n.speed * dt + 1) % 1;
       PATHS[n.pathIdx].getPointAt(n.u, n.pos);
       PATHS[n.pathIdx].getTangentAt(n.u, _v2);
       n.heading = Math.atan2(_v2.x * n.dir, _v2.z * n.dir);
+      moving = true;
     } else if (n.kind === 'staff') {
       // 原地小晃 + 接單跳躍
       if (n.jumpT < 1.5) n.jumpT += dt;
@@ -1351,11 +1450,64 @@ function updateNPCs(dt) {
         courierCurve.getPointAt(Math.min(n.courierT, 1), n.pos);
         courierCurve.getTangentAt(Math.min(n.courierT, 1), _v2);
         n.heading = Math.atan2(_v2.x, _v2.z);
+        moving = true;
+      }
+    } else if (n.kind === 'miner') {
+      var M = n.mine;
+      M.t += dt;
+      if (M.phase === 'dig') {
+        if (M.express || M.t > 6.5 + (i - MINER_BASE) * 2.2) { M.phase = 'toShop'; M.t = 0; n.carryGem = true; }
+      } else if (M.phase === 'toShop') {
+        var mDur = (M.express ? 6 : 9.5) / (DEMO ? 2 : 1);
+        var mk1 = Math.min(M.t / mDur, 1);
+        minerCurve.getPointAt(mk1, n.pos);
+        minerCurve.getTangentAt(mk1, _v2);
+        n.heading = Math.atan2(_v2.x, _v2.z);
+        moving = true;
+        if (mk1 >= 1) { M.phase = 'sell'; M.t = 0; }
+      } else if (M.phase === 'sell') {
+        if (M.t > 1.2) {
+          n.carryGem = false;
+          if (M.express) {
+            popupAt(1.4, 3.6, -2.4, '+' + fmt(M.express.amount), null);
+            burstCoins(1.4, 1.2, -2.4, 22);
+            M.express = null;
+          } else {
+            burstCoins(1.4, 1, -2.4, 5); // 日常賣礦小金幣
+          }
+          M.phase = 'back'; M.t = 0;
+        }
+      } else { // back：走回礦場
+        var bDur = 9.5 / (DEMO ? 2 : 1);
+        var mk2 = Math.min(M.t / bDur, 1);
+        minerCurve.getPointAt(1 - mk2, n.pos);
+        minerCurve.getTangentAt(1 - mk2, _v2);
+        n.heading = Math.atan2(-_v2.x, -_v2.z);
+        moving = true;
+        if (mk2 >= 1) {
+          M.phase = 'dig'; M.t = 0;
+          n.pos.set(M.spot[0], 0.5, M.spot[1]);
+          n.heading = Math.atan2(-6.5 - M.spot[0], 18.5 - M.spot[1]);
+        }
+      }
+    } else if (n.kind === 'visitor') {
+      var V = n.visit;
+      if (V.u < 0) {
+        V.wait -= dt;
+        if (V.wait <= 0 && visitorGateOpen) { V.u = 0; n.targetScale = 1; n.scale = Math.max(n.scale, 0.3); }
+      } else {
+        V.u += dt / (16 / (DEMO ? 2 : 1));
+        var vk = Math.min(V.u, 1);
+        visitorCurve.getPointAt(vk, n.pos);
+        visitorCurve.getTangentAt(vk, _v2);
+        n.heading = Math.atan2(_v2.x, _v2.z);
+        moving = true;
+        if (V.u >= 0.94) n.targetScale = 0; // 走進宮殿淡出
+        if (V.u >= 1 || (V.u >= 0.94 && n.scale < 0.06)) { V.u = -1; V.wait = visitorRespawnDelay(i); n.targetScale = 0; }
       }
     }
 
     var wt = et * 8 + n.phase;
-    var moving = n.kind === 'walker' || (n.kind === 'courier' && n.courierT !== undefined);
     var bob = moving ? 0.07 * Math.abs(Math.sin(wt)) : 0.04 * Math.sin(et * 2 + n.phase);
     var jump = 0;
     if (n.kind === 'staff' && n.jumpT < 1.5) jump = 1.1 * Math.abs(Math.sin(n.jumpT / 1.5 * Math.PI * 3));
@@ -1379,7 +1531,7 @@ function updateNPCs(dt) {
     var hswing = moving ? 0.14 * Math.sin(wt) : 0;
     for (var h2 = 0; h2 < 2; h2++) {
       var side = h2 === 0 ? -1 : 1;
-      if (n.carrying) _v.set(side * 0.2, 0.82, 0.4);
+      if (n.carrying || n.carryGem) _v.set(side * 0.2, 0.82, 0.4);
       else _v.set(side * 0.5, 0.7, hswing * side);
       _v.multiplyScalar(n.scale).applyAxisAngle(UP, n.heading);
       _v.add(_v2.set(n.pos.x, y, n.pos.z));
@@ -1407,6 +1559,29 @@ function updateNPCs(dt) {
       _m.compose(_v.set(0, -99, 0), _q.identity(), _s.set(0.001, 0.001, 0.001));
       npcParts.gift.setMatrixAt(i, _m);
     }
+    // 發光寶石（礦工搬運，微脈動旋轉）
+    if (n.carryGem) {
+      _v.set(0, 1.05, 0.5).multiplyScalar(n.scale).applyAxisAngle(UP, n.heading).add(_v2.set(n.pos.x, y, n.pos.z));
+      var gp = n.scale * (1 + 0.12 * Math.sin(et * 6));
+      _e.set(0, et * 2, 0); _q.setFromEuler(_e);
+      _m.compose(_v, _q, _s.set(gp, gp * 1.4, gp));
+      npcParts.gem.setMatrixAt(i, _m);
+    } else {
+      _m.compose(_v.set(0, -99, 0), _q.identity(), _s.set(0.001, 0.001, 0.001));
+      npcParts.gem.setMatrixAt(i, _m);
+    }
+    // 十字鎬（礦工；挖礦時揮動）
+    if (n.kind === 'miner' && !n.carryGem) {
+      var digging = n.mine.phase === 'dig';
+      var swing = digging ? (-1.15 + Math.abs(Math.sin(et * 5 + n.phase)) * 1.7) : 0.6;
+      _e.set(swing, n.heading, 0); _q.setFromEuler(_e);
+      _v.set(0.5, 0.85, 0.12).multiplyScalar(n.scale).applyAxisAngle(UP, n.heading).add(_v2.set(n.pos.x, y, n.pos.z));
+      _m.compose(_v, _q, _s.set(n.scale, n.scale, n.scale));
+      npcParts.pick.setMatrixAt(i, _m);
+    } else {
+      _m.compose(_v.set(0, -99, 0), _q.identity(), _s.set(0.001, 0.001, 0.001));
+      npcParts.pick.setMatrixAt(i, _m);
+    }
     // 陰影
     _m.compose(_v.set(n.pos.x, 0.52, n.pos.z), _q.identity(), _s.set(n.scale, 1, n.scale));
     npcParts.shadow.setMatrixAt(i, _m);
@@ -1422,11 +1597,23 @@ function hideNPC(i) {
   npcParts.hand.setMatrixAt(i * 2, _m); npcParts.hand.setMatrixAt(i * 2 + 1, _m);
   npcParts.foot.setMatrixAt(i * 2, _m); npcParts.foot.setMatrixAt(i * 2 + 1, _m);
   npcParts.gift.setMatrixAt(i, _m);
+  npcParts.gem.setMatrixAt(i, _m);
+  npcParts.pick.setMatrixAt(i, _m);
   npcParts.shadow.setMatrixAt(i, _m);
 }
 var courierCurve = new THREE.CatmullRomCurve3([
   new THREE.Vector3(2, 0.5, -3.5), new THREE.Vector3(6, 0.5, -0.5),
   new THREE.Vector3(9.5, 0.5, 4), new THREE.Vector3(13, 0.5, 10)
+], false, 'catmullrom', 0.4);
+// 礦場 → 宮殿門（賣錢路線）
+var minerCurve = new THREE.CatmullRomCurve3([
+  new THREE.Vector3(-6, 0.5, 17.5), new THREE.Vector3(-4.5, 0.5, 11),
+  new THREE.Vector3(-2, 0.5, 4), new THREE.Vector3(1.4, 0.5, -2.4)
+], false, 'catmullrom', 0.4);
+// 導流入口 → 宮殿門（參觀路線）
+var visitorCurve = new THREE.CatmullRomCurve3([
+  new THREE.Vector3(22, 0.5, 14), new THREE.Vector3(15, 0.5, 11),
+  new THREE.Vector3(8, 0.5, 5), new THREE.Vector3(3, 0.5, 0.5), new THREE.Vector3(-1.4, 0.5, -2.6)
 ], false, 'catmullrom', 0.4);
 
 /* ═══════════════ 10. 粒子 ═══════════════ */
@@ -1437,6 +1624,7 @@ var orbPts, orbData;
 var balloonInst, balloonData;
 var launchBalloons = [];
 var birdInst, birdData, bflyInst, bflyData;
+var bunnyInst, bunnyData = [];
 var airships = [];
 
 function buildParticles() {
@@ -1518,41 +1706,69 @@ function buildCritters() {
     new THREE.CylinderGeometry(0.02, 0.02, 1.6, 4).translate(0, -1.6, 0).toNonIndexed(),
     new THREE.BoxGeometry(0.55, 0.45, 0.55).translate(0, -2.6, 0).toNonIndexed()
   ]);
-  balloonInst = new THREE.InstancedMesh(balloonGeo, toonMat(0xffffff), 9);
+  balloonInst = new THREE.InstancedMesh(balloonGeo, toonMat(0xffffff), 12);
   balloonData = [];
   var brng = mulberry32(31);
   var bcols = [0xE58BA4, 0x9FD8D4, 0xF2D377, 0xCBB3E6, 0xA8CDF0, 0xF5B48A];
-  for (var b = 0; b < 9; b++) {
+  for (var b = 0; b < 12; b++) {
     balloonInst.setColorAt(b, _c.set(bcols[b % 6]));
-    if (b < 6) {
+    if (b < 8) {
       balloonData.push({ kind: 'drift', x: (brng() - 0.5) * 110, y: 17 + brng() * 10, z: (brng() - 0.5) * 110, vx: 0.6 + brng() * 0.7, ph: brng() * 6.28 });
     } else {
       balloonData.push({ kind: 'launch', active: false, x: 0, y: -99, z: 0, t: 0 });
     }
   }
+  balloonInst.frustumCulled = false;
   scene.add(balloonInst);
 
   // 鳥
-  if (!LITE) {
+  var N_BIRD = LITE ? 5 : 12, N_BFLY = LITE ? 6 : 14;
+  if (!LITE || true) {
     var birdGeo = mergeGeometries([
       new THREE.ConeGeometry(0.16, 1.1, 4).rotateZ(Math.PI / 2).translate(-0.5, 0, 0).toNonIndexed(),
       new THREE.ConeGeometry(0.16, 1.1, 4).rotateZ(-Math.PI / 2).translate(0.5, 0, 0).toNonIndexed()
     ]);
-    birdInst = new THREE.InstancedMesh(birdGeo, toonMat(0xF5EFE4), 8);
+    birdInst = new THREE.InstancedMesh(birdGeo, toonMat(0xF5EFE4), N_BIRD);
+    birdInst.frustumCulled = false;
     birdData = [];
-    for (var bd = 0; bd < 8; bd++) birdData.push({ r: 40 + (bd % 4) * 5, y: 14 + (bd % 3) * 3, ph: bd * 0.8, sp: 0.1 + (bd % 3) * 0.03 });
+    for (var bd = 0; bd < N_BIRD; bd++) birdData.push({ r: 34 + (bd % 5) * 5, y: 12 + (bd % 4) * 3, ph: bd * 0.62, sp: 0.09 + (bd % 3) * 0.035 });
     scene.add(birdInst);
     // 蝴蝶
-    bflyInst = new THREE.InstancedMesh(birdGeo, toonMat(0xF2D377), 10);
+    bflyInst = new THREE.InstancedMesh(birdGeo, toonMat(0xF2D377), N_BFLY);
+    bflyInst.frustumCulled = false;
     bflyData = [];
     var frng = mulberry32(41);
-    for (var bf = 0; bf < 10; bf++) {
+    for (var bf = 0; bf < N_BFLY; bf++) {
       var spot = ringSpot(8, 30, []) || { x: 12, z: 12 };
       bflyData.push({ cx: spot.x, cz: spot.z, ph: frng() * 6.28, s1: 0.7 + frng() * 0.7, s2: 0.5 + frng() * 0.9 });
       bflyInst.setColorAt(bf, _c.set([0xF2D377, 0xE88CA3, 0xCBB3E6, 0xA8CDF0][bf % 4]));
     }
     scene.add(bflyInst);
   }
+
+  // 兔子（動物 = 短影音人氣；在花圃與導流入口附近蹦跳）
+  var N_BUNNY = LITE ? 5 : 12;
+  var bunnyGeo = mergeGeometries([
+    new THREE.SphereGeometry(0.28, 9, 7).scale(1, 0.82, 1.2).toNonIndexed(),                      // 身體
+    new THREE.SphereGeometry(0.19, 9, 7).translate(0, 0.2, 0.26).toNonIndexed(),                  // 頭
+    new THREE.CapsuleGeometry(0.05, 0.24, 3, 6).rotateX(-0.25).translate(-0.08, 0.5, 0.2).toNonIndexed(), // 耳
+    new THREE.CapsuleGeometry(0.05, 0.24, 3, 6).rotateX(-0.1).rotateZ(0.2).translate(0.09, 0.5, 0.22).toNonIndexed(),
+    new THREE.SphereGeometry(0.09, 6, 5).translate(0, 0.02, -0.32).toNonIndexed()                 // 尾巴
+  ]);
+  bunnyInst = new THREE.InstancedMesh(bunnyGeo, toonMat(0xffffff), N_BUNNY);
+  bunnyInst.frustumCulled = false;
+  bunnyData = [];
+  var brng2 = mulberry32(88);
+  var bunnyCols = [0xF5EFE4, 0xE8D9C4, 0xC9B29A, 0xF2D8DC, 0xDADFE8];
+  for (var bn = 0; bn < N_BUNNY; bn++) {
+    // 一半聚在導流入口沿線（吸引訪客），一半在花圃
+    var home = bn % 2 === 0
+      ? { x: 16 + brng2() * 8, z: 9 + brng2() * 7 }
+      : (ringSpot(8, 28, EXCLUDE) || { x: -12, z: 6 });
+    bunnyData.push({ x: home.x, z: home.z, a: brng2() * 6.28, ph: brng2() * 6.28, sp: 0.25 + brng2() * 0.3, r: 1.5 + brng2() * 2.5 });
+    bunnyInst.setColorAt(bn, _c.set(bunnyCols[bn % 5]));
+  }
+  scene.add(bunnyInst);
 
   // 小飛船 ×2
   var shipRoutes = [
@@ -1607,7 +1823,7 @@ function firework(x, y, z, hex) {
   }
 }
 function launchBalloon(x, y, z) {
-  for (var b = 6; b < 9; b++) {
+  for (var b = 8; b < 12; b++) {
     if (!balloonData[b].active && balloonData[b].kind === 'launch') {
       balloonData[b].active = true;
       balloonData[b].x = x; balloonData[b].y = y + 2.8; balloonData[b].z = z;
@@ -1676,7 +1892,7 @@ function updateParticles(dt) {
   oa.needsUpdate = true;
 
   // 氣球
-  for (var b2 = 0; b2 < 9; b2++) {
+  for (var b2 = 0; b2 < 12; b2++) {
     var bd2 = balloonData[b2];
     if (bd2.kind === 'drift') {
       bd2.x += bd2.vx * dt;
@@ -1702,7 +1918,7 @@ function updateParticles(dt) {
 
   // 鳥 / 蝴蝶
   if (birdInst) {
-    for (var bd3 = 0; bd3 < 8; bd3++) {
+    for (var bd3 = 0; bd3 < birdData.length; bd3++) {
       var B = birdData[bd3];
       var ba = et * B.sp + B.ph;
       var flap = 0.5 + 0.5 * Math.abs(Math.sin(et * 7 + B.ph));
@@ -1711,7 +1927,7 @@ function updateParticles(dt) {
       birdInst.setMatrixAt(bd3, _m);
     }
     birdInst.instanceMatrix.needsUpdate = true;
-    for (var bf2 = 0; bf2 < 10; bf2++) {
+    for (var bf2 = 0; bf2 < bflyData.length; bf2++) {
       var F = bflyData[bf2];
       var flap2 = 0.4 + 0.6 * Math.abs(Math.sin(et * 11 + F.ph));
       _q.setFromAxisAngle(UP, et * 0.8 + F.ph);
@@ -1719,6 +1935,22 @@ function updateParticles(dt) {
       bflyInst.setMatrixAt(bf2, _m);
     }
     bflyInst.instanceMatrix.needsUpdate = true;
+  }
+
+  // 兔子：繞著家附近蹦跳，偶爾坐下休息
+  if (bunnyInst) {
+    for (var bn2 = 0; bn2 < bunnyData.length; bn2++) {
+      var BY = bunnyData[bn2];
+      var go = Math.sin(et * 0.35 + BY.ph) > -0.25;
+      if (go) BY.a += dt * BY.sp;
+      var bx = BY.x + Math.cos(BY.a) * BY.r;
+      var bz = BY.z + Math.sin(BY.a) * BY.r;
+      var hop = go ? Math.max(0, Math.sin(et * 5 + BY.ph)) * 0.32 : 0;
+      _q.setFromAxisAngle(UP, -BY.a);
+      _m.compose(_v.set(bx, 0.6 + hop, bz), _q, _s.set(1, 1, 1));
+      bunnyInst.setMatrixAt(bn2, _m);
+    }
+    bunnyInst.instanceMatrix.needsUpdate = true;
   }
 
   // 飛船
@@ -1786,6 +2018,7 @@ function updateParticles(dt) {
 /* ═══════════════ 11. 事件編排 ═══════════════ */
 var doorPulseT = 99, doorBaseOpacity = 0.35;
 var workingTimers = [];
+var evToggle = false;
 function fireEvent(ev) {
   if (!world.ok) return;
   var wk = workerList[ev.worker];
@@ -1796,25 +2029,40 @@ function fireEvent(ev) {
     npc.jumpT = 0;
     popupAt(npc.pos.x, npc.pos.y + 2.6, npc.pos.z, '新訂單 ✦ ' + ev.product, fmt(ev.amount));
   }
-  // 快遞員：門口 → 發射台
-  workingTimers.push(setTimeout(function () {
-    for (var c8 = 27; c8 < 30; c8++) {
-      if (npcs[c8].courierT === undefined && npcs[c8].targetScale === 0) {
-        npcs[c8].courierT = 0;
-        npcs[c8].courierDur = 5 / tScale;
-        npcs[c8].targetScale = 1;
-        npcs[c8].scale = 0.6;
+  // 交替演出：快遞氣球出貨 ↔ 礦工快送寶石進宮賣錢
+  evToggle = !evToggle;
+  var expressMiner = null;
+  if (!evToggle) {
+    for (var m3 = MINER_BASE; m3 < MINER_BASE + 3; m3++) {
+      if (npcs[m3].mine && npcs[m3].mine.phase === 'dig' && !npcs[m3].mine.express && npcs[m3].targetScale > 0) {
+        expressMiner = npcs[m3];
         break;
       }
     }
-  }, 800 / tScale));
-  // 到達發射台：氣球升空 + 金幣 + 飄字 + 禮盒上架
-  workingTimers.push(setTimeout(function () {
-    launchBalloon(13, 0.4, 10);
-    burstCoins(13, 1.2, 10, 24);
-    popupAt(13, 4.2, 10, '+' + fmt(ev.amount), null);
-    world.setBoxCount(Math.min(dockShown + 1, 12));
-  }, 6000 / tScale));
+  }
+  if (expressMiner) {
+    expressMiner.mine.express = ev; // 立即帶著發光寶石出發，抵達宮殿時 +NT$ + 金幣
+  } else {
+    // 快遞員：門口 → 發射台
+    workingTimers.push(setTimeout(function () {
+      for (var c8 = COURIER_BASE; c8 < COURIER_BASE + 3; c8++) {
+        if (npcs[c8].courierT === undefined && npcs[c8].targetScale === 0) {
+          npcs[c8].courierT = 0;
+          npcs[c8].courierDur = 5 / tScale;
+          npcs[c8].targetScale = 1;
+          npcs[c8].scale = 0.6;
+          break;
+        }
+      }
+    }, 800 / tScale));
+    // 到達發射台：氣球升空 + 金幣 + 飄字 + 禮盒上架
+    workingTimers.push(setTimeout(function () {
+      launchBalloon(13, 0.4, 10);
+      burstCoins(13, 1.2, 10, 24);
+      popupAt(13, 4.2, 10, '+' + fmt(ev.amount), null);
+      world.setBoxCount(Math.min(dockShown + 1, 12));
+    }, 6000 / tScale));
+  }
   if (workingTimers.length > 60) workingTimers.splice(0, 30);
   requestFly('order');
 }
@@ -1969,8 +2217,8 @@ var SKY = [
   { h: 4.5,  top: '#141230', bot: '#241a3a' },
   { h: 6,    top: '#3a2a55', bot: '#c96a7e' },
   { h: 7.5,  top: '#7e9cc9', bot: '#f3d9b0' },
-  { h: 10,   top: '#8ECBEE', bot: '#dcd3e8' },
-  { h: 15.5, top: '#8ECBEE', bot: '#dcd3e8' },
+  { h: 10,   top: '#6FC2F5', bot: '#EAF3F9' },
+  { h: 15.5, top: '#6FC2F5', bot: '#EAF3F9' },
   { h: 17,   top: '#c98a6a', bot: '#e8b891' },
   { h: 18,   top: '#8a4a6a', bot: '#e88a6a' },
   { h: 20,   top: '#1c1840', bot: '#3a2a55' },
@@ -2010,10 +2258,10 @@ function updateAmbience(t) {
 
   // 燈光強度
   var dayF = clamp(Math.sin(sunTh), 0, 1);
-  sunLight.intensity = 0.25 + dayF * 0.95;
+  sunLight.intensity = 0.25 + dayF * 1.25; // 白天陽光更燦爛
   sunLight.position.copy(sunMesh.visible ? sunMesh.position : moonMesh.position);
-  sunLight.color.set(sunMesh.visible ? 0xFFF2D8 : 0x8FA3D8);
-  hemiLight.intensity = 0.45 + dayF * 0.5;
+  sunLight.color.set(sunMesh.visible ? 0xFFF6E0 : 0x8FA3D8);
+  hemiLight.intensity = 0.5 + dayF * 0.6;
   hemiLight.color.set(lerpColor('#3E436B', '#BFE3FF', dayF));
 
   var nightF = clamp(1 - dayF * 1.6, 0, 1);
@@ -2023,8 +2271,9 @@ function updateAmbience(t) {
   shopLight.intensity = isNightHours ? 2.2 : 0;
   stars.material.opacity = nightF * 0.95;
 
-  // 深夜 Zzz + 人口
+  // 深夜 Zzz + 人口 + 訪客入口
   var deepNight = hour >= 1 && hour < 8;
+  visitorGateOpen = !deepNight;
   for (var z2 = 0; z2 < zzzSprites.length; z2++) {
     zzzSprites[z2].material.opacity = deepNight ? 0.5 + 0.4 * Math.sin(et * 1.5 + z2) : 0;
     if (deepNight) zzzSprites[z2].position.y = 4.6 + 0.3 * Math.sin(et * 0.8 + z2);
@@ -2216,7 +2465,7 @@ window.__world = {
       geometries: world.ok ? renderer.info.memory.geometries : 0,
       textures: world.ok ? renderer.info.memory.textures : 0,
       activeNPCs: act,
-      staff0: npcs[22] ? { s: +npcs[22].scale.toFixed(2), ts: npcs[22].targetScale, x: +npcs[22].pos.x.toFixed(1), z: +npcs[22].pos.z.toFixed(1) } : null,
+      staff0: npcs[STAFF_BASE] ? { s: +npcs[STAFF_BASE].scale.toFixed(2), ts: npcs[STAFF_BASE].targetScale, x: +npcs[STAFF_BASE].pos.x.toFixed(1), z: +npcs[STAFF_BASE].pos.z.toFixed(1) } : null,
       bodyM: Array.from(m22.elements.slice(12, 15)).map(function (x) { return +x.toFixed(1); })
     };
   }
