@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   ═══════════════════════════════════════════════════════════════
-   TZG 即時儀表板 —「水晶奇幻都市」3D 互動小城鎮  live.html (v5)
+   TZG 即時儀表板 —「埃及珠寶礦場」3D 互動小城鎮  live.html (v6)
   ═══════════════════════════════════════════════════════════════
    ▸ 純前端、零後端。Three.js 由 jsdelivr CDN 載入（importmap），
      所有幾何程序化生成，不用外部模型/貼圖。
@@ -16,6 +16,7 @@
        ?hour=20   時鐘跳到今天 20:00      ?time=2026-07-15T20:30
        ?demo=1    內建範例資料 + 60 倍速   ?lite=1  低階裝置模式
        ?debug=1   顯示 fps / draw calls HUD
+       ?shot=0..10&k=0..1  固定鏡位（v6 共 11 個鏡位）
   ═══════════════════════════════════════════════════════════════
 -->
 <html lang="zh-TW">
@@ -449,6 +450,23 @@ function loadMeta() {
     .catch(function () { /* 巨幕維持前次內容 */ });
 }
 
+// 年度目標（annual_plan.json 各月加總；抓不到就只顯示年累計不顯示 %）
+function loadAnnualPlan() {
+  if (DEMO) { world.annualTarget = 54000000; if (D) rebuildDistricts(); return; }
+  fetch('annual_plan.json?_live=' + Date.now(), { cache: 'no-store' })
+    .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(function (ap) {
+      var sum = 0, mo = (ap && ap.monthly) || {};
+      var yr = new Date().getFullYear();
+      for (var m6 = 1; m6 <= 12; m6++) {
+        var key = yr + '-' + (m6 < 10 ? '0' : '') + m6;
+        sum += +mo[key] || +ap._default_monthly || 0;
+      }
+      if (sum > 0) { world.annualTarget = sum; if (D) rebuildDistricts(); }
+    })
+    .catch(function () { /* 水位塔只顯示年累計 */ });
+}
+
 /* ═══════════════ 4. 模擬引擎（決定性） ═══════════════ */
 var sim = { events: [], dayStart: 0, simStartMs: 0, realTodayRev: 0, realTodayOrders: 0, dailyTarget: 150000 };
 var lastTickMs = -1;
@@ -546,12 +564,14 @@ var et = 0; // 場景經過秒數（動畫用，自由流動）
 
 var PAL = {
   rose: 0xD4456A, gold: 0xC9A961, cream: 0xF5EFE4,
-  grass: 0x8CC77B, grassD: 0x6FAF63, cliff: 0xC4A184, cliffD: 0x9C7B5F,
-  path: 0xE8D9B8, wood: 0xB98A5F, roofRose: 0xE58BA4,
+  // 埃及沙漠地表（原草地 → 暖沙）
+  grass: 0xEED9A4, grassD: 0xDFC68C, cliff: 0xD4A97C, cliffD: 0xAD8258,
+  path: 0xF4E9CB, wood: 0xB98A5F, roofRose: 0xE58BA4,
+  sandstone: 0xE8CFA0, sandstoneD: 0xC9A97A, terracotta: 0xD98F6A,
   crystalPink: 0xE88CA3, crystalLight: 0xF2A9C0,
   lampWarm: 0xFFDF9E,
-  water: 0x9FE0E8, stone: 0xD8D2C8, sail: 0xF7F2E6,
-  treeGreens: [0x7DBB6E, 0x96CE84, 0xB9E08F],
+  water: 0x9FE0E8, stone: 0xE3D8C0, sail: 0xF7F2E6,
+  treeGreens: [0x8FBB6E, 0xA5CE84, 0xC2E08F], // 綠洲樹（偏橄欖）
   roofs: [0xE58BA4, 0x9FD8D4, 0xF2D377, 0xCBB3E6, 0xA8CDF0, 0xF5B48A],
   clothes: [0xE58BA4, 0x9FD8D4, 0xF2D377, 0xCBB3E6, 0xA8CDF0, 0xF5B48A, 0xC9A961, 0x8FCF9F, 0xE8A0B0, 0xB0C4E8],
   hairs: [0x42303A, 0x6B4A35, 0x8A6248, 0x2E2A38, 0xA88250, 0x53422E],
@@ -630,6 +650,70 @@ function glowSprite(hexStr, size) {
 }
 
 var hemiLight, sunLight, shopLight, moonMesh, sunMesh;
+
+/* ── v6 可搖晃物件系統：instanced 家族 + 註冊表 ──
+   幾乎所有建物/小物都拆成 InstancedMesh 家族（每家族 1 draw call），
+   點擊 → 依 (mesh, instanceId) 查表 → 衰減震盪該實例矩陣。 */
+var wobbles = [];        // {kind, t, parts:[{im, idx, x,y,z, yaw, sx,sy,sz}]}
+var wobMap = new Map();  // im.uuid + ':' + idx → wobbles 項
+var meshWob = [];        // 獨立 mesh/群組搖晃 {obj, t, baseRZ, baseRX}
+var clickTargets = [];   // 點擊偵測用 instanced 家族
+function famMesh(geo, mat, count, clickable) {
+  var im = new THREE.InstancedMesh(geo, mat, count);
+  im.frustumCulled = false;
+  scene.add(im);
+  if (clickable !== false) clickTargets.push(im);
+  return im;
+}
+function partMatrix(p, ax, az, squash) {
+  _e.set(ax || 0, p.yaw || 0, az || 0);
+  _q.setFromEuler(_e);
+  var sy = (p.sy || 1) * (1 + (squash || 0));
+  _m.compose(_v.set(p.x, p.y, p.z), _q, _s.set(p.sx || 1, sy, p.sz || 1));
+  return _m;
+}
+function regWob(kind, parts) {
+  var w = { kind: kind, t: 99, parts: parts };
+  parts.forEach(function (p) {
+    p.im.setMatrixAt(p.idx, partMatrix(p, 0, 0, 0));
+    wobMap.set(p.im.uuid + ':' + p.idx, w);
+  });
+  wobbles.push(w);
+  return w;
+}
+function pokeWob(w) {
+  if (w.t > 1.5) w.t = 0;
+  var p0 = w.parts[0];
+  spawnDust(p0.x, p0.y + 0.6, p0.z, 8);
+  popupAt(p0.x, p0.y + 2.6 * (p0.sy || 1) + 1.2, p0.z, ['❗', '✦', '!?'][(Math.random() * 3) | 0], null);
+  Music.sfx(w.kind === 'pot' || w.kind === 'crate' ? 'pop' : 'thud');
+}
+function updateWobbles(dt) {
+  var dirty = null;
+  for (var i = 0; i < wobbles.length; i++) {
+    var w = wobbles[i];
+    if (w.t > 1.5) continue;
+    w.t += dt;
+    var amp = w.t >= 1.4 ? 0 : Math.sin(w.t * 22) * 0.16 * (1 - w.t / 1.4);
+    if (w.t >= 1.4) w.t = 99;
+    dirty = dirty || new Set();
+    for (var j = 0; j < w.parts.length; j++) {
+      var p = w.parts[j];
+      p.im.setMatrixAt(p.idx, partMatrix(p, amp * 0.5, amp, Math.abs(amp) * 0.35));
+      dirty.add(p.im);
+    }
+  }
+  if (dirty) dirty.forEach(function (im) { im.instanceMatrix.needsUpdate = true; });
+  for (var m5 = 0; m5 < meshWob.length; m5++) {
+    var MW = meshWob[m5];
+    if (MW.t > 1.5) continue;
+    MW.t += dt;
+    var amp2 = MW.t >= 1.4 ? 0 : Math.sin(MW.t * 20) * 0.05 * (1 - MW.t / 1.4);
+    if (MW.t >= 1.4) MW.t = 99;
+    MW.obj.rotation.z = MW.baseRZ + amp2;
+    MW.obj.rotation.x = MW.baseRX + amp2 * 0.5;
+  }
+}
 
 function initWorld() {
   try {
@@ -806,7 +890,9 @@ var EXCLUDE = [
   { x: 7, z: -19, r: 3.5 },   // 禮盒架
   { x: 40, z: 18, r: 3 },     // 導流招牌
   { x: 19, z: -25, r: 2.5 },  // 礦場招牌
-  { x: -30, z: -32, r: 4 }    // 風車
+  { x: -30, z: -32, r: 4 },   // 風車
+  { x: -46, z: -4, r: 4 }, { x: -42, z: -11, r: 4 }, { x: -36, z: -17, r: 4 }, { x: -30, z: -21, r: 4 }, // 四季金字塔
+  { x: -16, z: 38, r: 3 }     // 年度水位塔
 ];
 
 function buildTerrain() {
@@ -847,8 +933,8 @@ function buildTerrain() {
   scene.add(island);
   islandGeo.dispose(); streets.forEach(function (g) { g.dispose(); });
 
-  // 樹（樹幹 + 三球樹冠 instanced）
-  var treeN = LITE ? 20 : 40;
+  // 綠洲樹（樹幹 + 三球樹冠 instanced；沙漠中的少數綠意）
+  var treeN = LITE ? 12 : 22;
   var trunkGeo = new THREE.CylinderGeometry(0.35, 0.5, 1.6, 7);
   var canopyGeo = mergeGeometries([
     new THREE.SphereGeometry(1.25, 10, 8).translate(0, 0, 0),
@@ -859,10 +945,20 @@ function buildTerrain() {
   var canopies = new THREE.InstancedMesh(canopyGeo, toonMat(0xffffff), treeN);
   treeCanopies = canopies; treeTrunks = trunks;
   for (var t = 0; t < treeN; t++) {
-    var spot = ellipseSpot(0.3, 0.92, EXCLUDE) || { x: 20 + t, z: -34 };
-    var sc = 0.9 + scRng() * 0.9;
+    var spot = null;
+    for (var tTry = 0; tTry < 8 && !spot; tTry++) {
+      var cand = ellipseSpot(0.3, 0.92, EXCLUDE);
+      if (!cand) break;
+      // 讓開大道與市集街走廊（樹冠不再貼鏡頭）
+      var inBlvd = Math.abs(cand.x) < 10 && cand.z > 0 && cand.z < 40;
+      var inShopSt = cand.x > 7 && cand.x < 42 && cand.z > 7 && cand.z < 21;
+      if (!inBlvd && !inShopSt) spot = cand;
+    }
+    if (!spot) spot = { x: 20 + t, z: -38 };
+    var sc = 0.8 + scRng() * 0.6;
     var yawT = scRng() * 6.28;
     treeData.push({ x: spot.x, z: spot.z, sc: sc, yaw: yawT, shakeT: 99 });
+    CAM_BLOCKERS.push({ x: spot.x, z: spot.z, r: 1.7 * sc, h: 3.6 * sc });
     _m.compose(_v.set(spot.x, 0.8 * sc + 0.4, spot.z), _q.identity(), _s.set(sc, sc, sc));
     trunks.setMatrixAt(t, _m);
     _m.compose(_v.set(spot.x, 2.2 * sc + 0.4, spot.z), _q.setFromAxisAngle(UP, yawT), _s.set(sc, sc, sc));
@@ -871,19 +967,41 @@ function buildTerrain() {
   }
   scene.add(trunks); scene.add(canopies);
 
-  // 花
+  // 寶石砂苗（沙地裡冒出的小水晶簇，取代花田）
   var flN = LITE ? 80 : 220;
-  var flowers = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.16, 0), toonMat(0xffffff), flN);
+  var flowers = new THREE.InstancedMesh(
+    new THREE.OctahedronGeometry(0.15, 0).applyMatrix4(new THREE.Matrix4().makeScale(1, 1.7, 1)),
+    toonMat(0xffffff), flN);
   var patches = [];
   for (var p = 0; p < 12; p++) patches.push(ellipseSpot(0.15, 0.8, EXCLUDE) || { x: 10 + p * 2, z: -30 });
-  var fPal = [0xF2A9C0, 0xF2D377, 0xCBB3E6, 0xFFFFFF, 0xF5B48A];
+  var fPal = [0xF2A9C0, 0xF2D377, 0xCBB3E6, 0xA8E0F0, 0xF5EFFA];
   for (var f = 0; f < flN; f++) {
     var pc = patches[f % 12];
-    _m.compose(_v.set(pc.x + (scRng() - 0.5) * 4.5, 0.5, pc.z + (scRng() - 0.5) * 4.5), _q.identity(), _s.set(1, 1, 1));
+    _q.setFromAxisAngle(UP, scRng() * 6.28);
+    var fsc = 0.7 + scRng() * 0.8;
+    _m.compose(_v.set(pc.x + (scRng() - 0.5) * 4.5, 0.55, pc.z + (scRng() - 0.5) * 4.5), _q, _s.set(fsc, fsc, fsc));
     flowers.setMatrixAt(f, _m);
     flowers.setColorAt(f, _c.set(fPal[f % 5]));
   }
   scene.add(flowers);
+
+  // 沙丘 ×12 + 風化岩 ×12（instanced 家族，可點會晃）
+  var duneInst = famMesh(new THREE.SphereGeometry(1, 10, 7), toonMat(0xffffff), LITE ? 6 : 12);
+  var duneCols = [0xF2E0B4, 0xEAD3A0, 0xE0C68E];
+  for (var du = 0; du < duneInst.count; du++) {
+    var dSpot = ellipseSpot(0.55, 0.94, EXCLUDE) || { x: -30 - du, z: -30 };
+    var dsc = 1.6 + scRng() * 2.4;
+    duneInst.setColorAt(du, _c.set(duneCols[du % 3]));
+    regWob('dune', [{ im: duneInst, idx: du, x: dSpot.x, y: 0.42, z: dSpot.z, yaw: scRng() * 6.28, sx: dsc, sy: dsc * 0.32, sz: dsc * 0.8 }]);
+    EXCLUDE.push({ x: dSpot.x, z: dSpot.z, r: dsc * 0.9 });
+  }
+  var rockInst = famMesh(new THREE.IcosahedronGeometry(0.6, 0), toonMat(0xffffff), LITE ? 6 : 12);
+  for (var rk2 = 0; rk2 < rockInst.count; rk2++) {
+    var rSpot = ellipseSpot(0.35, 0.9, EXCLUDE) || { x: 30 + rk2, z: 30 };
+    var rsc = 0.6 + scRng() * 1.1;
+    rockInst.setColorAt(rk2, _c.set([PAL.sandstoneD, 0xB89878, PAL.cliff][rk2 % 3]));
+    regWob('rock', [{ im: rockInst, idx: rk2, x: rSpot.x, y: 0.45 + rsc * 0.25, z: rSpot.z, yaw: scRng() * 6.28, sx: rsc, sy: rsc * 0.75, sz: rsc }]);
+  }
 
   // 路燈（廣場環+大道+商品街+天際線+住宅巷+碼頭）+ 夜間光暈
   var lampSpots = [];
@@ -901,20 +1019,19 @@ function buildTerrain() {
   lampSpots.push([-2.6, 39]); lampSpots.push([2.6, 39]);                // 碼頭閘門
   lampSpots.push([16, -18]); lampSpots.push([-14, -18]);                // 宮殿前
   var lampN = LITE ? 16 : lampSpots.length;
+  // 火炬柱（金座 + 火盆；夜間火光沿用 lampGlowPts；可點會晃）
   var lampGeo = mergeGeometries([
-    new THREE.CylinderGeometry(0.09, 0.13, 2.6, 6).toNonIndexed(),
-    new THREE.SphereGeometry(0.28, 8, 6).translate(0, 1.45, 0).toNonIndexed()
+    new THREE.CylinderGeometry(0.09, 0.15, 2.6, 6).toNonIndexed(),
+    new THREE.CylinderGeometry(0.22, 0.1, 0.3, 8).translate(0, 1.42, 0).toNonIndexed(),
+    new THREE.SphereGeometry(0.15, 7, 5).translate(0, 1.6, 0).toNonIndexed()
   ]);
-  var lamps = new THREE.InstancedMesh(lampGeo, goldMat, lampN);
-  lamps.frustumCulled = false;
+  var lamps = famMesh(lampGeo, goldMat, lampN);
   var lgPos = new Float32Array(lampN * 3);
   for (var L = 0; L < lampN; L++) {
     var lx = lampSpots[L][0], lz = lampSpots[L][1];
-    _m.compose(_v.set(lx, 1.7, lz), _q.identity(), _s.set(1, 1, 1));
-    lamps.setMatrixAt(L, _m);
+    regWob('torch', [{ im: lamps, idx: L, x: lx, y: 1.7, z: lz, yaw: 0, sx: 1, sy: 1, sz: 1 }]);
     lgPos[L * 3] = lx; lgPos[L * 3 + 1] = 3.2; lgPos[L * 3 + 2] = lz;
   }
-  scene.add(lamps);
   var lgGeo = new THREE.BufferGeometry();
   lgGeo.setAttribute('position', new THREE.BufferAttribute(lgPos, 3));
   lampGlowPts = new THREE.Points(lgGeo, new THREE.PointsMaterial({
@@ -953,39 +1070,50 @@ var billToday, billMonth, jumboGroup, dockBoxes, dockShown = 0, dockAnims = [];
 var screenIslandGroup;
 
 function buildLandmarks() {
-  // ── TZG 宮殿（0,0,-8）──
+  // ── TZG 大金字塔神殿（0,0,-24）：階梯金字塔 + 金頂 + 柱廊 + 雙獅身貓 ──
   var palace = new THREE.Group();
   var pParts = [];
-  pParts.push(colorize(xform(new THREE.BoxGeometry(10, 5, 8), 0, 2.5, 0, 1, 1, 1), PAL.cream));
-  pParts.push(colorize(xform(new THREE.SphereGeometry(3.6, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), 0, 5, 0, 1, 1, 1), PAL.roofRose));
-  for (var c4 = 0; c4 < 4; c4++) {
-    var cx = c4 % 2 ? 4.6 : -4.6, cz = c4 < 2 ? 3.6 : -3.6;
-    pParts.push(colorize(xform(new THREE.CylinderGeometry(1.1, 1.2, 6.2, 10), cx, 3.1, cz, 1, 1, 1), PAL.cream));
-    pParts.push(colorize(xform(new THREE.SphereGeometry(1.5, 10, 8), cx, 6.9, cz, 1, 1.2, 1), PAL.roofRose)); // 洋蔥圓頂
-    pParts.push(colorize(xform(new THREE.ConeGeometry(0.45, 0.9, 8), cx, 8.7, cz, 1, 1, 1), PAL.roofRose));
-    pParts.push(colorize(xform(new THREE.SphereGeometry(0.16, 6, 5), cx, 9.3, cz, 1, 1, 1), PAL.gold)); // 金頂飾
+  var STEP_C = [0xEED9A4, 0xE8CFA0, 0xDFC28A, 0xD4B47E];
+  for (var lv = 0; lv < 4; lv++) { // 階梯式塔身
+    var lw = 13 - lv * 2.9, lh = 2.6;
+    pParts.push(colorize(xform(new THREE.BoxGeometry(lw, lh, lw), 0, lh / 2 + lv * lh, 0, 1, 1, 1), STEP_C[lv]));
   }
-  pParts.push(colorize(xform(new THREE.ConeGeometry(0.5, 1.1, 8), 0, 9.1, 0, 1, 1, 1), PAL.gold)); // 主圓頂金尖飾
+  pParts.push(colorize(xform(new THREE.ConeGeometry(3.1, 3.2, 4), 0, 12, 0, 1, 1, 1, Math.PI / 4), PAL.gold)); // 金頂 pyramidion
+  // 神殿柱廊入口（面向 +z 廣場）
+  for (var c4 = 0; c4 < 4; c4++) {
+    var cx = -4.2 + c4 * 2.8;
+    pParts.push(colorize(xform(new THREE.CylinderGeometry(0.42, 0.5, 3.6, 8), cx, 1.8, 6.6, 1, 1, 1), PAL.cream));
+    pParts.push(colorize(xform(new THREE.SphereGeometry(0.6, 8, 6).scale(1, 0.5, 1), cx, 3.7, 6.6, 1, 1, 1), PAL.gold)); // 蓮花柱頭
+  }
+  pParts.push(colorize(xform(new THREE.BoxGeometry(11.2, 0.7, 1.4), 0, 4.25, 6.6, 1, 1, 1), PAL.sandstone)); // 楣樑
+  pParts.push(colorize(xform(new THREE.ConeGeometry(1.2, 0.9, 4), 0, 4.95, 6.6, 1, 1, 1, Math.PI / 4), PAL.gold)); // 楣心日輪
+  // 雙獅身貓雕像（sphinx cats）
+  [-1, 1].forEach(function (sgn) {
+    var sx2 = sgn * 6.6;
+    pParts.push(colorize(xform(new THREE.BoxGeometry(1.5, 1.0, 2.4), sx2, 0.9, 8.2, 1, 1, 1), PAL.sandstone));      // 臥姿身
+    pParts.push(colorize(xform(new THREE.SphereGeometry(0.62, 10, 8), sx2, 2.05, 9.0, 1, 1, 1), PAL.sandstone));     // 頭
+    pParts.push(colorize(xform(new THREE.ConeGeometry(0.2, 0.42, 4), sx2 - 0.32, 2.62, 8.9, 1, 1, 1), PAL.sandstone)); // 耳
+    pParts.push(colorize(xform(new THREE.ConeGeometry(0.2, 0.42, 4), sx2 + 0.32, 2.62, 8.9, 1, 1, 1), PAL.sandstone));
+    pParts.push(colorize(xform(new THREE.TorusGeometry(0.5, 0.1, 6, 14).rotateX(1.35), sx2, 1.62, 9.0, 1, 1, 1), PAL.gold)); // 金項圈
+    pParts.push(colorize(xform(new THREE.BoxGeometry(1.7, 0.35, 2.7), sx2, 0.2, 8.2, 1, 1, 1), PAL.sandstoneD));     // 台座
+  });
   var palaceMesh = new THREE.Mesh(mergeGeometries(pParts.map(function (g) { return g.toNonIndexed(); })), vertexToon);
   palace.add(palaceMesh);
-  // 金飾邊
-  var trim = new THREE.Mesh(new THREE.TorusGeometry(3.65, 0.16, 8, 28).rotateX(Math.PI / 2), goldMat);
-  trim.position.y = 5.05;
-  palace.add(trim);
-  // 發光門（面向 +z）
+  // 發光神殿門（面向 +z）
   doorMat = new THREE.MeshBasicMaterial({ color: PAL.lampWarm, transparent: true, opacity: 0.35 });
-  var door = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 2.8), doorMat);
-  door.position.set(0, 1.45, 4.02);
+  var door = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 2.4), doorMat);
+  door.position.set(0, 1.3, 6.72);
   palace.add(door);
-  var doorFrame = new THREE.Mesh(new THREE.TorusGeometry(1.15, 0.12, 8, 20, Math.PI).rotateZ(0), goldMat);
-  doorFrame.position.set(0, 2.8, 4.05);
-  palace.add(doorFrame);
   // 招牌
   var sign = makeLabel('TZG 泰熙爾札娜珠寶', 'sign');
-  sign.position.set(0, 7.6, 3.2);
+  sign.position.set(0, 8.2, 4.6);
   palace.add(sign);
   palace.position.set(0, 0, -24);
   scene.add(palace);
+  meshWob.push({ obj: palace, t: 99, baseRZ: 0, baseRX: 0 });
+  palace.userData.wobIdx = meshWob.length - 1;
+  clickTargets.push(palaceMesh);
+  palaceMesh.userData.meshWob = meshWob[meshWob.length - 1];
 
   // ── 品牌巨水晶（宮殿上空） ──
   brandCrystal = new THREE.Group();
@@ -1039,10 +1167,10 @@ function buildLandmarks() {
 
   // ── 漂浮看板：今日營收 / 本月累計 ──
   billToday = makeBillboard(512, 224, 8.6, 3.8);
-  billToday.group.position.set(13, 8, -14);
+  billToday.group.position.set(16, 9.5, -15);
   scene.add(billToday.group);
   billMonth = makeBillboard(512, 224, 8.6, 3.8);
-  billMonth.group.position.set(-13, 9, -14);
+  billMonth.group.position.set(-16, 10.5, -15);
   scene.add(billMonth.group);
   paintToday(); paintMonth();
 
@@ -1083,25 +1211,39 @@ function buildLandmarks() {
   shelf1.position.y = 0.9;
   var shelf2 = shelf1.clone(); shelf2.position.y = 1.9;
   shelfG.add(shelf1); shelfG.add(shelf2);
-  // ── 珠寶礦場（-7,0,19）：礦工在此採礦，運到宮殿賣錢 ──
+  // ── 埃及露天採石場（24,-28）：岩層階梯 + 外露寶石礦脈，礦工採礦運到神殿賣錢 ──
   var mineParts = [];
-  var ROCK = 0x8D8398;
-  [[21.5, 0, -28, 2.6], [25, 0, -25.5, 3.2], [26.5, 0, -28.5, 2.1], [23.2, 0, -29.4, 1.6]].forEach(function (rk, ri) {
-    mineParts.push(colorize(xform(new THREE.IcosahedronGeometry(rk[3], 0), rk[0], rk[3] * 0.55, rk[2], 1, 0.78, 1, ri * 1.3), ROCK));
+  var ROCK = 0xC9A276, ROCK_D = 0xA37E56;
+  // 岩層階梯（三層弧形採掘面）
+  for (var qt = 0; qt < 3; qt++) {
+    mineParts.push(colorize(xform(
+      new THREE.CylinderGeometry(7 - qt * 1.9, 7.6 - qt * 1.9, 1.5, 14, 1, false, 0.4, 3.6),
+      24, 0.75 + qt * 1.5, -29.5, 1, 1, 1), qt % 2 ? ROCK_D : ROCK));
+  }
+  // 散落巨岩
+  [[19.5, -26.5, 2.2], [28.5, -26, 2.6], [26.5, -31.5, 1.8], [21, -30.5, 1.5]].forEach(function (rk, ri) {
+    mineParts.push(colorize(xform(new THREE.IcosahedronGeometry(rk[2], 0), rk[0], rk[2] * 0.5, rk[1], 1, 0.75, 1, ri * 1.3), ri % 2 ? ROCK_D : ROCK));
   });
-  // 岩石上鑲嵌的寶石礦
-  [[21.4, 2.6, -29, 0.7, PAL.crystalPink], [24.8, 3.6, -26, 0.9, 0xF2D377], [26.6, 2.3, -29, 0.6, 0xCBB3E6],
-   [23.4, 1.9, -30, 0.5, 0x9FD8D4], [25.6, 1.4, -27, 0.55, PAL.crystalPink]].forEach(function (gm, gi) {
+  // 外露寶石礦脈（岩層各處鑲嵌，發光感由 glow sprite 補）
+  [[21.5, 2.4, -28.6, 0.7, PAL.crystalPink], [24.5, 3.9, -28.8, 0.95, 0xF2D377], [27, 2.4, -28.4, 0.6, 0xCBB3E6],
+   [23, 1.1, -26.8, 0.5, 0x9FD8D4], [25.8, 1.1, -26.6, 0.55, PAL.crystalPink], [24, 5.2, -29.4, 0.6, 0xA8E0F0],
+   [19.6, 1.6, -25.8, 0.45, 0xF2D377], [28.4, 1.7, -25.5, 0.5, PAL.crystalLight]].forEach(function (gm, gi) {
     mineParts.push(colorize(xform(new THREE.OctahedronGeometry(gm[3], 0), gm[0], gm[1], gm[2], 1, 1.5, 1, gi * 0.9), gm[4]));
   });
-  var mine = new THREE.Mesh(mergeGeometries(mineParts.map(function (g) { return g.toNonIndexed(); })), vertexToon);
+  var mineGeo = mergeGeometries(mineParts.map(function (g) { return g.toNonIndexed(); }));
+  mineGeo.translate(-24, 0, 28.5); // 幾何轉為局部座標 → 搖晃軸心在採石場中心
+  var mine = new THREE.Mesh(mineGeo, vertexToon);
+  mine.position.set(24, 0, -28.5);
   scene.add(mine);
-  var mineGlow = glowSprite('rgba(242,169,192,.5)', 9);
-  mineGlow.position.set(24.5, 3, -28.5);
+  meshWob.push({ obj: mine, t: 99, baseRZ: 0, baseRX: 0 });
+  clickTargets.push(mine);
+  mine.userData.meshWob = meshWob[meshWob.length - 1];
+  var mineGlow = glowSprite('rgba(242,169,192,.55)', 11);
+  mineGlow.position.set(24.5, 3.4, -28.5);
   scene.add(mineGlow);
-  // 洞口
-  var cave = new THREE.Mesh(new THREE.CircleGeometry(1.1, 12), new THREE.MeshBasicMaterial({ color: 0x1c1218 }));
-  cave.position.set(25, 1.1, -27.6);
+  // 採掘坑口
+  var cave = new THREE.Mesh(new THREE.CircleGeometry(1.2, 12), new THREE.MeshBasicMaterial({ color: 0x2a1c14 }));
+  cave.position.set(24.5, 1.15, -26.9);
   cave.rotation.y = Math.PI;
   cave.rotation.x = -0.08;
   scene.add(cave);
@@ -1176,19 +1318,30 @@ function buildTownStatic() {
   fWater.position.set(0, 2.6, -6);
   scene.add(fWater);
 
-  // ── 時鐘塔（-11,-1）──
-  T(xform(new THREE.BoxGeometry(3, 9, 3), -11, 4.5, -1, 1, 1, 1), PAL.cream);
-  T(xform(new THREE.ConeGeometry(2.5, 2.6, 4), -11, 10.3, -1, 1, 1, 1, Math.PI / 4), PAL.roofRose);
-  T(xform(new THREE.CylinderGeometry(1.05, 1.05, 0.1, 16).rotateX(Math.PI / 2), -11, 7.4, 0.56, 1, 1, 1), 0xFFFFFF);
-  T(xform(new THREE.CylinderGeometry(1.05, 1.05, 0.1, 16).rotateZ(Math.PI / 2), -9.44, 7.4, -1, 1, 1, 1), 0xFFFFFF);
-  G(xform(new THREE.TorusGeometry(1.1, 0.08, 6, 18), -11, 7.4, 0.58, 1, 1, 1));
-  // 指針（+z 鐘面，每幀由 updateTown 依真實時間轉動）
+  // ── 方尖碑鐘塔（-11,-1）：砂岩方尖碑 + 鐘面 + 金字塔尖（獨立群組可搖）──
+  var obTower = new THREE.Group();
+  var obParts = [];
+  obParts.push(colorize(xform(new THREE.BoxGeometry(3.2, 1, 3.2), 0, 0.5, 0, 1, 1, 1), PAL.sandstoneD)); // 台座
+  obParts.push(colorize(new THREE.CylinderGeometry(0.85, 1.5, 9.4, 4).rotateY(Math.PI / 4).translate(0, 5.7, 0), PAL.sandstone)); // 方尖碑身（四面收分）
+  obParts.push(colorize(xform(new THREE.ConeGeometry(1.05, 1.5, 4), 0, 11.15, 0, 1, 1, 1, Math.PI / 4), PAL.gold)); // 金字塔尖
+  obParts.push(colorize(xform(new THREE.CylinderGeometry(1.05, 1.05, 0.14, 16).rotateX(Math.PI / 2), 0, 7.4, 1.06, 1, 1, 1), 0xFFFFFF)); // 鐘面 +z
+  var obMesh = new THREE.Mesh(mergeGeometries(obParts.map(function (g) { return g.toNonIndexed(); })), vertexToon);
+  obTower.add(obMesh);
+  var obRing = new THREE.Mesh(new THREE.TorusGeometry(1.1, 0.08, 6, 18), goldMat);
+  obRing.position.set(0, 7.4, 1.08);
+  obTower.add(obRing);
+  // 指針（+z 鐘面，每幀由 updateTown 依真實時間轉動；掛群組內 → 塔搖時同步）
   clockHandH = new THREE.Mesh(new THREE.BoxGeometry(0.14, 1.15, 0.05).translate(0, 0.5, 0), new THREE.MeshBasicMaterial({ color: 0x33232C }));
-  clockHandH.position.set(-11, 7.4, 0.64);
-  scene.add(clockHandH);
+  clockHandH.position.set(0, 7.4, 1.14);
+  obTower.add(clockHandH);
   clockHandM = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.7, 0.05).translate(0, 0.75, 0), new THREE.MeshBasicMaterial({ color: 0x33232C }));
-  clockHandM.position.set(-11, 7.4, 0.66);
-  scene.add(clockHandM);
+  clockHandM.position.set(0, 7.4, 1.16);
+  obTower.add(clockHandM);
+  obTower.position.set(-11, 0, -1);
+  scene.add(obTower);
+  meshWob.push({ obj: obTower, t: 99, baseRZ: 0, baseRX: 0 });
+  clickTargets.push(obMesh);
+  obMesh.userData.meshWob = meshWob[meshWob.length - 1];
 
   // ── 待付款郵局（12,-2，面向 -x 廣場）──
   T(xform(new THREE.BoxGeometry(4, 2.8, 3.4), 12, 1.4, -2, 1, 1, 1), 0xF2E3C8);
@@ -1196,15 +1349,29 @@ function buildTownStatic() {
   T(xform(new THREE.BoxGeometry(0.15, 1.5, 0.9), 9.95, 0.75, -2, 1, 1, 1), PAL.wood);
   T(xform(new THREE.BoxGeometry(0.15, 0.7, 0.7), 9.95, 2.1, -2.9, 1, 1, 1), 0x3d5e6e);
 
-  // ── 商品街 6 間店殼（z=10.5，門面朝 +z 街道）──
+  // ── 商品街 6 間市集棚（z=10.5，門面朝 +z；instanced 家族，可點會搖）──
+  // 幾何以「單位寬」建立，實例 x 縮放 = 店寬 → 一家族 6 間
+  var shopBodyGeo = mergeGeometries([
+    colorize(new THREE.BoxGeometry(1, 2.6, 3.4).translate(0, 1.3, 0), 0xFFFFFF).toNonIndexed(),                 // 牆（白，instanceColor 上色）
+    colorize(new THREE.BoxGeometry(0.24, 1.5, 0.14).translate(0, 0.75, 1.75), 0x8A6748).toNonIndexed(),         // 門
+    colorize(new THREE.BoxGeometry(0.62, 0.7, 0.12).translate(0, 2.15, 1.78), 0x2A1C26).toNonIndexed()          // 招牌板
+  ]);
+  var shopTopGeo = mergeGeometries([
+    colorize(new THREE.SphereGeometry(0.42, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2).translate(0, 2.6, 0), 0xFFFFFF).toNonIndexed(), // 圓頂
+    colorize(new THREE.SphereGeometry(0.07, 6, 5).translate(0, 3.05, 0), 0xC9A961).toNonIndexed(),               // 金頂珠
+    colorize(new THREE.BoxGeometry(0.82, 0.1, 1.1).translate(0, 1.75, 2.3), 0xFFFFFF).toNonIndexed()             // 遮陽棚
+  ]);
+  var shopBodyInst = famMesh(shopBodyGeo, vertexToon.clone(), 6);
+  var shopTopInst = famMesh(shopTopGeo, vertexToon.clone(), 6);
+  var SHOP_WALLS = [0xF7EFE2, 0xF2E3D0, 0xEFE6D2, 0xF2EBD8, 0xE9E0CB, 0xF5E6DC];
   for (var sh = 0; sh < 6; sh++) {
     var sx = shopShellX[sh], sw = shopShellW[sh];
-    T(xform(new THREE.BoxGeometry(sw, 2.6, 3.4), sx, 1.3, 10.5, 1, 1, 1), [0xF7EFE2, 0xF2E3E6, 0xE8EFE2, 0xF2EBD8, 0xE6E9F2, 0xF5E6DC][sh]);
-    T(xform(new THREE.ConeGeometry(sw * 0.78, 1.5, 4), sx, 3.35, 10.5, 1, 1, 1, Math.PI / 4), PAL.roofs[sh]);
-    T(xform(new THREE.BoxGeometry(0.9, 1.5, 0.14), sx, 0.75, 12.25, 1, 1, 1), PAL.wood);       // 門
-    T(xform(new THREE.BoxGeometry(sw - 1.6, 0.7, 0.12), sx, 2.15, 12.28, 1, 1, 1), 0x2A1C26);  // 招牌板（文字由 labelSheet 蓋上）
-    // 遮陽棚
-    T(xform(new THREE.BoxGeometry(sw - 0.8, 0.1, 1.1).translate(0, 0, 0.55), sx, 1.75, 12.3, 1, 1, 1, 0), sh % 2 ? PAL.roofRose : 0x9FD8D4);
+    shopBodyInst.setColorAt(sh, _c.set(SHOP_WALLS[sh]));
+    shopTopInst.setColorAt(sh, _c.set(PAL.roofs[sh]));
+    regWob('shop', [
+      { im: shopBodyInst, idx: sh, x: sx, y: 0, z: 10.5, yaw: 0, sx: sw, sy: 1, sz: 1 },
+      { im: shopTopInst, idx: sh, x: sx, y: 0, z: 10.5, yaw: 0, sx: sw, sy: 1, sz: 1 }
+    ]);
   }
 
   // ── 七日天際線基座帶（z 10.5..13.5，x -36..-14）──
@@ -1235,40 +1402,48 @@ function buildTownStatic() {
   houseWindowInst = new THREE.InstancedMesh(winGeo, new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, side: THREE.DoubleSide }), 30);
   houseWindowInst.frustumCulled = false;
   windowsMat = houseWindowInst.material; // 夜間透明度沿用 updateAmbience
-  var wi = 0;
+  // 埃及砂岩屋家族：屋身（牆+女兒牆+木樑出挑+彩色門簾）+ 圓頂（平頂屋以壓扁縮放呈現）
+  var houseBodyGeo = mergeGeometries([
+    colorize(new THREE.BoxGeometry(3, 2.4, 3).translate(0, 1.2, 0), 0xFFFFFF).toNonIndexed(),                    // 牆（instanceColor 上砂岩色）
+    colorize(new THREE.BoxGeometry(3.3, 0.32, 3.3).translate(0, 2.56, 0), 0xE0CBA2).toNonIndexed(),              // 女兒牆簷
+    colorize(new THREE.CylinderGeometry(0.07, 0.07, 0.6, 4).rotateX(Math.PI / 2).translate(-1.1, 2.25, 1.55), 0x8A6748).toNonIndexed(), // 木樑出挑
+    colorize(new THREE.CylinderGeometry(0.07, 0.07, 0.6, 4).rotateX(Math.PI / 2).translate(0, 2.25, 1.55), 0x8A6748).toNonIndexed(),
+    colorize(new THREE.CylinderGeometry(0.07, 0.07, 0.6, 4).rotateX(Math.PI / 2).translate(1.1, 2.25, 1.55), 0x8A6748).toNonIndexed(),
+    colorize(new THREE.BoxGeometry(0.9, 1.35, 0.15).translate(0, 0.68, 1.53), 0xC9705A).toNonIndexed(),          // 彩色門簾
+    colorize(new THREE.ConeGeometry(0.5, 0.5, 4).rotateY(Math.PI / 4).translate(0, 1.6, 1.53), 0xC9705A).toNonIndexed() // 尖拱簾頂
+  ]);
+  var houseDomeGeo = mergeGeometries([
+    colorize(new THREE.SphereGeometry(1.45, 10, 8).scale(1, 1.05, 1).translate(0, 3.1, 0), 0xFFFFFF).toNonIndexed(),
+    colorize(new THREE.SphereGeometry(0.15, 6, 5).translate(0, 4.75, 0), 0xC9A961).toNonIndexed()               // 金頂珠
+  ]);
+  var houseBodyInst = famMesh(houseBodyGeo, vertexToon.clone(), 15);
+  var houseDomeInst = famMesh(houseDomeGeo, vertexToon.clone(), 15);
+  var HOUSE_WALLS = [0xEADFC8, 0xE8D0B0, 0xF2E6D0]; // 砂岩/赤陶/奶白
+  var hi5 = 0, wi = 0;
   for (var cl = 0; cl < 5; cl++) {
     var cc = TIER_CLUSTERS[cl];
     var yawC = Math.atan2(0 - cc[0], -6 - cc[1]); // 面向廣場
     for (var hh = 0; hh < 3; hh++) {
       var hx = cc[0] + HOUSE_OFFS[hh][0], hz = cc[1] + HOUSE_OFFS[hh][1];
-      var sand = [0xEADFC8, 0xE8D0B0, 0xF2E6D0][(cl + hh) % 3]; // 砂岩/赤陶/奶白
-      T(xform(new THREE.BoxGeometry(3, 2.4, 3), hx, 1.2, hz, 1, 1, 1, yawC), sand);
-      if ((cl + hh) % 2 === 0) {
-        // 洋蔥圓頂 + 金頂飾
-        T(xform(new THREE.SphereGeometry(1.55, 10, 8), hx, 3.35, hz, 1, 1.15, 1), PAL.roofs[(cl + hh) % 6]);
-        T(xform(new THREE.ConeGeometry(0.42, 0.8, 8), hx, 5.2, hz, 1, 1, 1), PAL.roofs[(cl + hh) % 6]);
-        G(xform(new THREE.SphereGeometry(0.14, 6, 5), hx, 5.7, hz, 1, 1, 1));
-      } else {
-        // 平頂 + 四角小圓頂
-        T(xform(new THREE.BoxGeometry(3.3, 0.3, 3.3), hx, 2.55, hz, 1, 1, 1, yawC), 0xD8C4A0);
-        for (var cnr = 0; cnr < 4; cnr++) {
-          var cxo = cnr % 2 ? 1.35 : -1.35, czo = cnr < 2 ? 1.35 : -1.35;
-          T(xform(new THREE.SphereGeometry(0.32, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2), hx + cxo, 2.7, hz + czo, 1, 1, 1), PAL.roofs[(cl + cnr) % 6]);
-        }
-      }
-      // 尖拱門
-      T(xform(new THREE.BoxGeometry(0.9, 1.2, 0.15), hx + Math.sin(yawC) * 1.5, 0.6, hz + Math.cos(yawC) * 1.5, 1, 1, 1, yawC), PAL.wood);
-      T(xform(new THREE.ConeGeometry(0.5, 0.55, 4), hx + Math.sin(yawC) * 1.5, 1.45, hz + Math.cos(yawC) * 1.5, 1, 1, 1, yawC + Math.PI / 4), PAL.wood);
+      houseBodyInst.setColorAt(hi5, _c.set(HOUSE_WALLS[(cl + hh) % 3]));
+      houseDomeInst.setColorAt(hi5, _c.set(PAL.roofs[(cl + hh) % 6]));
+      var flatTop = (cl + hh) % 2 !== 0; // 平頂屋：圓頂壓扁成蓋
+      var domeSY = flatTop ? 0.22 : 1;
+      var wobParts = [
+        { im: houseBodyInst, idx: hi5, x: hx, y: 0, z: hz, yaw: yawC, sx: 1, sy: 1, sz: 1 },
+        { im: houseDomeInst, idx: hi5, x: hx, y: flatTop ? 2.02 : 0, z: hz, yaw: yawC, sx: 1, sy: domeSY, sz: 1 } // 平頂＝壓扁圓頂抬到簷口
+      ];
       for (var ww = 0; ww < 2; ww++) {
         var wyaw = yawC + (ww ? 0.6 : -0.6);
-        _e.set(0, yawC, 0); _q.setFromEuler(_e);
-        _m.compose(_v.set(hx + Math.sin(wyaw) * 1.53, 1.5, hz + Math.cos(wyaw) * 1.53), _q, _s.set(1, 1, 1));
-        houseWindowInst.setMatrixAt(wi, _m);
         houseWindowInst.setColorAt(wi, _c.set(PAL.tierWin[cl]));
+        wobParts.push({ im: houseWindowInst, idx: wi, x: hx + Math.sin(wyaw) * 1.53, y: 1.5, z: hz + Math.cos(wyaw) * 1.53, yaw: yawC, sx: 1, sy: 1, sz: 1 });
         wi++;
       }
+      regWob('house', wobParts);
+      hi5++;
     }
     EXCLUDE.push({ x: cc[0], z: cc[1], r: 5 });
+    CAM_BLOCKERS.push({ x: cc[0], z: cc[1], r: 5.5, h: 5.2 });
     // 每街坊一個 Zzz
     var zz = makeLabel('z z Z', 'zzz');
     zz.position.set(cc[0], 5, cc[1]);
@@ -1301,95 +1476,153 @@ function buildTownStatic() {
   craneArm.position.set(36, 8.2, -4);
   scene.add(craneArm);
 
-  // ── 市集攤位 ×4（廣場南緣，條紋遮陽棚）──
+  // ── 市集攤位 ×4（廣場南緣，條紋遮陽棚；可點會搖）──
   if (!LITE) {
     var stallSpots = [[-6.5, 1.8], [-3, 3.8], [3, 3.8], [6.5, 1.8]];
     var awnC = document.createElement('canvas'); awnC.width = awnC.height = 64;
     var ag = awnC.getContext('2d');
-    for (var aw = 0; aw < 8; aw++) { ag.fillStyle = aw % 2 ? '#D4456A' : '#F5EFE4'; ag.fillRect(aw * 8, 0, 8, 64); }
+    for (var aw = 0; aw < 8; aw++) { ag.fillStyle = aw % 2 ? '#D98F6A' : '#F5EFE4'; ag.fillRect(aw * 8, 0, 8, 64); }
     var awnTex = canvasTex(awnC);
-    var awnGeo = new THREE.BoxGeometry(2.6, 0.1, 1.8);
-    var awnInst = new THREE.InstancedMesh(awnGeo, new THREE.MeshBasicMaterial({ map: awnTex }), 4);
-    awnInst.frustumCulled = false;
+    var awnInst = famMesh(new THREE.BoxGeometry(2.6, 0.1, 1.8), new THREE.MeshBasicMaterial({ map: awnTex }), 4);
+    var stallGeo = mergeGeometries([
+      colorize(new THREE.BoxGeometry(2.4, 0.9, 1.5).translate(0, 0.85, 0), PAL.wood).toNonIndexed(),
+      colorize(new THREE.CylinderGeometry(0.06, 0.06, 2.2, 4).translate(-1.1, 1.5, 0), PAL.wood).toNonIndexed(),
+      colorize(new THREE.CylinderGeometry(0.06, 0.06, 2.2, 4).translate(1.1, 1.5, 0), PAL.wood).toNonIndexed()
+    ]);
+    var stallInst = famMesh(stallGeo, vertexToon.clone(), 4);
     stallSpots.forEach(function (ss, si) {
-      T(xform(new THREE.BoxGeometry(2.4, 0.9, 1.5), ss[0], 0.85, ss[1], 1, 1, 1), PAL.wood);
-      T(xform(new THREE.CylinderGeometry(0.06, 0.06, 2.2, 4), ss[0] - 1.1, 1.5, ss[1], 1, 1, 1), PAL.wood);
-      T(xform(new THREE.CylinderGeometry(0.06, 0.06, 2.2, 4), ss[0] + 1.1, 1.5, ss[1], 1, 1, 1), PAL.wood);
-      _e.set(0, 0, 0.06); _q.setFromEuler(_e);
-      _m.compose(_v.set(ss[0], 2.6, ss[1]), _q, _s.set(1, 1, 1));
-      awnInst.setMatrixAt(si, _m);
+      regWob('stall', [
+        { im: stallInst, idx: si, x: ss[0], y: 0, z: ss[1], yaw: 0, sx: 1, sy: 1, sz: 1 },
+        { im: awnInst, idx: si, x: ss[0], y: 2.6, z: ss[1], yaw: 0, sx: 1, sy: 1, sz: 1 }
+      ]);
     });
-    scene.add(awnInst);
 
-    // 長椅 ×10（廣場環）
+    // 長椅 ×10（廣場環；可點會搖）
     var benchGeo = mergeGeometries([
       new THREE.BoxGeometry(1.8, 0.12, 0.55).translate(0, 0.5, 0).toNonIndexed(),
       new THREE.BoxGeometry(1.8, 0.5, 0.1).translate(0, 0.75, -0.26).toNonIndexed(),
       new THREE.BoxGeometry(0.12, 0.5, 0.5).translate(-0.8, 0.25, 0).toNonIndexed(),
       new THREE.BoxGeometry(0.12, 0.5, 0.5).translate(0.8, 0.25, 0).toNonIndexed()
     ]);
-    var benchInst = new THREE.InstancedMesh(benchGeo, toonMat(PAL.wood), 10);
-    benchInst.frustumCulled = false;
+    var benchInst = famMesh(benchGeo, toonMat(PAL.wood), 10);
     for (var bch = 0; bch < 10; bch++) {
       var ba2 = bch / 10 * Math.PI * 2 + 0.15;
-      _q.setFromAxisAngle(UP, -ba2 + Math.PI / 2);
-      _m.compose(_v.set(Math.cos(ba2) * 8.2, 0.45, -6 + Math.sin(ba2) * 8.2), _q, _s.set(1, 1, 1));
-      benchInst.setMatrixAt(bch, _m);
+      regWob('bench', [{ im: benchInst, idx: bch, x: Math.cos(ba2) * 8.2, y: 0.45, z: -6 + Math.sin(ba2) * 8.2, yaw: -ba2 + Math.PI / 2, sx: 1, sy: 1, sz: 1 }]);
     }
-    scene.add(benchInst);
 
-    // 圍籬（大道兩側，instanced 段）
+    // 圍籬（大道兩側，instanced 段；可點會晃）
     var fenceGeo = mergeGeometries([
       new THREE.BoxGeometry(2.2, 0.08, 0.08).translate(0, 0.55, 0).toNonIndexed(),
       new THREE.BoxGeometry(2.2, 0.08, 0.08).translate(0, 0.95, 0).toNonIndexed(),
       new THREE.CylinderGeometry(0.07, 0.07, 1.1, 4).translate(-1, 0.55, 0).toNonIndexed(),
       new THREE.CylinderGeometry(0.07, 0.07, 1.1, 4).translate(1, 0.55, 0).toNonIndexed()
     ]);
-    var fenceInst = new THREE.InstancedMesh(fenceGeo, toonMat(0xEADFCC), 24);
-    fenceInst.frustumCulled = false;
+    var fenceInst = famMesh(fenceGeo, toonMat(0xEADFCC), 24);
     var fi2 = 0;
     for (var fseg = 0; fseg < 12 && fi2 < 24; fseg++) {
       [[-3.8, 5 + fseg * 2.6], [3.8, 6.3 + fseg * 2.6]].forEach(function (fp) {
         if (fi2 >= 24 || fp[1] > 35) return;
-        _q.setFromAxisAngle(UP, Math.PI / 2);
-        _m.compose(_v.set(fp[0], 0.42, fp[1]), _q, _s.set(1, 1, 1));
-        fenceInst.setMatrixAt(fi2++, _m);
+        regWob('fence', [{ im: fenceInst, idx: fi2, x: fp[0], y: 0.42, z: fp[1], yaw: Math.PI / 2, sx: 1, sy: 1, sz: 1 }]);
+        fi2++;
       });
     }
     for (; fi2 < 24; fi2++) { _m.compose(_v.set(0, -99, 0), _q.identity(), _s.set(0.001, 0.001, 0.001)); fenceInst.setMatrixAt(fi2, _m); }
-    scene.add(fenceInst);
+
+    // ── 埃及小物：陶罐 amphora ×16 + 貨箱/草籃 ×14（市集與碼頭邊；可點會跳）──
+    var potGeo = mergeGeometries([
+      new THREE.SphereGeometry(0.34, 9, 7).scale(1, 1.15, 1).translate(0, 0.42, 0).toNonIndexed(),
+      new THREE.CylinderGeometry(0.16, 0.2, 0.22, 8).translate(0, 0.9, 0).toNonIndexed(),
+      new THREE.CylinderGeometry(0.2, 0.13, 0.16, 8).translate(0, 0.08, 0).toNonIndexed()
+    ]);
+    var potInst = famMesh(potGeo, toonMat(0xffffff), 16);
+    var POT_COLS = [0xC9705A, 0xD98F6A, 0xB8886A, 0xE0B48E];
+    for (var po = 0; po < 16; po++) {
+      var pSpot2 = po < 8
+        ? { x: -8 + (po % 4) * 5.2 + (scRng() - 0.5) * 1.4, z: 5.6 + Math.floor(po / 4) * 1.2 + (scRng() - 0.5) * 0.8 } // 市集邊
+        : (ellipseSpot(0.3, 0.8, EXCLUDE) || { x: 12 + po, z: 30 });
+      var pscl = 0.8 + scRng() * 0.55;
+      potInst.setColorAt(po, _c.set(POT_COLS[po % 4]));
+      regWob('pot', [{ im: potInst, idx: po, x: pSpot2.x, y: 0.42, z: pSpot2.z, yaw: scRng() * 6.28, sx: pscl, sy: pscl, sz: pscl }]);
+    }
+    var crateGeo = mergeGeometries([
+      colorize(new THREE.BoxGeometry(0.8, 0.62, 0.8).translate(0, 0.31, 0), 0xC9A26E).toNonIndexed(),
+      colorize(new THREE.BoxGeometry(0.86, 0.1, 0.86).translate(0, 0.62, 0), 0xA8865A).toNonIndexed()
+    ]);
+    var crateInst = famMesh(crateGeo, vertexToon.clone(), 14);
+    for (var cr = 0; cr < 14; cr++) {
+      var cSpot = cr < 6
+        ? { x: -9 + cr * 3.6 + (scRng() - 0.5), z: 48.5 + (scRng() - 0.5) * 1.4 } // 碼頭邊
+        : (ellipseSpot(0.25, 0.75, EXCLUDE) || { x: -20 - cr, z: 8 });
+      var cscl = 0.75 + scRng() * 0.6;
+      regWob('crate', [{ im: crateInst, idx: cr, x: cSpot.x, y: 0.42, z: cSpot.z, yaw: scRng() * 6.28, sx: cscl, sy: cscl, sz: cscl }]);
+    }
+
+    // ── 方尖碑 ×4 + 蓮花柱 ×6（instanced，vertex 色含金頂；可點會搖）──
+    var obeliskGeo = mergeGeometries([
+      colorize(new THREE.BoxGeometry(1.15, 0.5, 1.15).translate(0, 0.25, 0), PAL.sandstoneD).toNonIndexed(),
+      colorize(new THREE.CylinderGeometry(0.3, 0.52, 4.6, 4).rotateY(Math.PI / 4).translate(0, 2.8, 0), PAL.sandstone).toNonIndexed(),
+      colorize(new THREE.ConeGeometry(0.4, 0.62, 4).rotateY(Math.PI / 4).translate(0, 5.4, 0), PAL.gold).toNonIndexed()
+    ]);
+    var obeliskInst = famMesh(obeliskGeo, vertexToon.clone(), 4);
+    [[-15.5, -6], [15.5, -6], [-6, 37.5], [6, 37.5]].forEach(function (os, oi) {
+      regWob('obelisk', [{ im: obeliskInst, idx: oi, x: os[0], y: 0.4, z: os[1], yaw: 0, sx: 1, sy: 1, sz: 1 }]);
+      EXCLUDE.push({ x: os[0], z: os[1], r: 1.6 });
+    });
+    var colGeo = mergeGeometries([
+      colorize(new THREE.CylinderGeometry(0.3, 0.38, 2.9, 8).translate(0, 1.45, 0), PAL.sandstone).toNonIndexed(),
+      colorize(new THREE.SphereGeometry(0.5, 8, 6).scale(1, 0.5, 1).translate(0, 3, 0), PAL.gold).toNonIndexed()
+    ]);
+    var colInst = famMesh(colGeo, vertexToon.clone(), 6);
+    [[-16, 18], [-34, 18], [11, 20.5], [36, 20.5], [-14.5, -13], [14.5, -13]].forEach(function (cs, ci) {
+      regWob('column', [{ im: colInst, idx: ci, x: cs[0], y: 0.4, z: cs[1], yaw: 0, sx: 1, sy: 1, sz: 1 }]);
+      EXCLUDE.push({ x: cs[0], z: cs[1], r: 1.3 });
+    });
   }
 
-  // ── 風車（-30,-32，北側）：塔身併入靜物，葉輪獨立旋轉 ──
-  T(xform(new THREE.CylinderGeometry(1.1, 1.6, 7, 8), -30, 3.5, -32, 1, 1, 1), PAL.cream);
-  T(xform(new THREE.ConeGeometry(1.3, 1.6, 8), -30, 8.1, -32, 1, 1, 1), PAL.roofRose);
-  T(xform(new THREE.BoxGeometry(0.9, 1.4, 0.15), -30, 0.9, -30.6, 1, 1, 1), PAL.wood);
+  // ── 風車塔（-30,-32，北側）：砂岩塔身群組（可搖），葉輪掛群組內旋轉 ──
+  var wmGroup = new THREE.Group();
+  var wmParts = [];
+  wmParts.push(colorize(new THREE.CylinderGeometry(1.1, 1.6, 7, 8).translate(0, 3.5, 0), PAL.sandstone));
+  wmParts.push(colorize(new THREE.ConeGeometry(1.3, 1.6, 8).translate(0, 8.1, 0), PAL.terracotta));
+  wmParts.push(colorize(new THREE.BoxGeometry(0.9, 1.4, 0.15).translate(0, 0.9, 1.4), PAL.wood));
+  var wmBody = new THREE.Mesh(mergeGeometries(wmParts.map(function (g) { return g.toNonIndexed(); })), vertexToon);
+  wmGroup.add(wmBody);
   var wmBlades = [];
   for (var wb = 0; wb < 4; wb++) {
     wmBlades.push(colorize(new THREE.BoxGeometry(0.24, 3.4, 0.06).translate(0, 1.9, 0).rotateZ(wb * Math.PI / 2).toNonIndexed(), PAL.sail));
   }
   wmBlades.push(colorize(new THREE.SphereGeometry(0.35, 8, 6).toNonIndexed(), PAL.wood));
   windmillRotor = new THREE.Mesh(mergeGeometries(wmBlades), vertexToon);
-  windmillRotor.position.set(-30, 6.6, -30.55);
-  scene.add(windmillRotor);
-  wmBlades.forEach(function (g) { g.dispose(); });
+  windmillRotor.position.set(0, 6.6, 1.45);
+  wmGroup.add(windmillRotor);
+  wmGroup.position.set(-30, 0, -32);
+  scene.add(wmGroup);
+  meshWob.push({ obj: wmGroup, t: 99, baseRZ: 0, baseRX: 0 });
+  clickTargets.push(wmBody);
+  wmBody.userData.meshWob = meshWob[meshWob.length - 1];
 
-  // ── 草叢 ×120 + 蘑菇 ×24（靜態，0 draw call）──
+  // ── 乾草叢 ×40 + 紙莎草 ×14（碼頭河邊）+ 小石堆 ×24（靜態，0 draw call）──
   for (var gt = 0; gt < (LITE ? 15 : 40); gt++) {
     var gSpot = ellipseSpot(0.12, 0.9, EXCLUDE);
     if (!gSpot) continue;
     for (var gj = 0; gj < 3; gj++) {
       T(xform(new THREE.ConeGeometry(0.14 + scRng() * 0.1, 0.5 + scRng() * 0.35, 5),
         gSpot.x + (scRng() - 0.5) * 1.2, 0.62, gSpot.z + (scRng() - 0.5) * 1.2, 1, 1, 1, scRng() * 6.28),
-        [PAL.grassD, 0x7DBB6E, 0x96CE84][gj]);
+        [0xB8B06A, 0xA5A860, 0xC2BB7A][gj]); // 沙漠乾草色
     }
   }
-  var mushCaps = [0xE58BA4, 0xF2D377, 0xF5EFE4];
+  for (var pyr = 0; pyr < (LITE ? 6 : 14); pyr++) { // 紙莎草：細稈 + 頂端傘形
+    var px2 = -18 + pyr * 2.8 + (scRng() - 0.5) * 1.6, pz2 = 42 + (scRng() - 0.5) * 3;
+    if (Math.abs(px2) < 4) continue; // 讓開大道閘門
+    T(xform(new THREE.CylinderGeometry(0.035, 0.05, 1.7, 4), px2, 1.25, pz2, 1, 1, 1), 0x7FA85E);
+    T(xform(new THREE.SphereGeometry(0.24, 7, 5).scale(1, 0.55, 1), px2, 2.2, pz2, 1, 1, 1), 0x96C274);
+  }
+  var pebbleCols = [0xD8C8A8, 0xC9B48E, 0xE0D2B4];
   for (var ms = 0; ms < (LITE ? 8 : 24); ms++) {
     var mSpot = ellipseSpot(0.25, 0.88, EXCLUDE);
     if (!mSpot) continue;
-    T(xform(new THREE.CylinderGeometry(0.09, 0.12, 0.3, 6), mSpot.x, 0.58, mSpot.z, 1, 1, 1), PAL.cream);
-    T(xform(new THREE.SphereGeometry(0.22, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2), mSpot.x, 0.72, mSpot.z, 1, 0.85, 1), mushCaps[ms % 3]);
+    T(xform(new THREE.SphereGeometry(0.2, 7, 5).scale(1, 0.6, 1), mSpot.x, 0.55, mSpot.z, 1, 1, 1), pebbleCols[ms % 3]);
+    T(xform(new THREE.SphereGeometry(0.13, 6, 5).scale(1, 0.6, 1), mSpot.x + 0.26, 0.52, mSpot.z + 0.1, 1, 1, 1), pebbleCols[(ms + 1) % 3]);
   }
 
   // ── 彩旗串（廣場 8 燈間 + 商品街，instanced）──
@@ -1438,29 +1671,31 @@ function buildTownStatic() {
   for (; fIdx < flagN; fIdx++) { _m.compose(_v.set(0, -99, 0), _q.identity(), _s.set(0.001, 0.001, 0.001)); buntingInst.setMatrixAt(fIdx, _m); }
   scene.add(buntingInst);
 
-  // ── 棕櫚樹 ×10（大道/碼頭/導流入口/宮殿側，中東綠洲感）──
-  function palm(px, pz, lean) {
-    var lx = Math.cos(lean) * 0.22, lz = Math.sin(lean) * 0.22;
-    for (var seg = 0; seg < 4; seg++) {
-      T(xform(new THREE.CylinderGeometry(0.15 - seg * 0.015, 0.2 - seg * 0.015, 1.15, 6),
-        px + lx * seg, 0.9 + seg * 1.02, pz + lz * seg, 1, 1, 1), 0xA9825A);
-    }
-    var topX = px + lx * 3.4, topZ = pz + lz * 3.4, topY = 5.05;
-    for (var fr = 0; fr < 6; fr++) {
-      var fg2 = new THREE.ConeGeometry(0.34, 2.3, 4).translate(0, 1.15, 0);
-      fg2.rotateZ(Math.PI / 2 + 0.55);
-      fg2.rotateY(fr / 6 * Math.PI * 2);
-      fg2.scale(1, 0.55, 1);
-      fg2.translate(topX, topY, topZ);
-      T(fg2, [0x7DBB6E, 0x96CE84][fr % 2]);
-    }
-    T(xform(new THREE.SphereGeometry(0.15, 6, 5), topX + 0.2, topY - 0.22, topZ, 1, 1, 1), 0x8A6A48);
-    T(xform(new THREE.SphereGeometry(0.15, 6, 5), topX - 0.18, topY - 0.26, topZ + 0.1, 1, 1, 1), 0x8A6A48);
+  // ── 棕櫚樹 ×16（instanced 家族；可點會搖，沙漠綠洲主樹種）──
+  var palmParts = [];
+  for (var seg = 0; seg < 4; seg++) {
+    palmParts.push(colorize(new THREE.CylinderGeometry(0.15 - seg * 0.015, 0.2 - seg * 0.015, 1.15, 6)
+      .translate(0.22 * seg, 0.9 + seg * 1.02, 0), 0xA9825A).toNonIndexed()); // 微彎樹幹
   }
-  [[-6.5, 30, 2.6], [6.5, 22, 0.4], [-6.4, 14, 3.1], [6.6, 33, 5.5], [37, 15.5, 1.2],
-   [43, 21, 4.2], [-4.6, 39.5, 2.0], [4.6, 39.5, 0.9], [15, -20, 5.8], [-15, -20, 0.6]].forEach(function (pp2) {
-    palm(pp2[0], pp2[1], pp2[2]);
-  });
+  for (var fr = 0; fr < 6; fr++) {
+    var fg2 = new THREE.ConeGeometry(0.34, 2.3, 4).translate(0, 1.15, 0);
+    fg2.rotateZ(Math.PI / 2 + 0.55);
+    fg2.rotateY(fr / 6 * Math.PI * 2);
+    fg2.scale(1, 0.55, 1);
+    fg2.translate(0.75, 5.05, 0);
+    palmParts.push(colorize(fg2, [0x8FBB6E, 0xA5CE84][fr % 2]).toNonIndexed());
+  }
+  palmParts.push(colorize(new THREE.SphereGeometry(0.15, 6, 5).translate(0.95, 4.83, 0), 0x8A6A48).toNonIndexed()); // 椰棗
+  palmParts.push(colorize(new THREE.SphereGeometry(0.15, 6, 5).translate(0.57, 4.79, 0.1), 0x8A6A48).toNonIndexed());
+  var palmInst = famMesh(mergeGeometries(palmParts), vertexToon.clone(), LITE ? 10 : 16);
+  var PALM_SPOTS = [[-6.5, 30], [6.5, 22], [-6.4, 14], [6.6, 33], [37, 15.5], [43, 21], [-4.6, 39.5], [4.6, 39.5],
+                    [15, -20], [-15, -20], [-44, 8], [44, 4], [-24, 40], [24, 36], [-38, -18], [32, -22]];
+  for (var pm = 0; pm < palmInst.count; pm++) {
+    var ps2 = PALM_SPOTS[pm];
+    var psc = 0.85 + scRng() * 0.45;
+    regWob('palm', [{ im: palmInst, idx: pm, x: ps2[0], y: 0.4, z: ps2[1], yaw: scRng() * 6.28, sx: psc, sy: psc, sz: psc }]);
+    CAM_BLOCKERS.push({ x: ps2[0], z: ps2[1], r: 1.5 * psc, h: 5.6 * psc });
+  }
 
   var townToon = new THREE.Mesh(mergeGeometries(toonParts.map(function (g) { return g.toNonIndexed(); })), vertexToon);
   scene.add(townToon);
@@ -1715,7 +1950,7 @@ function makeLabelSheet(entries) {
 }
 
 /* ═══════════════ 8b. 城區動態件（資料驅動，rebuildDistricts 重建） ═══════════════ */
-var DYN = { sevenDay: null, monthly: null, shopSigns: null, tierSigns: null, parcels: null, berthSheet: null, siteSign: null };
+var DYN = { sevenDay: null, monthly: null, shopSigns: null, tierSigns: null, parcels: null, berthSheet: null, siteSign: null, quarters: null, nilo: null };
 function disposeGroup(g) {
   if (!g || !g.traverse) return;
   g.traverse(function (o) {
@@ -1732,6 +1967,13 @@ function disposeGroup(g) {
 var boatIntervals = [60, 60, 60, 60, 60]; // 各泊位發船間隔（秒），rebuildDistricts 更新
 function rebuildDistricts() {
   if (!world.ok || !D) return;
+  // 先拆掉上一輪水位塔的可點/搖晃註冊（避免殘留引用）
+  if (DYN._niloClick) {
+    var nci = clickTargets.indexOf(DYN._niloClick);
+    if (nci >= 0) clickTargets.splice(nci, 1);
+    var nmi = meshWob.indexOf(DYN._niloClick.userData.meshWob);
+    if (nmi >= 0) meshWob.splice(nmi, 1);
+  }
   for (var k in DYN) {
     if (k.charAt(0) === '_') { DYN[k] = null; continue; } // 輔助值
     disposeGroup(DYN[k]); DYN[k] = null;
@@ -1787,9 +2029,9 @@ function rebuildDistricts() {
   m25.forEach(function (m) { M = Math.max(M, m.rev || 0); });
   var gM = new THREE.Group();
   var pillarGeo = new THREE.CylinderGeometry(0.55, 0.7, 1, 8).translate(0, 0.5, 0);
-  var pillars = new THREE.InstancedMesh(pillarGeo, crystalMat(0xCBB3E6, 0.6), 12);
+  var pillars = new THREE.InstancedMesh(pillarGeo, crystalMat(0xA989D4, 0.82), 12); // 白天沙漠底也要看得見
   pillars.frustumCulled = false;
-  var rings = new THREE.InstancedMesh(new THREE.TorusGeometry(0.85, 0.09, 6, 18).rotateX(Math.PI / 2), goldMat, 12);
+  var rings = new THREE.InstancedMesh(new THREE.TorusGeometry(0.58, 0.07, 6, 18).rotateX(Math.PI / 2), goldMat, 12); // 去年同月刻度環（貼柱身）
   rings.frustumCulled = false;
   var sheetM = [];
   DYN._curIdx = -1;
@@ -1903,6 +2145,105 @@ function rebuildDistricts() {
   gN.add(nLbl);
   DYN.siteSign = gN;
   scene.add(gN);
+
+  // ── 四季金字塔群（Q1–Q4；高度∝季營收，約數標籤；當前季搭鷹架成長中）──
+  var Q_SPOTS = [[-46, -4], [-42, -11], [-36, -17], [-30, -21]];
+  var qRevs = [0, 0, 0, 0], curQ = -1;
+  for (var qm = 0; qm < 12; qm++) {
+    var qEntry = m26[qm] || {};
+    qRevs[(qm / 3) | 0] += qEntry.rev || 0;
+    if (qEntry.current) curQ = (qm / 3) | 0;
+  }
+  var maxQ = Math.max(qRevs[0], qRevs[1], qRevs[2], qRevs[3], 1);
+  var gQ = new THREE.Group();
+  var qPyrInst = new THREE.InstancedMesh(
+    new THREE.ConeGeometry(3.1, 1, 4).rotateY(Math.PI / 4).translate(0, 0.5, 0), toonMat(0xffffff), 4);
+  qPyrInst.frustumCulled = false;
+  var qCapInst = new THREE.InstancedMesh(new THREE.ConeGeometry(0.8, 0.8, 4).rotateY(Math.PI / 4), goldMat, 4);
+  qCapInst.frustumCulled = false;
+  var sheetQ = [];
+  for (var qi = 0; qi < 4; qi++) {
+    var qs = Q_SPOTS[qi];
+    var future = qRevs[qi] <= 0 && qi !== curQ;
+    var qh = future ? 0.5 : (1.4 + 5.2 * qRevs[qi] / maxQ);
+    _m.compose(_v.set(qs[0], 0.45, qs[1]), _q.identity(), _s.set(future ? 0.7 : 1, qh, future ? 0.7 : 1));
+    qPyrInst.setMatrixAt(qi, _m);
+    qPyrInst.setColorAt(qi, _c.set(future ? 0xEFE4C8 : [0xEED9A4, 0xE8CFA0, 0xDFC28A, 0xE8CFA0][qi]));
+    if (!future && qi !== curQ && qRevs[qi] > 0) {
+      _m.compose(_v.set(qs[0], 0.45 + qh + 0.38, qs[1]), _q.identity(), _s.set(1, 1, 1)); // 完成季鍍金頂
+    } else {
+      _m.compose(_v.set(0, -99, 0), _q.identity(), _s.set(0.001, 0.001, 0.001));
+    }
+    qCapInst.setMatrixAt(qi, _m);
+    sheetQ.push({
+      text: 'Q' + (qi + 1) + (qRevs[qi] > 0 ? ' ≈ ' + fmtCompact(qRevs[qi]) : (qi === curQ ? ' 進行中' : ' —')),
+      x: qs[0] - 3.4, y: 1.2, z: qs[1] + 0.6, w: 4.6, ry: -Math.PI / 2, // 面向西側高空掠過鏡頭
+      style: { font: '600 44px "Noto Sans TC"', fg: qi === curQ ? '#FFE9B8' : '#F5EFE4', stroke: 'rgba(20,10,16,.75)' }
+    });
+    // 當前季：木鷹架（成長中）
+    if (qi === curQ) {
+      var scfParts = [];
+      for (var sc4 = 0; sc4 < 4; sc4++) {
+        scfParts.push(colorize(new THREE.CylinderGeometry(0.06, 0.06, qh + 1.6, 4)
+          .translate(sc4 % 2 ? 2.2 : -2.2, (qh + 1.6) / 2, sc4 < 2 ? 2.2 : -2.2), PAL.wood).toNonIndexed());
+      }
+      scfParts.push(colorize(new THREE.BoxGeometry(4.9, 0.1, 0.3).translate(0, qh + 1.2, 2.2), PAL.wood).toNonIndexed());
+      scfParts.push(colorize(new THREE.BoxGeometry(0.3, 0.1, 4.9).translate(2.2, qh + 0.7, 0), PAL.wood).toNonIndexed());
+      var scf = new THREE.Mesh(mergeGeometries(scfParts), vertexToon);
+      scf.position.set(qs[0], 0.45, qs[1]);
+      gQ.add(scf);
+      var qGlow = glowSprite('rgba(255,223,158,.6)', 7);
+      qGlow.position.set(qs[0], 0.45 + qh + 1, qs[1]);
+      gQ.add(qGlow);
+    }
+  }
+  gQ.add(qPyrInst); gQ.add(qCapInst);
+  gQ.add(makeLabelSheet(sheetQ));
+  var qTitle = makeLabel('四季營收 · 金字塔群', 'name');
+  qTitle.position.set(-38, 8.4, -12);
+  qTitle.scale.multiplyScalar(1.5);
+  gQ.add(qTitle);
+  DYN.quarters = gQ;
+  DYN._qPyr = qPyrInst; DYN._qRevs = qRevs; DYN._curQ = curQ; DYN._maxQ = maxQ; DYN._qSpots = Q_SPOTS;
+  scene.add(gQ);
+
+  // ── 年度水位塔 Nilometer（年累計 ÷ 年度目標）──
+  var ytd = 0;
+  m26.forEach(function (mo) { ytd += mo.rev || 0; });
+  var gY = new THREE.Group();
+  var NX = -16, NZ = 38, NH = 6.2;
+  var niloParts = [];
+  niloParts.push(colorize(new THREE.CylinderGeometry(1.5, 1.8, 0.6, 10).translate(0, 0.3, 0), PAL.sandstoneD));
+  niloParts.push(colorize(new THREE.CylinderGeometry(0.62, 0.75, NH, 8).translate(0, NH / 2 + 0.6, 0), PAL.sandstone));
+  niloParts.push(colorize(new THREE.ConeGeometry(0.5, 0.7, 4).rotateY(Math.PI / 4).translate(0, NH + 0.95, 0), PAL.gold));
+  for (var nk = 1; nk <= 4; nk++) { // 25/50/75/100% 刻度環
+    niloParts.push(colorize(new THREE.TorusGeometry(0.78, 0.05, 5, 14).rotateX(Math.PI / 2).translate(0, 0.6 + NH * nk / 4, 0), PAL.gold));
+  }
+  var niloMesh = new THREE.Mesh(mergeGeometries(niloParts.map(function (g) { return g.toNonIndexed(); })), vertexToon);
+  gY.add(niloMesh);
+  var annualT = world.annualTarget || 0;
+  var yPct = annualT > 0 ? clamp(ytd / annualT, 0, 1) : 0;
+  var yFillH = Math.max(0.15, NH * yPct);
+  var yFill = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 1, 8).translate(0, 0.5, 0),
+    new THREE.MeshBasicMaterial({ color: 0x6FD8E0, transparent: true, opacity: 0.9 }));
+  yFill.scale.y = yFillH;
+  yFill.position.y = 0.62;
+  gY.add(yFill);
+  var yGlow = glowSprite('rgba(111,216,224,.55)', 5);
+  yGlow.position.y = 0.62 + yFillH;
+  gY.add(yGlow);
+  var yLbl = makeLabel(
+    '年度 ≈ ' + fmtCompact(ytd) + (annualT > 0 ? ' · ' + Math.round(yPct * 100) + '%' : ''), 'name');
+  yLbl.position.set(0, NH + 2.2, 0);
+  yLbl.scale.multiplyScalar(1.35);
+  gY.add(yLbl);
+  gY.position.set(NX, 0.4, NZ);
+  scene.add(gY);
+  meshWob.push({ obj: gY, t: 99, baseRZ: 0, baseRX: 0 });
+  clickTargets.push(niloMesh);
+  niloMesh.userData.meshWob = meshWob[meshWob.length - 1];
+  DYN.nilo = gY;
+  DYN._niloClick = niloMesh;
 }
 
 /* ═══════════════ 9. NPC 系統 ═══════════════ */
@@ -1988,6 +2329,8 @@ function buildNPCBase() {
       active: false, kind: 'walker',
       pathIdx: i < 8 ? 0 : (i < 18 ? 1 : (i < 25 ? 2 : 3)), u: wrng(), dir: wrng() < 0.5 ? 1 : -1,
       speed: 0.019 + wrng() * 0.019,
+      lane: (i % 2 ? 1 : -1) * (0.35 + wrng() * 0.6), dodge: 0, spdF: 1, // v6 車道偏移＋避讓
+
       phase: wrng() * 6.28,
       clothes: PAL.clothes[i % PAL.clothes.length],
       hair: PAL.hairs[i % PAL.hairs.length],
@@ -2122,6 +2465,29 @@ function visitorRespawnDelay(i) {
 
 function updateNPCs(dt) {
   var wob;
+  // ── v6 行人互不相撞：同路徑同向太近 → 後方減速；對向交會 → 暫時往外側身 ──
+  for (var w1 = 0; w1 < WALKER_N; w1++) {
+    var na = npcs[w1];
+    na.spdF = 1;
+    na.dodge *= Math.max(0, 1 - dt * 2.2); // 側身量回歸
+  }
+  for (var w2 = 0; w2 < WALKER_N; w2++) {
+    var nA = npcs[w2];
+    if (nA.scale < 0.1) continue;
+    for (var w3 = w2 + 1; w3 < WALKER_N; w3++) {
+      var nB = npcs[w3];
+      if (nB.scale < 0.1 || nB.pathIdx !== nA.pathIdx) continue;
+      if (nA.dir === nB.dir) {
+        var du = (nB.u - nA.u + 1) % 1;
+        if (nA.dir < 0) du = 1 - du;
+        if (du > 0 && du < 0.014) nA.spdF = Math.min(nA.spdF, 0.5);        // A 在後 → A 減速
+        else if (du > 1 - 0.014) nB.spdF = Math.min(nB.spdF, 0.5);         // B 在後 → B 減速
+      } else {
+        var ddx = nA.pos.x - nB.pos.x, ddz = nA.pos.z - nB.pos.z;
+        if (ddx * ddx + ddz * ddz < 1.6) { nA.dodge = 0.5; nB.dodge = 0.5; } // 對向擦身 → 各往自己車道外側
+      }
+    }
+  }
   for (var i = 0; i < MAXN; i++) {
     var n = npcs[i];
     // 淡入淡出
@@ -2146,9 +2512,13 @@ function updateNPCs(dt) {
     var fleeMul = 1;
     if (n.fleeT > 0) { fleeMul = 4; n.fleeT -= dt; }
     if (n.kind === 'walker') {
-      n.u = (n.u + n.dir * n.speed * fleeMul * dt + 1) % 1;
+      n.u = (n.u + n.dir * n.speed * n.spdF * fleeMul * dt + 1) % 1;
       PATHS[n.pathIdx].getPointAt(n.u, n.pos);
       PATHS[n.pathIdx].getTangentAt(n.u, _v2);
+      // 車道偏移：沿路徑法線錯開，行人不再疊在同一條線上
+      var laneOff = n.lane + n.dodge * (n.lane > 0 ? 1 : -1);
+      n.pos.x += _v2.z * laneOff;
+      n.pos.z += -_v2.x * laneOff;
       n.heading = Math.atan2(_v2.x * n.dir, _v2.z * n.dir);
       moving = true;
     } else if (n.kind === 'staff') {
@@ -2378,15 +2748,51 @@ function onScenePointer(ev) {
   pointerV.x = ((ev.clientX - r.left) / r.width) * 2 - 1;
   pointerV.y = -((ev.clientY - r.top) / r.height) * 2 + 1;
   raycaster.setFromCamera(pointerV, camera);
+  // 優先順序：小人 > 動物 > 天空物 > 樹 > 建物/小物（wobble 家族）
   var hits = raycaster.intersectObjects([npcParts.body, npcParts.head], false);
   if (hits.length && startleNPC(hits[0].instanceId)) return;
   if (bunnyInst) {
     hits = raycaster.intersectObject(bunnyInst, false);
     if (hits.length) { scareBunny(hits[0].instanceId); return; }
   }
+  if (camelInst) {
+    hits = raycaster.intersectObject(camelInst, false);
+    if (hits.length) { pokeCamel(hits[0].instanceId); return; }
+  }
+  if (balloonInst) {
+    hits = raycaster.intersectObject(balloonInst, false);
+    if (hits.length) { pokeBalloon(hits[0].instanceId); return; }
+  }
+  if (birdInst) {
+    hits = raycaster.intersectObject(birdInst, false);
+    if (hits.length) { scareBirds(); return; }
+  }
+  if (cloudInst) {
+    hits = raycaster.intersectObject(cloudInst, false);
+    if (hits.length) { pokeCloud(hits[0].instanceId); return; }
+  }
   if (treeCanopies) {
     hits = raycaster.intersectObjects([treeCanopies, treeTrunks], false);
-    if (hits.length) shakeTree(hits[0].instanceId);
+    if (hits.length) { shakeTree(hits[0].instanceId); return; }
+  }
+  // 建物與小物：instanced 家族查 wobble 註冊表；獨立 mesh 查 userData.meshWob
+  hits = raycaster.intersectObjects(clickTargets, false);
+  if (hits.length) {
+    var h0 = hits[0];
+    if (h0.object.userData.meshWob) {
+      var MW = h0.object.userData.meshWob;
+      if (MW.t > 1.5) {
+        MW.t = 0;
+        spawnDust(h0.point.x, h0.point.y, h0.point.z, 10);
+        popupAt(h0.point.x, h0.point.y + 2, h0.point.z, '❗', null);
+        Music.sfx('thud');
+      }
+      return;
+    }
+    if (h0.instanceId !== undefined) {
+      var w6 = wobMap.get(h0.object.uuid + ':' + h0.instanceId);
+      if (w6) { pokeWob(w6); return; }
+    }
   }
 }
 function startleNPC(i) {
@@ -2425,6 +2831,45 @@ function spawnLeaves(td) {
     L.life = 3.5;
     need--;
   }
+}
+// ── v6 新互動反應 ──
+var dustPts, dustData = [];
+function spawnDust(x, y, z, n) {
+  if (!dustPts) return;
+  for (var i = 0; i < dustData.length && n > 0; i++) {
+    var DU = dustData[i];
+    if (DU.life > 0) continue;
+    var a = Math.random() * Math.PI * 2;
+    DU.x = x + Math.cos(a) * 0.4; DU.y = y + Math.random() * 0.5; DU.z = z + Math.sin(a) * 0.4;
+    DU.vx = Math.cos(a) * (0.8 + Math.random()); DU.vy = 1.2 + Math.random() * 1.2; DU.vz = Math.sin(a) * (0.8 + Math.random());
+    DU.life = 1.1;
+    n--;
+  }
+}
+function pokeBalloon(i) {
+  var bd = balloonData[i];
+  if (!bd || (bd.kind === 'launch' && !bd.active)) return;
+  bd.bounceT = 0;
+  popupAt(bd.x, bd.y + 3, bd.z, '✦', null);
+  Music.sfx('pop');
+}
+function scareBirds() {
+  if (!birdData) return;
+  for (var i = 0; i < birdData.length; i++) birdData[i].panicT = 2.4;
+  Music.sfx('chirp');
+}
+function pokeCloud(i) {
+  var CU = cloudData[i];
+  if (!CU) return;
+  if (CU.jT === undefined || CU.jT > 1.2) CU.jT = 0;
+  Music.sfx('pop');
+}
+function pokeCamel(i) {
+  var CM = camelData[i];
+  if (!CM) return;
+  CM.jumpT = 0;
+  popupAt(CM.px || 0, 3.4, CM.pz || 0, '!', null);
+  Music.sfx('pop');
 }
 
 /* ═══════════════ 9b. 來源碼頭船班 ═══════════════ */
@@ -2527,14 +2972,19 @@ function updateTown(dt) {
     }
     if (anyShake) treeCanopies.instanceMatrix.needsUpdate = true;
   }
-  // 雲漂移
+  // 雲漂移（點擊 → 果凍晃兩下）
   if (cloudInst) {
     for (var cu = 0; cu < cloudData.length; cu++) {
       var CU = cloudData[cu];
       CU.x += CU.vx * dt;
       if (CU.x > 130) CU.x = -130;
+      var cSq = 1;
+      if (CU.jT !== undefined && CU.jT < 1.2) {
+        CU.jT += dt;
+        cSq = 1 + Math.sin(CU.jT * 14) * 0.18 * (1 - CU.jT / 1.2);
+      }
       _q.identity();
-      _m.compose(_v.set(CU.x, CU.y + Math.sin(et * 0.3 + CU.ph) * 0.8, CU.z), _q, _s.set(CU.sc, CU.sc, CU.sc));
+      _m.compose(_v.set(CU.x, CU.y + Math.sin(et * 0.3 + CU.ph) * 0.8, CU.z), _q, _s.set(CU.sc * (2 - cSq), CU.sc * cSq, CU.sc * (2 - cSq)));
       cloudInst.setMatrixAt(cu, _m);
     }
     cloudInst.instanceMatrix.needsUpdate = true;
@@ -2580,6 +3030,7 @@ var balloonInst, balloonData;
 var launchBalloons = [];
 var birdInst, birdData, bflyInst, bflyData;
 var bunnyInst, bunnyData = [];
+var camelInst, camelData = [];
 var airships = [];
 var cloudInst, cloudData = [];
 var petalPts, petalData = [];
@@ -2674,6 +3125,21 @@ function buildParticles() {
   }));
   scene.add(leafPts);
 
+  // ── 沙塵池（點建物噴發）──
+  var dustN = 48;
+  var duPos = new Float32Array(dustN * 3);
+  for (var duI = 0; duI < dustN; duI++) {
+    dustData.push({ x: 0, y: -999, z: 0, vx: 0, vy: 0, vz: 0, life: 0 });
+    duPos[duI * 3 + 1] = -999;
+  }
+  var duGeo = new THREE.BufferGeometry();
+  duGeo.setAttribute('position', new THREE.BufferAttribute(duPos, 3).setUsage(THREE.DynamicDrawUsage));
+  dustPts = new THREE.Points(duGeo, new THREE.PointsMaterial({
+    color: 0xE8D4A4, size: 0.5, transparent: true, opacity: 0.8,
+    map: glowTexture('rgba(232,212,164,1)'), depthWrite: false
+  }));
+  scene.add(dustPts);
+
   // ── 蓬蓬雲（instanced，緩慢漂移）──
   var cloudGeo = mergeGeometries([
     new THREE.SphereGeometry(2.6, 8, 6).toNonIndexed(),
@@ -2719,11 +3185,14 @@ function buildParticles() {
 }
 
 function buildCritters() {
-  // 禮物氣球（環境 6 顆漂移 + 3 顆訂單發射）
+  // 大型熱氣球（×1.7 加大 + 吊籃小乘客；環境 8 顆漂移 + 4 顆訂單發射；可點會彈）
   var balloonGeo = mergeGeometries([
-    new THREE.SphereGeometry(0.9, 12, 9).toNonIndexed(),
-    new THREE.CylinderGeometry(0.02, 0.02, 1.6, 4).translate(0, -1.6, 0).toNonIndexed(),
-    new THREE.BoxGeometry(0.55, 0.45, 0.55).translate(0, -2.6, 0).toNonIndexed()
+    new THREE.SphereGeometry(1.55, 14, 10).toNonIndexed(),
+    new THREE.SphereGeometry(1.55, 14, 10).scale(0.42, 0.42, 0.42).translate(0, -1.75, 0).toNonIndexed(), // 收口
+    new THREE.CylinderGeometry(0.03, 0.03, 1.7, 4).translate(-0.55, -2.6, 0).toNonIndexed(),
+    new THREE.CylinderGeometry(0.03, 0.03, 1.7, 4).translate(0.55, -2.6, 0).toNonIndexed(),
+    new THREE.BoxGeometry(1.1, 0.75, 1.1).translate(0, -3.7, 0).toNonIndexed(),                            // 吊籃
+    new THREE.SphereGeometry(0.26, 8, 6).translate(0, -3.15, 0).toNonIndexed()                             // 小乘客（頭）
   ]);
   balloonInst = new THREE.InstancedMesh(balloonGeo, toonMat(0xffffff), 12);
   balloonData = [];
@@ -2732,25 +3201,27 @@ function buildCritters() {
   for (var b = 0; b < 12; b++) {
     balloonInst.setColorAt(b, _c.set(bcols[b % 6]));
     if (b < 8) {
-      balloonData.push({ kind: 'drift', x: (brng() - 0.5) * 110, y: 17 + brng() * 10, z: (brng() - 0.5) * 110, vx: 0.6 + brng() * 0.7, ph: brng() * 6.28 });
+      balloonData.push({ kind: 'drift', x: (brng() - 0.5) * 110, y: 19 + brng() * 11, z: (brng() - 0.5) * 110, vx: 0.6 + brng() * 0.7, ph: brng() * 6.28, bounceT: 9 });
     } else {
-      balloonData.push({ kind: 'launch', active: false, x: 0, y: -99, z: 0, t: 0 });
+      balloonData.push({ kind: 'launch', active: false, x: 0, y: -99, z: 0, t: 0, bounceT: 9 });
     }
   }
   balloonInst.frustumCulled = false;
   scene.add(balloonInst);
 
-  // 鳥
+  // 白鷺群（沿島緣滑翔；可點驚飛）
   var N_BIRD = LITE ? 5 : 12, N_BFLY = LITE ? 6 : 14;
   if (!LITE || true) {
     var birdGeo = mergeGeometries([
       new THREE.ConeGeometry(0.16, 1.1, 4).rotateZ(Math.PI / 2).translate(-0.5, 0, 0).toNonIndexed(),
-      new THREE.ConeGeometry(0.16, 1.1, 4).rotateZ(-Math.PI / 2).translate(0.5, 0, 0).toNonIndexed()
+      new THREE.ConeGeometry(0.16, 1.1, 4).rotateZ(-Math.PI / 2).translate(0.5, 0, 0).toNonIndexed(),
+      new THREE.SphereGeometry(0.14, 6, 5).scale(1, 0.8, 1.8).toNonIndexed(),                    // 身
+      new THREE.CylinderGeometry(0.03, 0.03, 0.5, 4).rotateX(1.2).translate(0, 0.08, 0.5).toNonIndexed() // 長頸
     ]);
-    birdInst = new THREE.InstancedMesh(birdGeo, toonMat(0xF5EFE4), N_BIRD);
+    birdInst = new THREE.InstancedMesh(birdGeo, toonMat(0xFAF7EE), N_BIRD);
     birdInst.frustumCulled = false;
     birdData = [];
-    for (var bd = 0; bd < N_BIRD; bd++) birdData.push({ r: 48 + (bd % 5) * 7, y: 12 + (bd % 4) * 3, ph: bd * 0.62, sp: 0.09 + (bd % 3) * 0.035 });
+    for (var bd = 0; bd < N_BIRD; bd++) birdData.push({ r: 48 + (bd % 5) * 7, y: 15 + (bd % 4) * 3.5, ph: bd * 0.62, sp: 0.09 + (bd % 3) * 0.035, panicT: 9 });
     scene.add(birdInst);
     // 蝴蝶
     bflyInst = new THREE.InstancedMesh(birdGeo, toonMat(0xF2D377), N_BFLY);
@@ -2765,22 +3236,23 @@ function buildCritters() {
     scene.add(bflyInst);
   }
 
-  // 兔子（動物 = 短影音人氣；在花圃與導流入口附近蹦跳）
+  // 沙漠狐（大耳、沙色；動物 = 短影音人氣；受驚快跑且會避開建築）
   var N_BUNNY = LITE ? 5 : 12;
   var bunnyGeo = mergeGeometries([
-    new THREE.SphereGeometry(0.28, 9, 7).scale(1, 0.82, 1.2).toNonIndexed(),                      // 身體
-    new THREE.SphereGeometry(0.19, 9, 7).translate(0, 0.2, 0.26).toNonIndexed(),                  // 頭
-    new THREE.CapsuleGeometry(0.05, 0.24, 3, 6).rotateX(-0.25).translate(-0.08, 0.5, 0.2).toNonIndexed(), // 耳
-    new THREE.CapsuleGeometry(0.05, 0.24, 3, 6).rotateX(-0.1).rotateZ(0.2).translate(0.09, 0.5, 0.22).toNonIndexed(),
-    new THREE.SphereGeometry(0.09, 6, 5).translate(0, 0.02, -0.32).toNonIndexed()                 // 尾巴
+    new THREE.SphereGeometry(0.28, 9, 7).scale(1, 0.82, 1.25).toNonIndexed(),                     // 身體
+    new THREE.SphereGeometry(0.2, 9, 7).translate(0, 0.2, 0.28).toNonIndexed(),                   // 頭
+    new THREE.ConeGeometry(0.13, 0.42, 4).rotateX(-0.2).translate(-0.13, 0.55, 0.22).toNonIndexed(), // 大耳（沙漠狐特徵）
+    new THREE.ConeGeometry(0.13, 0.42, 4).rotateX(-0.2).translate(0.13, 0.55, 0.22).toNonIndexed(),
+    new THREE.SphereGeometry(0.07, 6, 5).translate(0, 0.16, 0.5).toNonIndexed(),                  // 吻
+    new THREE.CapsuleGeometry(0.07, 0.3, 3, 6).rotateX(1.1).translate(0, 0.12, -0.42).toNonIndexed() // 蓬尾
   ]);
   bunnyInst = new THREE.InstancedMesh(bunnyGeo, toonMat(0xffffff), N_BUNNY);
   bunnyInst.frustumCulled = false;
   bunnyData = [];
   var brng2 = mulberry32(88);
-  var bunnyCols = [0xF5EFE4, 0xE8D9C4, 0xC9B29A, 0xF2D8DC, 0xDADFE8];
+  var bunnyCols = [0xE8C99A, 0xF2DCB4, 0xD9B489, 0xF5E6CB, 0xE0BE94]; // 沙漠狐沙色系
   for (var bn = 0; bn < N_BUNNY; bn++) {
-    // 一半聚在導流入口沿線（吸引訪客），一半在花圃
+    // 一半聚在導流入口沿線（吸引訪客），一半在寶石砂苗叢
     var home = bn % 2 === 0
       ? { x: 33 + brng2() * 9, z: 14 + brng2() * 7 }
       : (ellipseSpot(0.2, 0.7, EXCLUDE) || { x: -12, z: -34 });
@@ -2788,6 +3260,29 @@ function buildCritters() {
     bunnyInst.setColorAt(bn, _c.set(bunnyCols[bn % 5]));
   }
   scene.add(bunnyInst);
+
+  // 駱駝商隊 ×3（沿外環慢走，馱著寶石袋；可點會跳）
+  var camelGeo = mergeGeometries([
+    colorize(new THREE.SphereGeometry(0.62, 10, 8).scale(1, 0.85, 1.5), 0xD9B489).toNonIndexed(),           // 身
+    colorize(new THREE.SphereGeometry(0.34, 8, 6).translate(0, 0.62, 0.25), 0xD9B489).toNonIndexed(),        // 駝峰1
+    colorize(new THREE.SphereGeometry(0.3, 8, 6).translate(0, 0.6, -0.35), 0xD9B489).toNonIndexed(),         // 駝峰2
+    colorize(new THREE.CylinderGeometry(0.14, 0.17, 0.9, 6).rotateX(0.5).translate(0, 0.55, 0.85), 0xD9B489).toNonIndexed(), // 頸
+    colorize(new THREE.SphereGeometry(0.22, 8, 6).scale(1, 0.85, 1.35).translate(0, 0.95, 1.1), 0xCFA97A).toNonIndexed(),   // 頭
+    colorize(new THREE.ConeGeometry(0.07, 0.16, 4).translate(-0.1, 1.15, 1.02), 0xCFA97A).toNonIndexed(),    // 耳
+    colorize(new THREE.ConeGeometry(0.07, 0.16, 4).translate(0.1, 1.15, 1.02), 0xCFA97A).toNonIndexed(),
+    colorize(new THREE.CylinderGeometry(0.09, 0.07, 0.9, 5).translate(-0.3, -0.85, 0.5), 0xC9A26E).toNonIndexed(), // 四腿
+    colorize(new THREE.CylinderGeometry(0.09, 0.07, 0.9, 5).translate(0.3, -0.85, 0.5), 0xC9A26E).toNonIndexed(),
+    colorize(new THREE.CylinderGeometry(0.09, 0.07, 0.9, 5).translate(-0.3, -0.85, -0.5), 0xC9A26E).toNonIndexed(),
+    colorize(new THREE.CylinderGeometry(0.09, 0.07, 0.9, 5).translate(0.3, -0.85, -0.5), 0xC9A26E).toNonIndexed(),
+    colorize(new THREE.BoxGeometry(0.5, 0.34, 0.7).translate(0, 0.42, -0.05).rotateZ(0.0), 0xB0567A).toNonIndexed(), // 鞍毯
+    colorize(new THREE.OctahedronGeometry(0.16, 0).translate(-0.38, 0.6, 0), 0xF2A9C0).toNonIndexed(),       // 側掛寶石袋
+    colorize(new THREE.OctahedronGeometry(0.16, 0).translate(0.38, 0.6, 0), 0xCBB3E6).toNonIndexed()
+  ]);
+  camelInst = new THREE.InstancedMesh(camelGeo, vertexToon.clone(), 3);
+  camelInst.frustumCulled = false;
+  camelData = [];
+  for (var cm = 0; cm < 3; cm++) camelData.push({ u: cm * 0.09, jumpT: 9, px: 0, pz: 0 });
+  scene.add(camelInst);
 
   // 小飛船 ×2
   var shipRoutes = [
@@ -2910,23 +3405,28 @@ function updateParticles(dt) {
   }
   oa.needsUpdate = true;
 
-  // 氣球
+  // 氣球（點擊 → bounceT 果凍彈跳）
   for (var b2 = 0; b2 < 12; b2++) {
     var bd2 = balloonData[b2];
+    var bSquash = 1;
+    if (bd2.bounceT < 1.2) {
+      bd2.bounceT += dt;
+      bSquash = 1 + Math.sin(bd2.bounceT * 16) * 0.22 * (1 - bd2.bounceT / 1.2);
+    }
     if (bd2.kind === 'drift') {
       bd2.x += bd2.vx * dt;
       if (bd2.x > 85) bd2.x = -85;
       _v.set(bd2.x, bd2.y + Math.sin(et * 0.5 + bd2.ph) * 1.4, bd2.z);
       _e.set(0, 0, 0.06 * Math.sin(et * 0.7 + bd2.ph)); _q.setFromEuler(_e);
-      _m.compose(_v, _q, _s.set(1, 1, 1));
+      _m.compose(_v, _q, _s.set(2 - bSquash, bSquash, 2 - bSquash));
     } else if (bd2.active) {
       bd2.t += dt;
       bd2.y += 3 * dt;
       var sway = Math.sin(bd2.t * 2.2) * 0.4;
-      if (bd2.y > 30) { bd2.active = false; _m.compose(_v.set(0, -99, 0), _q.identity(), _s.set(0.001, 0.001, 0.001)); }
+      if (bd2.y > 34) { bd2.active = false; _m.compose(_v.set(0, -99, 0), _q.identity(), _s.set(0.001, 0.001, 0.001)); }
       else {
         _e.set(0, 0, 0.1 * Math.sin(bd2.t * 2)); _q.setFromEuler(_e);
-        _m.compose(_v.set(bd2.x + sway, bd2.y, bd2.z), _q, _s.set(1, 1, 1));
+        _m.compose(_v.set(bd2.x + sway, bd2.y, bd2.z), _q, _s.set(2 - bSquash, bSquash, 2 - bSquash));
       }
     } else {
       _m.compose(_v.set(0, -99, 0), _q.identity(), _s.set(0.001, 0.001, 0.001));
@@ -2935,14 +3435,17 @@ function updateParticles(dt) {
   }
   balloonInst.instanceMatrix.needsUpdate = true;
 
-  // 鳥 / 蝴蝶
+  // 白鷺（點擊 → 全群驚飛：加速、爬升、急拍翅）/ 蝴蝶
   if (birdInst) {
     for (var bd3 = 0; bd3 < birdData.length; bd3++) {
       var B = birdData[bd3];
-      var ba = et * B.sp + B.ph;
-      var flap = 0.5 + 0.5 * Math.abs(Math.sin(et * 7 + B.ph));
+      var panic = B.panicT < 2.4;
+      if (panic) B.panicT += dt;
+      var pF = panic ? (1 - B.panicT / 2.4) : 0;
+      var ba = et * B.sp * (1 + pF * 2.4) + B.ph + (panic ? pF * 0.8 : 0);
+      var flap = 0.5 + 0.5 * Math.abs(Math.sin(et * (7 + pF * 9) + B.ph));
       _e.set(0, -ba - Math.PI / 2, 0); _q.setFromEuler(_e);
-      _m.compose(_v.set(Math.cos(ba) * B.r, B.y + Math.sin(et * 1.2 + B.ph) * 1.2, Math.sin(ba) * B.r), _q, _s.set(1, flap, 1));
+      _m.compose(_v.set(Math.cos(ba) * (B.r + pF * 6), B.y + Math.sin(et * 1.2 + B.ph) * 1.2 + pF * 7, Math.sin(ba) * (B.r + pF * 6)), _q, _s.set(1, flap, 1));
       birdInst.setMatrixAt(bd3, _m);
     }
     birdInst.instanceMatrix.needsUpdate = true;
@@ -2956,7 +3459,7 @@ function updateParticles(dt) {
     bflyInst.instanceMatrix.needsUpdate = true;
   }
 
-  // 兔子：繞著家附近蹦跳，偶爾坐下休息
+  // 沙漠狐：繞著家附近蹦跳；受驚快跑（會沿建築外緣滑開，不穿牆）
   if (bunnyInst) {
     for (var bn2 = 0; bn2 < bunnyData.length; bn2++) {
       var BY = bunnyData[bn2];
@@ -2964,14 +3467,61 @@ function updateParticles(dt) {
       if (fleeing) BY.fleeT -= dt;
       var go = fleeing || Math.sin(et * 0.35 + BY.ph) > -0.25;
       if (go) BY.a += dt * BY.sp * (fleeing ? 5 : 1);
-      var bx = BY.x + Math.cos(BY.a) * BY.r;
-      var bz = BY.z + Math.sin(BY.a) * BY.r;
+      var bx = BY.x + Math.cos(BY.a) * BY.r * (fleeing ? 1.6 : 1);
+      var bz = BY.z + Math.sin(BY.a) * BY.r * (fleeing ? 1.6 : 1);
+      // 避開建築排除區：命中圓 → 推到圓外緣（沿切線滑開）
+      for (var ex2 = 0; ex2 < EXCLUDE.length; ex2++) {
+        var EX = EXCLUDE[ex2];
+        var dx3 = bx - EX.x, dz3 = bz - EX.z;
+        var dd3 = dx3 * dx3 + dz3 * dz3;
+        if (dd3 < EX.r * EX.r && dd3 > 1e-4) {
+          var dl = Math.sqrt(dd3);
+          bx = EX.x + dx3 / dl * (EX.r + 0.2);
+          bz = EX.z + dz3 / dl * (EX.r + 0.2);
+        }
+      }
       var hop = go ? Math.max(0, Math.sin(et * (fleeing ? 10 : 5) + BY.ph)) * (fleeing ? 0.5 : 0.32) : 0;
       _q.setFromAxisAngle(UP, -BY.a);
       _m.compose(_v.set(bx, 0.6 + hop, bz), _q, _s.set(1, 1, 1));
       bunnyInst.setMatrixAt(bn2, _m);
     }
     bunnyInst.instanceMatrix.needsUpdate = true;
+  }
+
+  // 駱駝商隊：沿環城大巡遊外側慢走
+  if (camelInst) {
+    for (var cm2 = 0; cm2 < camelData.length; cm2++) {
+      var CM = camelData[cm2];
+      CM.u = (CM.u + dt * 0.0042) % 1;
+      PATHS[1].getPointAt(CM.u, _v);
+      PATHS[1].getTangentAt(CM.u, _v2);
+      _v.x += _v2.z * 2.2; _v.z += -_v2.x * 2.2; // 走在巡遊路徑外側車道
+      CM.px = _v.x; CM.pz = _v.z;
+      var cJump = 0;
+      if (CM.jumpT < 1.2) { CM.jumpT += dt; cJump = Math.abs(Math.sin(CM.jumpT / 1.2 * Math.PI * 2)) * 0.7; }
+      var cBob = 0.06 * Math.sin(et * 3 + cm2 * 2);
+      _e.set(0, Math.atan2(_v2.x, _v2.z), 0.04 * Math.sin(et * 2.4 + cm2)); _q.setFromEuler(_e);
+      _m.compose(_v2.set(_v.x, 1.45 + cBob + cJump, _v.z), _q, _s.set(1, 1, 1));
+      camelInst.setMatrixAt(cm2, _m);
+    }
+    camelInst.instanceMatrix.needsUpdate = true;
+  }
+
+  // 沙塵（點建物噴發）
+  if (dustPts) {
+    var dua = dustPts.geometry.attributes.position;
+    var anyDust = false;
+    for (var du2 = 0; du2 < dustData.length; du2++) {
+      var DU2 = dustData[du2];
+      if (DU2.life <= 0) continue;
+      anyDust = true;
+      DU2.life -= dt;
+      DU2.vy -= 2.2 * dt;
+      DU2.x += DU2.vx * dt; DU2.y += DU2.vy * dt; DU2.z += DU2.vz * dt;
+      if (DU2.life <= 0 || DU2.y < 0.3) { DU2.life = 0; dua.setY(du2, -999); continue; }
+      dua.setXYZ(du2, DU2.x, DU2.y, DU2.z);
+    }
+    if (anyDust) dua.needsUpdate = true;
   }
 
   // 落葉
@@ -3134,53 +3684,90 @@ function celebrate(text) {
 }
 
 /* ═══════════════ 12. 鏡頭導演 ═══════════════ */
+// v6 運鏡原則：地面鏡頭最低 y≥5、與目標保持距離、俯角 8–15° → 不再貼牆穿樹
 var SHOTS = [
   { name: 'orbitWide', dur: 50, pose: function (k, out) { // 0 全鎮環繞
       var th = camCycleTheta + k * Math.PI;
-      out.pos.set(Math.cos(th) * 98, 40, Math.sin(th) * 82);
-      out.look.set(0, 8, 0);
+      out.pos.set(Math.cos(th) * 98, 44, Math.sin(th) * 84);
+      out.look.set(0, 7, 0);
   }},
   { name: 'harborArrival', dur: 35, pose: function (k, out) { // 1 碼頭迎船
       var e2 = easeInOut(k);
-      out.pos.set(-16 + e2 * 16, 7 - e2 * 3, 78 - e2 * 28);
-      out.look.set(0, 2, 50 - e2 * 10);
+      out.pos.set(-18 + e2 * 18, 9 - e2 * 3, 80 - e2 * 26);
+      out.look.set(0, 2.5, 48 - e2 * 8);
   }},
-  { name: 'boulevardWalk', dur: 40, pose: function (k, out) { // 2 月營收大道直視宮殿
-      out.pos.set(Math.sin(k * 4) * 0.8, 2.6, 38 - k * 32);
-      out.look.set(0, 3 + k * 4, 4 - k * 26);
+  { name: 'boulevardWalk', dur: 40, pose: function (k, out) { // 2 月營收大道望向金字塔神殿
+      out.pos.set(Math.sin(k * 4) * 0.8, 6, 44 - k * 30);
+      out.look.set(0, 3.5 + k * 4, 8 - k * 24);
   }},
-  { name: 'shopDolly', dur: 40, pose: function (k, out) { // 3 熱賣商品街推軌
-      out.pos.set(40 - k * 30, 2.8, 19.5);
-      out.look.set(37 - k * 30, 2.2, 10.5);
+  { name: 'shopDolly', dur: 40, pose: function (k, out) { // 3 熱賣市集街推軌
+      out.pos.set(42 - k * 30, 6.5, 24.5);
+      out.look.set(37 - k * 30, 2.4, 11);
   }},
   { name: 'skylinePass', dur: 35, pose: function (k, out) { // 4 七日天際線
-      out.pos.set(-44 + k * 32, 4 + k * 5, 24);
-      out.look.set(-40 + k * 30, 6, 12);
+      out.pos.set(-48 + k * 34, 8, 27);
+      out.look.set(-40 + k * 30, 4.5, 12);
   }},
   { name: 'residentialLane', dur: 30, pose: function (k, out) { // 5 客群住宅巷
-      out.pos.set(-46 + k * 38, 3.5, 33);
-      out.look.set(-28, 2.5, 26);
+      out.pos.set(-50 + k * 40, 8, 39);
+      out.look.set(-30 + k * 6, 2.5, 27);
   }},
   { name: 'towerRise', dur: 30, pose: function (k, out) { // 6 目標塔攀升
       var e3 = k * k * (3 - 2 * k);
-      out.pos.set(-36 + e3 * 2, 2 + e3 * 19, -14 - e3 * 4);
-      out.look.set(-26, 3 + e3 * 16, -26);
+      out.pos.set(-40 + e3 * 4, 6 + e3 * 17, -8 - e3 * 8);
+      out.look.set(-26, 3 + e3 * 15, -26);
   }},
-  { name: 'clockPlaza', dur: 25, pose: function (k, out) { // 7 噴泉+時鐘塔+郵局
+  { name: 'clockPlaza', dur: 25, pose: function (k, out) { // 7 噴泉廣場高環繞（拉遠抬高）
       var th2 = 2.2 + k * 1.6;
-      out.pos.set(Math.cos(th2) * 16, 6, -6 + Math.sin(th2) * 16);
-      out.look.set(-4, 5, -4);
+      out.pos.set(Math.cos(th2) * 26, 12, -6 + Math.sin(th2) * 26);
+      out.look.set(-2, 3.5, -5);
   }},
-  { name: 'jumboPass', dur: 25, pose: function (k, out) { // 8 短影音巨幕
-      out.pos.set(30 + k * 14, 16 - k * 2, -8 - k * 12);
+  { name: 'quarterPass', dur: 30, pose: function (k, out) { // 8 四季金字塔＋年度水位塔（高空掠過）
+      out.pos.set(-62 + k * 14, 15, 14 - k * 26);
+      out.look.set(-37 + k * 3, 2.5, -11 - k * 3);
+  }},
+  { name: 'jumboPass', dur: 25, pose: function (k, out) { // 9 短影音巨幕
+      out.pos.set(28 + k * 16, 18 - k * 2, -2 - k * 12);
       out.look.set(62, 14, -30);
   }},
-  { name: 'crystalHalo', dur: 25, pose: function (k, out) { // 9 品牌水晶環繞
+  { name: 'pyramidHalo', dur: 25, pose: function (k, out) { // 10 神殿+品牌水晶環繞
       var th3 = k * Math.PI * 1.5;
-      out.pos.set(Math.cos(th3) * 15, 26, -24 + Math.sin(th3) * 15);
-      out.look.set(0, 21, -24);
+      out.pos.set(Math.cos(th3) * 24, 24, -24 + Math.sin(th3) * 24);
+      out.look.set(0, 11, -24);
   }}
 ];
+// 鏡頭防遮擋：帶高度的圓柱清單；鏡頭或視線前段落入 → 平滑抬升
+var CAM_BLOCKERS = [
+  { x: 0, z: -24, r: 10.5, h: 13.5 },  // 金字塔神殿
+  { x: -11, z: -1, r: 2.4, h: 12 },    // 方尖碑鐘塔
+  { x: -26, z: -26, r: 3.6, h: 24 },   // 目標塔
+  { x: -30, z: -32, r: 2.6, h: 9.5 },  // 風車
+  { x: 24, z: -28.5, r: 7.5, h: 6 },   // 採石場
+  { x: 23.5, z: 10.5, r: 13, h: 4.2 }, // 市集街整排
+  { x: 12, z: -2, r: 3, h: 4.6 },      // 郵局
+  { x: 36, z: -2, r: 4.5, h: 8.5 },    // 工地吊車
+  { x: -38, z: -12, r: 11, h: 6.5 },   // 四季金字塔群
+  { x: -16, z: 38, r: 2.2, h: 7.5 },   // 年度水位塔
+  { x: -15.5, z: -6, r: 1.3, h: 6.4 }, { x: 15.5, z: -6, r: 1.3, h: 6.4 },   // 方尖碑
+  { x: -6, z: 37.5, r: 1.3, h: 6.4 }, { x: 6, z: 37.5, r: 1.3, h: 6.4 }
+];
+var camLiftCur = 0;
+function occlusionLift(pos, look) {
+  var need = 0;
+  for (var s = 0; s <= 4; s++) {
+    var f = s / 10; // 取視線前 40% 採樣（含鏡頭本身）
+    var sx = pos.x + (look.x - pos.x) * f;
+    var sy = pos.y + (look.y - pos.y) * f;
+    var sz = pos.z + (look.z - pos.z) * f;
+    for (var b = 0; b < CAM_BLOCKERS.length; b++) {
+      var B = CAM_BLOCKERS[b];
+      if (sy >= B.h) continue;
+      var dx = sx - B.x, dz = sz - B.z;
+      if (dx * dx + dz * dz < B.r * B.r) need = Math.max(need, (B.h - sy) * (1 - f) + 1);
+    }
+  }
+  return need;
+}
 var CAM_TOTAL = SHOTS.reduce(function (a, s) { return a + s.dur; }, 0);
 var camCycleTheta = 0;
 var poseA = { pos: new THREE.Vector3(), look: new THREE.Vector3() };
@@ -3231,6 +3818,7 @@ function updateCamera(dt) {
     SHOTS[clamp(+FORCE_SHOT | 0, 0, SHOTS.length - 1)].pose(clamp(+(q.get('k') || 0.5), 0, 1), poseA);
     camera.position.copy(poseA.pos);
     camLook.copy(poseA.look);
+    camera.position.y += occlusionLift(camera.position, camLook);
     camera.lookAt(camLook);
     return;
   }
@@ -3262,6 +3850,10 @@ function updateCamera(dt) {
     }
   }
   camera.position.y += 0.15 * Math.sin(et * 0.35); // 手持呼吸感
+  // 防遮擋：視線被建物/樹擋住 → 平滑抬升鏡頭（lerp，不跳切）
+  var lift = occlusionLift(camera.position, camLook);
+  camLiftCur += (lift - camLiftCur) * Math.min(1, dt * 2.5);
+  camera.position.y += camLiftCur;
   camera.lookAt(camLook);
 }
 
@@ -3573,7 +4165,7 @@ var Music = (function () {
     sfx: function (type) {
       if (!ctx || ctx.state !== 'running' || muted) return;
       var nowS = ctx.currentTime;
-      var throttle = { order: 1.5, celebrate: 10, boat: 8, pop: 0.25, rustle: 0.8 }[type] || 2;
+      var throttle = { order: 1.5, celebrate: 10, boat: 8, pop: 0.25, rustle: 0.8, thud: 0.3, chirp: 1.2 }[type] || 2;
       if (sfxLast[type] && nowS - sfxLast[type] < throttle) return;
       sfxLast[type] = nowS;
       if (type === 'order') {
@@ -3605,6 +4197,33 @@ var Music = (function () {
         var lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 600;
         o.connect(g); g.connect(lp); lp.connect(busSfx);
         o.start(nowS); o.stop(nowS + 0.7);
+      } else if (type === 'thud') {
+        // 建物搖晃：低沉「咚」＋一點沙聲
+        var ot = ctx.createOscillator(); ot.type = 'sine';
+        ot.frequency.setValueAtTime(180, nowS);
+        ot.frequency.exponentialRampToValueAtTime(70, nowS + 0.16);
+        var gt2 = ctx.createGain();
+        env(gt2, nowS, 0.004, 0.14, 0.09);
+        ot.connect(gt2); gt2.connect(busSfx);
+        ot.start(nowS); ot.stop(nowS + 0.4);
+        var st3 = ctx.createBufferSource(); st3.buffer = noiseBuf;
+        var bt = ctx.createBiquadFilter(); bt.type = 'bandpass'; bt.frequency.value = 900; bt.Q.value = 0.6;
+        var gn2 = ctx.createGain();
+        env(gn2, nowS, 0.008, 0.04, 0.08);
+        st3.connect(bt); bt.connect(gn2); gn2.connect(busSfx);
+        st3.start(nowS); st3.stop(nowS + 0.3);
+      } else if (type === 'chirp') {
+        // 白鷺驚飛：兩聲高音啁啾
+        [0, 0.14].forEach(function (dt4) {
+          var oc2 = ctx.createOscillator(); oc2.type = 'sine';
+          oc2.frequency.setValueAtTime(2100, nowS + dt4);
+          oc2.frequency.linearRampToValueAtTime(2800, nowS + dt4 + 0.05);
+          oc2.frequency.linearRampToValueAtTime(1900, nowS + dt4 + 0.1);
+          var gc2 = ctx.createGain();
+          env(gc2, nowS + dt4, 0.006, 0.06, 0.05);
+          oc2.connect(gc2); gc2.connect(busSfx);
+          oc2.start(nowS + dt4); oc2.stop(nowS + dt4 + 0.3);
+        });
       }
     },
     state: function () {
@@ -3627,6 +4246,7 @@ function loop() {
   updateNPCs(dt);
   updateParticles(dt);
   updateTown(dt);
+  updateWobbles(dt);
   updateCamera(dt);
   renderer.render(scene, camera);
   if (DEBUG) {
@@ -3796,6 +4416,22 @@ if (document.fonts && document.fonts.ready) {
 // 驗證掛鉤
 window.__world = {
   scene: function () { return scene; }, // 驗證用
+  pick: function (fx, fy) { // 驗證用：以畫面比例座標射線，回傳最先命中的物件描述
+    if (!world.ok) return null;
+    var rc = new THREE.Raycaster();
+    rc.setFromCamera(new THREE.Vector2(fx * 2 - 1, -(fy * 2 - 1)), camera);
+    var all = [];
+    scene.traverse(function (o) { if (o.isMesh || o.isSprite) all.push(o); });
+    var hits = rc.intersectObjects(all, false);
+    if (!hits.length) return null;
+    var h = hits[0];
+    return {
+      obj: h.object.type,
+      geo: h.object.geometry ? h.object.geometry.type : null,
+      inst: h.instanceId === undefined ? null : h.instanceId,
+      at: [+h.point.x.toFixed(1), +h.point.y.toFixed(1), +h.point.z.toFixed(1)]
+    };
+  },
 
   debugState: function () {
     var act = 0;
@@ -3815,7 +4451,11 @@ window.__world = {
       districts: !!DYN.monthly,
       audio: Music.state(),
       boats: boats.filter(function (b) { return b.state !== 'cooldown'; }).length,
-      labels: labelCache.size
+      labels: labelCache.size,
+      wobbles: wobbles.length,
+      quarters: DYN._qRevs || null,
+      annualTarget: world.annualTarget || 0,
+      camLift: +camLiftCur.toFixed(2)
     };
   }
 };
@@ -3824,10 +4464,12 @@ initWorld();
 Music.boot();
 loadData();
 loadMeta();
+loadAnnualPlan();
 setInterval(function () { if (D) renderNow(false); }, DEMO ? 250 : 1000);
 if (!DEMO) {
   setInterval(loadData, 10 * 60e3);
   setInterval(loadMeta, 30 * 60e3);
+  setInterval(loadAnnualPlan, 6 * 3600e3);
 }
 </script>
 </body>
