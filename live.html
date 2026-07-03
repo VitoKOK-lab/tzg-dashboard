@@ -16,7 +16,9 @@
        ?hour=20   時鐘跳到今天 20:00      ?time=2026-07-15T20:30
        ?demo=1    內建範例資料 + 60 倍速   ?lite=1  低階裝置模式
        ?debug=1   顯示 fps / draw calls HUD
-       ?shot=0..10&k=0..1  固定鏡位（v6 共 11 個鏡位）
+       ?shot=0..8&k=0..1  固定鏡位（0=空中環繞、1..8=定點視角）
+   ▸ 運鏡：預設空中環繞；畫面左下「視角切換鍵」循環 8 個定點視角
+     （數字鍵 1-8 直選、0/Esc 回環繞；90 秒沒按自動回環繞）
   ═══════════════════════════════════════════════════════════════
 -->
 <html lang="zh-TW">
@@ -85,6 +87,17 @@ body {
 }
 #sndBtn.faded { opacity: 0.25; }
 #sndBtn:hover { opacity: 1; }
+
+/* ── 視角切換鍵（預設空中環繞，按一下換下一個視角） ── */
+#camBtn {
+  position: fixed; left: 66px; bottom: 64px; z-index: 30;
+  height: 42px; padding: 0 18px; border-radius: 21px;
+  background: rgba(18,10,15,.72); border: 1px solid rgba(201,169,97,.5);
+  color: #F5EFE4; font-size: 14px; letter-spacing: 1px; cursor: pointer;
+  transition: opacity .6s, background .2s; display: none;
+}
+#camBtn:hover { background: rgba(40,24,32,.85); }
+#camBtn:active { transform: scale(.97); }
 
 /* ── 暈影（零 GPU 成本，跟著 #hud 防烙印漂移） ── */
 #vignette {
@@ -158,6 +171,7 @@ body {
 </div>
 
 <button id="sndBtn" title="背景音樂">🔊</button>
+<button id="camBtn" title="切換視角（數字鍵 0-8 直選，0 = 空中環繞）">✈ 空中環繞 ▸</button>
 
 <div id="loadingOverlay" class="overlay">
   <div class="spinner"></div>
@@ -764,6 +778,15 @@ function initWorld() {
 
   world.ok = true;
   if (DEBUG) $('debugHud').style.display = 'block';
+  // 視角切換鍵：按一下換下一個視角；數字鍵 1-8 直選、0/Esc 回空中環繞
+  var camBtnEl = $('camBtn');
+  camBtnEl.style.display = 'block';
+  camBtnEl.addEventListener('click', function (ev) { ev.stopPropagation(); cycleCam(); });
+  window.addEventListener('keydown', function (ev) {
+    if (ev.key >= '1' && ev.key <= '8') setCamMode(+ev.key - 1);
+    else if (ev.key === '0' || ev.key === 'Escape') setCamMode(-1);
+  });
+  updateCamBtn();
   window.addEventListener('resize', onResize);
   requestAnimationFrame(loop);
 }
@@ -782,6 +805,7 @@ function showGLFallback() {
   world.ok = false;
   $('glFallback').classList.remove('hidden');
   $('loadingOverlay').classList.add('hidden');
+  $('camBtn').style.display = 'none';
 }
 
 /* ═══════════════ 6. 天空與地形 ═══════════════ */
@@ -1019,11 +1043,10 @@ function buildTerrain() {
   lampSpots.push([-2.6, 39]); lampSpots.push([2.6, 39]);                // 碼頭閘門
   lampSpots.push([16, -18]); lampSpots.push([-14, -18]);                // 宮殿前
   var lampN = LITE ? 16 : lampSpots.length;
-  // 火炬柱（金座 + 火盆；夜間火光沿用 lampGlowPts；可點會晃）
+  // 火炬柱（金柱 + 圓燈頭；高角度不會出現「浮空圓環」假象；夜間火光沿用 lampGlowPts；可點會晃）
   var lampGeo = mergeGeometries([
     new THREE.CylinderGeometry(0.09, 0.15, 2.6, 6).toNonIndexed(),
-    new THREE.CylinderGeometry(0.22, 0.1, 0.3, 8).translate(0, 1.42, 0).toNonIndexed(),
-    new THREE.SphereGeometry(0.15, 7, 5).translate(0, 1.6, 0).toNonIndexed()
+    new THREE.SphereGeometry(0.26, 8, 6).translate(0, 1.5, 0).toNonIndexed()
   ]);
   var lamps = famMesh(lampGeo, goldMat, lampN);
   var lgPos = new Float32Array(lampN * 3);
@@ -3684,58 +3707,66 @@ function celebrate(text) {
 }
 
 /* ═══════════════ 12. 鏡頭導演 ═══════════════ */
-// v6 運鏡原則：地面鏡頭最低 y≥5、與目標保持距離、俯角 8–15° → 不再貼牆穿樹
-var SHOTS = [
-  { name: 'orbitWide', dur: 50, pose: function (k, out) { // 0 全鎮環繞
-      var th = camCycleTheta + k * Math.PI;
-      out.pos.set(Math.cos(th) * 98, 44, Math.sin(th) * 84);
-      out.look.set(0, 7, 0);
+// v6.1 運鏡：預設高空大半徑環繞；切換鍵循環 8 個定點視角（各自緩慢漂移，距離都拉遠）
+function orbitPose(tSec, out) { // 預設：空中環繞
+  var th = tSec * 0.045;
+  out.pos.set(Math.cos(th) * 104, 50, Math.sin(th) * 90);
+  out.look.set(0, 6, 0);
+}
+var VIEWS = [
+  { name: '金字塔神殿', pose: function (t, out) {
+      out.pos.set(Math.sin(t * 0.07) * 8, 18, 26);
+      out.look.set(0, 8, -22);
   }},
-  { name: 'harborArrival', dur: 35, pose: function (k, out) { // 1 碼頭迎船
-      var e2 = easeInOut(k);
-      out.pos.set(-18 + e2 * 18, 9 - e2 * 3, 80 - e2 * 26);
-      out.look.set(0, 2.5, 48 - e2 * 8);
+  { name: '噴泉廣場', pose: function (t, out) {
+      var a = 1.8 + t * 0.04;
+      out.pos.set(Math.cos(a) * 34, 17, -6 + Math.sin(a) * 34);
+      out.look.set(0, 3, -6);
   }},
-  { name: 'boulevardWalk', dur: 40, pose: function (k, out) { // 2 月營收大道望向金字塔神殿
-      out.pos.set(Math.sin(k * 4) * 0.8, 6, 44 - k * 30);
-      out.look.set(0, 3.5 + k * 4, 8 - k * 24);
+  { name: '熱賣市集街', pose: function (t, out) {
+      out.pos.set(24 + Math.sin(t * 0.06) * 6, 13, 32);
+      out.look.set(23.5, 2.5, 11);
   }},
-  { name: 'shopDolly', dur: 40, pose: function (k, out) { // 3 熱賣市集街推軌
-      out.pos.set(42 - k * 30, 6.5, 24.5);
-      out.look.set(37 - k * 30, 2.4, 11);
+  { name: '七日天際線', pose: function (t, out) {
+      out.pos.set(-30 + Math.sin(t * 0.06) * 5, 15, 32);
+      out.look.set(-22, 4, 11);
   }},
-  { name: 'skylinePass', dur: 35, pose: function (k, out) { // 4 七日天際線
-      out.pos.set(-48 + k * 34, 8, 27);
-      out.look.set(-40 + k * 30, 4.5, 12);
+  { name: '四季金字塔', pose: function (t, out) {
+      out.pos.set(-60 + Math.sin(t * 0.05) * 4, 17, 4);
+      out.look.set(-37, 3, -11);
   }},
-  { name: 'residentialLane', dur: 30, pose: function (k, out) { // 5 客群住宅巷
-      out.pos.set(-50 + k * 40, 8, 39);
-      out.look.set(-30 + k * 6, 2.5, 27);
+  { name: '珠寶採石場', pose: function (t, out) {
+      out.pos.set(40 + Math.sin(t * 0.06) * 5, 16, -10);
+      out.look.set(24, 3, -28);
   }},
-  { name: 'towerRise', dur: 30, pose: function (k, out) { // 6 目標塔攀升
-      var e3 = k * k * (3 - 2 * k);
-      out.pos.set(-40 + e3 * 4, 6 + e3 * 17, -8 - e3 * 8);
-      out.look.set(-26, 3 + e3 * 15, -26);
+  { name: '訂單碼頭', pose: function (t, out) {
+      out.pos.set(Math.sin(t * 0.05) * 10, 15, 76);
+      out.look.set(0, 2, 46);
   }},
-  { name: 'clockPlaza', dur: 25, pose: function (k, out) { // 7 噴泉廣場高環繞（拉遠抬高）
-      var th2 = 2.2 + k * 1.6;
-      out.pos.set(Math.cos(th2) * 26, 12, -6 + Math.sin(th2) * 26);
-      out.look.set(-2, 3.5, -5);
-  }},
-  { name: 'quarterPass', dur: 30, pose: function (k, out) { // 8 四季金字塔＋年度水位塔（高空掠過）
-      out.pos.set(-62 + k * 14, 15, 14 - k * 26);
-      out.look.set(-37 + k * 3, 2.5, -11 - k * 3);
-  }},
-  { name: 'jumboPass', dur: 25, pose: function (k, out) { // 9 短影音巨幕
-      out.pos.set(28 + k * 16, 18 - k * 2, -2 - k * 12);
-      out.look.set(62, 14, -30);
-  }},
-  { name: 'pyramidHalo', dur: 25, pose: function (k, out) { // 10 神殿+品牌水晶環繞
-      var th3 = k * Math.PI * 1.5;
-      out.pos.set(Math.cos(th3) * 24, 24, -24 + Math.sin(th3) * 24);
-      out.look.set(0, 11, -24);
+  { name: '全島鳥瞰', pose: function (t, out) {
+      var a2 = t * 0.03;
+      out.pos.set(Math.sin(a2) * 24, 88, 26 + Math.cos(a2) * 10);
+      out.look.set(0, 0, -2);
   }}
 ];
+// 視角狀態：-1 = 空中環繞（預設），0..7 = 定點視角；90 秒沒按自動回環繞
+var camMode = -1, camModeT = 0, camBlendT = 9, lastCamPress = -999;
+var camFrom = { pos: new THREE.Vector3(0, 50, 104), look: new THREE.Vector3(0, 6, 0) };
+function setCamMode(m) {
+  if (!world.ok) return;
+  camFrom.pos.copy(camera.position);
+  camFrom.look.copy(camLook);
+  camMode = m; camModeT = 0; camBlendT = 0;
+  lastCamPress = et;
+  fly.mode = 'auto'; fly.t = 0; // 手動切換視角時取消事件飛行
+  updateCamBtn();
+}
+function cycleCam() { setCamMode(camMode >= VIEWS.length - 1 ? -1 : camMode + 1); }
+function updateCamBtn() {
+  var b = $('camBtn');
+  if (!b) return;
+  b.textContent = camMode < 0 ? '✈ 空中環繞 ▸' : '● ' + (camMode + 1) + '/8 ' + VIEWS[camMode].name + ' ▸';
+}
 // 鏡頭防遮擋：帶高度的圓柱清單；鏡頭或視線前段落入 → 平滑抬升
 var CAM_BLOCKERS = [
   { x: 0, z: -24, r: 10.5, h: 13.5 },  // 金字塔神殿
@@ -3768,10 +3799,7 @@ function occlusionLift(pos, look) {
   }
   return need;
 }
-var CAM_TOTAL = SHOTS.reduce(function (a, s) { return a + s.dur; }, 0);
-var camCycleTheta = 0;
 var poseA = { pos: new THREE.Vector3(), look: new THREE.Vector3() };
-var poseB = { pos: new THREE.Vector3(), look: new THREE.Vector3() };
 var camLook = new THREE.Vector3(0, 7, 0);
 var fly = { mode: 'auto', t: 0, from: { pos: new THREE.Vector3(), look: new THREE.Vector3() }, target: { pos: new THREE.Vector3(), look: new THREE.Vector3() }, lastOrder: -999, lastCele: -999 };
 var FLY_SHOTS = {
@@ -3782,6 +3810,7 @@ var FLY_SHOTS = {
 function requestFly(kind) {
   var nowS = et;
   if (fly.mode !== 'auto') return;
+  if (camMode >= 0) return; // 使用者選了定點視角 → 不搶鏡頭
   if (kind === 'order' && nowS - fly.lastOrder < 45) return;
   if (kind !== 'order' && nowS - fly.lastCele < 20) return;
   if (kind === 'order') fly.lastOrder = nowS; else fly.lastCele = nowS;
@@ -3793,40 +3822,34 @@ function requestFly(kind) {
   fly.target.look.set(fs.look[0], fs.look[1], fs.look[2]);
   fly.hold = fs.hold;
 }
-function schedulePose(tSec, out) {
-  var cyc = tSec % CAM_TOTAL;
-  camCycleTheta = Math.floor(tSec / CAM_TOTAL) * 2.399;
-  var acc = 0, idx = 0, lt = 0;
-  for (var i = 0; i < SHOTS.length; i++) {
-    if (cyc < acc + SHOTS[i].dur) { idx = i; lt = cyc - acc; break; }
-    acc += SHOTS[i].dur;
-  }
-  var shot = SHOTS[idx];
-  shot.pose(lt / shot.dur, out);
-  var TR = 3;
-  if (lt < TR) {
-    var prev = SHOTS[(idx - 1 + SHOTS.length) % SHOTS.length];
-    prev.pose(1, poseB);
-    var e2 = easeInOut(lt / TR);
-    out.pos.lerpVectors(poseB.pos, out.pos, e2);
-    out.look.lerpVectors(poseB.look, out.look, e2);
-  }
-}
-var FORCE_SHOT = q.get('shot'); // 測試用：?shot=0..5&k=0.5 固定鏡位
+var FORCE_SHOT = q.get('shot'); // 測試用：?shot=0..8（0=環繞、1..8=定點視角）&k=0..1（換算漂移秒數）
 function updateCamera(dt) {
+  camModeT += dt;
   if (FORCE_SHOT !== null && FORCE_SHOT !== '') {
-    SHOTS[clamp(+FORCE_SHOT | 0, 0, SHOTS.length - 1)].pose(clamp(+(q.get('k') || 0.5), 0, 1), poseA);
+    var fsN = clamp(+FORCE_SHOT | 0, 0, VIEWS.length);
+    var fk = clamp(+(q.get('k') || 0), 0, 1) * 30;
+    if (fsN === 0) orbitPose(fk * 2.4 + 20, poseA);
+    else VIEWS[fsN - 1].pose(fk, poseA);
     camera.position.copy(poseA.pos);
     camLook.copy(poseA.look);
     camera.position.y += occlusionLift(camera.position, camLook);
     camera.lookAt(camLook);
     return;
   }
-  var tSec = Date.now() / 1000; // 真實時間 → 重載後鏡位一致，且 DEMO 不會亂飛
-  schedulePose(tSec, poseA);
+  // 定點視角放著不動 90 秒 → 自動回到空中環繞
+  if (camMode >= 0 && et - lastCamPress > 90) setCamMode(-1);
+  if (camMode < 0) orbitPose(Date.now() / 1000, poseA); // 真實時間 → 重載後鏡位一致
+  else VIEWS[camMode].pose(camModeT, poseA);
   if (fly.mode === 'auto') {
-    camera.position.copy(poseA.pos);
-    camLook.copy(poseA.look);
+    if (camBlendT < 2.5) { // 視角切換轉場（緩滑，不跳切）
+      camBlendT += dt;
+      var kb = easeInOut(clamp(camBlendT / 2.5, 0, 1));
+      camera.position.lerpVectors(camFrom.pos, poseA.pos, kb);
+      camLook.lerpVectors(camFrom.look, poseA.look, kb);
+    } else {
+      camera.position.copy(poseA.pos);
+      camLook.copy(poseA.look);
+    }
   } else {
     fly.t += dt;
     if (fly.mode === 'flyin') {
