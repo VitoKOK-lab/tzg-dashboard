@@ -920,7 +920,10 @@ var EXCLUDE = [
   { x: -30, z: -32, r: 4 },   // 風車
   { x: -46, z: -4, r: 4 }, { x: -42, z: -11, r: 4 }, { x: -36, z: -17, r: 4 }, { x: -30, z: -21, r: 4 }, // 四季金字塔
   { x: -16, z: 38, r: 3 },    // 年度水位塔
-  { x: 47, z: 6, r: 7.5 }     // 大型攝影棚
+  { x: 47, z: 6, r: 7.5 },    // 大型攝影棚
+  { x: -20, z: -2, r: 5.2 },  // 綠洲池塘
+  { x: 16, z: 35, r: 5 },     // 帳篷營地
+  { x: 0, z: -38, r: 4.5 }    // 神殿後花園
 ];
 
 function buildTerrain() {
@@ -940,6 +943,17 @@ function buildTerrain() {
   var islandGeo = mergeGeometries(parts.map(function (g) { return g.toNonIndexed(); }));
   islandGeo.scale(RX / 38, 1, RZ / 38); // 橢圓化
   parts.forEach(function (g) { g.dispose(); });
+  // v8 島頂 vertex 色斑：頂面依位置雜訊混入三色調，打破大片單色沙地
+  var ipos = islandGeo.attributes.position, icol = islandGeo.attributes.color;
+  var tintA = new THREE.Color(0xFFE9A6), tintB = new THREE.Color(0xF6D98E), tintC = new THREE.Color(0xEDC97A);
+  for (var vi4 = 0; vi4 < ipos.count; vi4++) {
+    if (ipos.getY(vi4) < 0.2) continue; // 只染島頂面
+    var nv3 = Math.sin(ipos.getX(vi4) * 0.21 + 1.7) * Math.cos(ipos.getZ(vi4) * 0.26) +
+              Math.sin(ipos.getX(vi4) * 0.07 - ipos.getZ(vi4) * 0.11) * 0.8;
+    var tt2 = nv3 > 0.55 ? tintA : (nv3 < -0.55 ? tintC : tintB);
+    _c.setRGB(icol.getX(vi4), icol.getY(vi4), icol.getZ(vi4)).lerp(tt2, 0.55);
+    icol.setXYZ(vi4, _c.r, _c.g, _c.b);
+  }
 
   // ── 街道緞帶（併入島 mesh，0 額外 draw call）──
   var streets = [];
@@ -955,6 +969,24 @@ function buildTerrain() {
     new THREE.Vector3(-28, 0.42, 23), new THREE.Vector3(-35, 0.42, 29), new THREE.Vector3(-42, 0.42, 20)
   ]);
   streets.push(colorize(new THREE.TubeGeometry(laneCurve, 24, 1.4, 5, false).scale(1, 0.06, 1).translate(0, 0.42, 0), PAL.path));
+  // v8 石板小徑網：連接各區、填補空地（併島網格 0 call）
+  [
+    [[10, -3], [20, 0], [32, 3], [43, 5]],          // 廣場 → 攝影棚
+    [[-11, -5], [-22, -8], [-32, -11], [-42, -9]],  // 廣場 → 四季獅身像
+    [[7, -21], [15, -24], [21, -26]],               // 神殿 → 採石場
+    [[-13, 29], [-15, 33], [-16, 37]]               // 住宅 → 年度水位塔
+  ].forEach(function (wp) {
+    var pc3 = new THREE.CatmullRomCurve3(wp.map(function (p3) { return new THREE.Vector3(p3[0], 0.42, p3[1]); }));
+    streets.push(colorize(new THREE.TubeGeometry(pc3, 14, 1.0, 5, false).scale(1, 0.055, 1).translate(0, 0.42, 0), PAL.path));
+  });
+  // v8 深淺沙色補丁 ×18：打破大片單色沙地
+  for (var dp = 0; dp < 18; dp++) {
+    var dSpot2 = ellipseSpot(0.15, 0.92, EXCLUDE);
+    if (!dSpot2) continue;
+    streets.push(colorize(new THREE.CylinderGeometry(2 + scRng() * 3.2, 2 + scRng() * 3.2, 0.05, 12)
+      .scale(1, 1, 0.55 + scRng() * 0.5).rotateY(scRng() * 6.28).translate(dSpot2.x, 0.4, dSpot2.z),
+      dp % 2 ? 0xEACB7E : 0xFCEBB8));
+  }
   streets.forEach(function (g) { parts.push(g); });
 
   var island = new THREE.Mesh(mergeGeometries([islandGeo].concat(streets.map(function (g) { return g.toNonIndexed(); }))), vertexToon);
@@ -996,7 +1028,7 @@ function buildTerrain() {
   scene.add(trunks); scene.add(canopies);
 
   // 寶石砂苗（沙地裡冒出的小水晶簇，取代花田）
-  var flN = LITE ? 120 : 400;
+  var flN = LITE ? 120 : 550;
   var flowers = new THREE.InstancedMesh(
     new THREE.OctahedronGeometry(0.15, 0).applyMatrix4(new THREE.Matrix4().makeScale(1, 1.7, 1)),
     toonMat(0xffffff), flN);
@@ -1014,7 +1046,7 @@ function buildTerrain() {
   scene.add(flowers);
 
   // 沙丘 ×12 + 風化岩 ×12（instanced 家族，可點會晃）
-  var duneInst = famMesh(new THREE.SphereGeometry(1, 10, 7), toonMat(0xffffff), LITE ? 6 : 12);
+  var duneInst = famMesh(new THREE.SphereGeometry(1, 10, 7), toonMat(0xffffff), LITE ? 8 : 18);
   var duneCols = [0xF2E0B4, 0xEAD3A0, 0xE0C68E];
   for (var du = 0; du < duneInst.count; du++) {
     var dSpot = ellipseSpot(0.55, 0.94, EXCLUDE) || { x: -30 - du, z: -30 };
@@ -1023,7 +1055,7 @@ function buildTerrain() {
     regWob('dune', [{ im: duneInst, idx: du, x: dSpot.x, y: 0.42, z: dSpot.z, yaw: scRng() * 6.28, sx: dsc, sy: dsc * 0.32, sz: dsc * 0.8 }]);
     EXCLUDE.push({ x: dSpot.x, z: dSpot.z, r: dsc * 0.9 });
   }
-  var rockInst = famMesh(new THREE.IcosahedronGeometry(0.6, 0), toonMat(0xffffff), LITE ? 6 : 12);
+  var rockInst = famMesh(new THREE.IcosahedronGeometry(0.6, 0), toonMat(0xffffff), LITE ? 8 : 20);
   for (var rk2 = 0; rk2 < rockInst.count; rk2++) {
     var rSpot = ellipseSpot(0.35, 0.9, EXCLUDE) || { x: 30 + rk2, z: 30 };
     var rsc = 0.6 + scRng() * 1.1;
@@ -1141,6 +1173,7 @@ function buildLandmarks() {
   var sign = makeLabel('TZG 泰熙爾札娜珠寶', 'sign');
   sign.position.set(0, 8.2, 4.6);
   palace.add(sign);
+  signSway.push(sign.material); // v8 招牌微搖
   palace.position.set(0, 0, -24);
   scene.add(palace);
   meshWob.push({ obj: palace, t: 99, baseRZ: 0, baseRX: 0 });
@@ -1333,6 +1366,7 @@ function buildLandmarks() {
 /* ═══════════════ 7b. 城鎮靜殼（建一次） ═══════════════ */
 // 動態內容（招牌文字、樓高、包裹數…）由 rebuildDistricts() 掛上
 var fountainTex, clockHandH, clockHandM, craneArm, windmillRotor, buntingInst, buntingData = [];
+var campGlows = [], rimInst, rimData = [], signSway = []; // v8：營火光暈 + 島緣浮晶環 + 招牌搖擺
 var shopShellX = [12, 17, 22, 27, 32, 37];       // 6 間店中心 x（z=10.5，面向 +z）
 var shopShellW = [4.6, 4.3, 4.0, 3.7, 3.4, 3.1]; // 店寬按名次遞減
 var TIER_CLUSTERS = [ // 客群住宅區五街坊 [cx, cz]
@@ -1537,12 +1571,13 @@ function buildTownStatic() {
 
   // ── 市集攤位 ×4（廣場南緣，條紋遮陽棚；可點會搖）──
   if (!LITE) {
-    var stallSpots = [[-6.5, 1.8], [-3, 3.8], [3, 3.8], [6.5, 1.8]];
+    var stallSpots = [[-6.5, 1.8], [-3, 3.8], [3, 3.8], [6.5, 1.8],
+                      [-12.5, 5.5], [12.5, 5.5], [-12.5, -17], [12.5, -17]]; // v8 市集擴建第二圈
     var awnC = document.createElement('canvas'); awnC.width = awnC.height = 64;
     var ag = awnC.getContext('2d');
     for (var aw = 0; aw < 8; aw++) { ag.fillStyle = aw % 2 ? '#D98F6A' : '#F5EFE4'; ag.fillRect(aw * 8, 0, 8, 64); }
     var awnTex = canvasTex(awnC);
-    var awnInst = famMesh(new THREE.BoxGeometry(2.6, 0.1, 1.8), new THREE.MeshBasicMaterial({ map: awnTex }), 4);
+    var awnInst = famMesh(new THREE.BoxGeometry(2.6, 0.1, 1.8), new THREE.MeshBasicMaterial({ map: awnTex }), 8);
     var stallGeo = mergeGeometries([
       colorize(new THREE.BoxGeometry(2.4, 0.9, 1.5).translate(0, 0.85, 0), PAL.wood).toNonIndexed(),
       colorize(new THREE.CylinderGeometry(0.06, 0.06, 2.2, 4).translate(-1.1, 1.5, 0), PAL.wood).toNonIndexed(),
@@ -1555,7 +1590,7 @@ function buildTownStatic() {
       colorize(new THREE.OctahedronGeometry(0.13, 0).translate(0.62, 1.45, -0.2), 0x7FE8F2).toNonIndexed(),
       colorize(new THREE.BoxGeometry(0.42, 0.3, 0.42).translate(0.88, 1.45, 0.28), 0xC28F5E).toNonIndexed()
     ]);
-    var stallInst = famMesh(stallGeo, vertexToon.clone(), 4);
+    var stallInst = famMesh(stallGeo, vertexToon.clone(), 8);
     stallSpots.forEach(function (ss, si) {
       regWob('stall', [
         { im: stallInst, idx: si, x: ss[0], y: 0, z: ss[1], yaw: 0, sx: 1, sy: 1, sz: 1 },
@@ -1570,9 +1605,9 @@ function buildTownStatic() {
       new THREE.BoxGeometry(0.12, 0.5, 0.5).translate(-0.8, 0.25, 0).toNonIndexed(),
       new THREE.BoxGeometry(0.12, 0.5, 0.5).translate(0.8, 0.25, 0).toNonIndexed()
     ]);
-    var benchInst = famMesh(benchGeo, toonMat(PAL.wood), 10);
-    for (var bch = 0; bch < 10; bch++) {
-      var ba2 = bch / 10 * Math.PI * 2 + 0.15;
+    var benchInst = famMesh(benchGeo, toonMat(PAL.wood), 14);
+    for (var bch = 0; bch < 14; bch++) {
+      var ba2 = bch / 14 * Math.PI * 2 + 0.15;
       regWob('bench', [{ im: benchInst, idx: bch, x: Math.cos(ba2) * 8.2, y: 0.45, z: -6 + Math.sin(ba2) * 8.2, yaw: -ba2 + Math.PI / 2, sx: 1, sy: 1, sz: 1 }]);
     }
 
@@ -1600,9 +1635,9 @@ function buildTownStatic() {
       new THREE.CylinderGeometry(0.16, 0.2, 0.22, 8).translate(0, 0.9, 0).toNonIndexed(),
       new THREE.CylinderGeometry(0.2, 0.13, 0.16, 8).translate(0, 0.08, 0).toNonIndexed()
     ]);
-    var potInst = famMesh(potGeo, toonMat(0xffffff), 16);
+    var potInst = famMesh(potGeo, toonMat(0xffffff), 28);
     var POT_COLS = [0xC9705A, 0xD98F6A, 0xB8886A, 0xE0B48E];
-    for (var po = 0; po < 16; po++) {
+    for (var po = 0; po < 28; po++) {
       var pSpot2 = po < 8
         ? { x: -8 + (po % 4) * 5.2 + (scRng() - 0.5) * 1.4, z: 5.6 + Math.floor(po / 4) * 1.2 + (scRng() - 0.5) * 0.8 } // 市集邊
         : (ellipseSpot(0.3, 0.8, EXCLUDE) || { x: 12 + po, z: 30 });
@@ -1614,10 +1649,10 @@ function buildTownStatic() {
       colorize(new THREE.BoxGeometry(0.8, 0.62, 0.8).translate(0, 0.31, 0), 0xC9A26E).toNonIndexed(),
       colorize(new THREE.BoxGeometry(0.86, 0.1, 0.86).translate(0, 0.62, 0), 0xA8865A).toNonIndexed()
     ]);
-    var crateInst = famMesh(crateGeo, vertexToon.clone(), 14);
-    for (var cr = 0; cr < 14; cr++) {
-      var cSpot = cr < 6
-        ? { x: -9 + cr * 3.6 + (scRng() - 0.5), z: 48.5 + (scRng() - 0.5) * 1.4 } // 碼頭邊
+    var crateInst = famMesh(crateGeo, vertexToon.clone(), 24);
+    for (var cr = 0; cr < 24; cr++) {
+      var cSpot = cr < 8
+        ? { x: -10.5 + cr * 3 + (scRng() - 0.5), z: 48.5 + (scRng() - 0.5) * 1.4 } // 碼頭邊
         : (ellipseSpot(0.25, 0.75, EXCLUDE) || { x: -20 - cr, z: 8 });
       var cscl = 0.75 + scRng() * 0.6;
       regWob('crate', [{ im: crateInst, idx: cr, x: cSpot.x, y: 0.42, z: cSpot.z, yaw: scRng() * 6.28, sx: cscl, sy: cscl, sz: cscl }]);
@@ -1678,7 +1713,7 @@ function buildTownStatic() {
   wmBody.userData.meshWob = meshWob[meshWob.length - 1];
 
   // ── 乾草叢 ×40 + 紙莎草 ×14（碼頭河邊）+ 小石堆 ×24（靜態，0 draw call）──
-  for (var gt = 0; gt < (LITE ? 15 : 40); gt++) {
+  for (var gt = 0; gt < (LITE ? 15 : 70); gt++) {
     var gSpot = ellipseSpot(0.12, 0.9, EXCLUDE);
     if (!gSpot) continue;
     for (var gj = 0; gj < 3; gj++) {
@@ -1687,14 +1722,14 @@ function buildTownStatic() {
         [0xB8B06A, 0xA5A860, 0xC2BB7A][gj]); // 沙漠乾草色
     }
   }
-  for (var pyr = 0; pyr < (LITE ? 6 : 14); pyr++) { // 紙莎草：細稈 + 頂端傘形
-    var px2 = -18 + pyr * 2.8 + (scRng() - 0.5) * 1.6, pz2 = 42 + (scRng() - 0.5) * 3;
+  for (var pyr = 0; pyr < (LITE ? 6 : 26); pyr++) { // 紙莎草：細稈 + 頂端傘形
+    var px2 = -18 + pyr * 1.5 + (scRng() - 0.5) * 1.6, pz2 = 42 + (scRng() - 0.5) * 3;
     if (Math.abs(px2) < 4) continue; // 讓開大道閘門
     T(xform(new THREE.CylinderGeometry(0.035, 0.05, 1.7, 4), px2, 1.25, pz2, 1, 1, 1), 0x7FA85E);
     T(xform(new THREE.SphereGeometry(0.24, 7, 5).scale(1, 0.55, 1), px2, 2.2, pz2, 1, 1, 1), 0x96C274);
   }
   var pebbleCols = [0xD8C8A8, 0xC9B48E, 0xE0D2B4];
-  for (var ms = 0; ms < (LITE ? 8 : 24); ms++) {
+  for (var ms = 0; ms < (LITE ? 8 : 40); ms++) {
     var mSpot = ellipseSpot(0.25, 0.88, EXCLUDE);
     if (!mSpot) continue;
     T(xform(new THREE.SphereGeometry(0.2, 7, 5).scale(1, 0.6, 1), mSpot.x, 0.55, mSpot.z, 1, 1, 1), pebbleCols[ms % 3]);
@@ -1749,6 +1784,14 @@ function buildTownStatic() {
     hangString(-4.2, 15, 4.2, 19, 6);
     hangString(4.2, 19, -4.2, 24, 6);
     hangString(-4.2, 24, 4.2, 28, 6);
+    // v8 神殿四角三角旗（高處迎風）+ 營地掛旗
+    [[-6.6, -17.4], [6.6, -17.4], [-6.6, -30.6], [6.6, -30.6]].forEach(function (tp2) {
+      if (fIdx >= flagN) return;
+      buntingData.push({ x: tp2[0], z: tp2[1], y: 11.2, ph: fIdx * 0.7 });
+      buntingInst.setColorAt(fIdx, _c.set(fIdx % 2 ? 0xFFD23F : 0xFF6FA5));
+      fIdx++;
+    });
+    hangString(13.5, 34, 18.5, 33, 4);
   }
   for (; fIdx < flagN; fIdx++) { _m.compose(_v.set(0, -99, 0), _q.identity(), _s.set(0.001, 0.001, 0.001)); buntingInst.setMatrixAt(fIdx, _m); }
   scene.add(buntingInst);
@@ -1777,6 +1820,113 @@ function buildTownStatic() {
     var psc = 0.85 + scRng() * 0.45;
     regWob('palm', [{ im: palmInst, idx: pm, x: ps2[0], y: 0.4, z: ps2[1], yaw: scRng() * 6.28, sx: psc, sy: psc, sz: psc }]);
     CAM_BLOCKERS.push({ x: ps2[0], z: ps2[1], r: 1.5 * psc, h: 5.6 * psc });
+  }
+
+  // ═══ v8 空地小場景 ═══
+  // ── 綠洲池塘（-20,-2）：水面+蓮葉+岸邊紙莎草+紅鶴 ──
+  var pondWater = new THREE.Mesh(new THREE.CylinderGeometry(3.8, 3.8, 0.12, 18).scale(1, 1, 0.72),
+    new THREE.MeshBasicMaterial({ color: PAL.water, transparent: true, opacity: 0.85 }));
+  pondWater.position.set(-20, 0.46, -2);
+  scene.add(pondWater);
+  T(xform(new THREE.TorusGeometry(3.85, 0.22, 5, 20).rotateX(Math.PI / 2).scale(1, 1, 0.74), -20, 0.5, -2, 1, 1, 1), PAL.sandstoneD); // 岸沿
+  for (var ly = 0; ly < 6; ly++) { // 蓮葉
+    var lya = ly / 6 * Math.PI * 2 + 0.5;
+    T(xform(new THREE.CylinderGeometry(0.34, 0.34, 0.04, 7), -20 + Math.cos(lya) * (1.2 + (ly % 3) * 0.7), 0.54, -2 + Math.sin(lya) * (1 + (ly % 2) * 0.8), 1, 1, 1), 0x6FC94F);
+  }
+  for (var pp3 = 0; pp3 < 7; pp3++) { // 岸邊紙莎草
+    var ppa = pp3 / 7 * Math.PI * 2 + 0.2;
+    var ppx = -20 + Math.cos(ppa) * 4.6, ppz = -2 + Math.sin(ppa) * 3.6;
+    T(xform(new THREE.CylinderGeometry(0.035, 0.05, 1.6, 4), ppx, 1.2, ppz, 1, 1, 1), 0x7FA85E);
+    T(xform(new THREE.SphereGeometry(0.22, 7, 5).scale(1, 0.55, 1), ppx, 2.1, ppz, 1, 1, 1), 0x96C274);
+  }
+  // 紅鶴 ×4（instanced，可點會晃；兩隻低頭喝水）
+  var flamGeo = mergeGeometries([
+    colorize(new THREE.SphereGeometry(0.3, 9, 7).scale(1.25, 1, 1).translate(0, 1.05, 0), 0xFF8FB3).toNonIndexed(),   // 身
+    colorize(new THREE.CylinderGeometry(0.05, 0.06, 0.75, 5).rotateZ(0.35).translate(0.36, 1.5, 0), 0xFF8FB3).toNonIndexed(), // 頸
+    colorize(new THREE.SphereGeometry(0.13, 7, 5).translate(0.52, 1.88, 0), 0xFF8FB3).toNonIndexed(),                 // 頭
+    colorize(new THREE.ConeGeometry(0.05, 0.24, 4).rotateZ(-1.35).translate(0.68, 1.84, 0), 0x33232C).toNonIndexed(), // 喙
+    colorize(new THREE.CylinderGeometry(0.03, 0.03, 0.95, 4).translate(-0.05, 0.4, 0), 0xE86A8A).toNonIndexed()       // 單腳
+  ]);
+  var flamInst = famMesh(flamGeo, vertexToon.clone(), 4);
+  [[-22.6, -3.6, 0.6, 0], [-18, -4, 2.6, 0], [-21.5, 0.6, 4.4, 0.55], [-17.6, 0.2, 1.4, 0.5]].forEach(function (fp2, fi3) {
+    regWob('flamingo', [{ im: flamInst, idx: fi3, x: fp2[0], y: 0.45, z: fp2[1], yaw: fp2[2], sx: 1, sy: 1, sz: 1 }]);
+    if (fp2[3]) { // 低頭喝水姿態：整隻前傾
+      _e.set(0, fp2[2], -fp2[3]); _q.setFromEuler(_e);
+      _m.compose(_v.set(fp2[0], 0.45, fp2[1]), _q, _s.set(1, 1, 1));
+      flamInst.setMatrixAt(fi3, _m);
+    }
+  });
+
+  // ── 貝都因帳篷營地（16,35）：三頂彩條帳篷+營火+地毯 ──
+  function tent(tx, tz, hex, ry2) {
+    // 彩條：8 面錐每隔一面換色（vertex 三角形著色）
+    var tg = new THREE.ConeGeometry(2.1, 2.6, 8).toNonIndexed();
+    var tCol = new Float32Array(tg.attributes.position.count * 3);
+    var cA = new THREE.Color(hex), cB = new THREE.Color(0xFFF6E4);
+    for (var tf = 0; tf < tg.attributes.position.count / 3; tf++) {
+      var cc2 = (tf % 2) ? cA : cB;
+      for (var tv = 0; tv < 3; tv++) {
+        tCol[(tf * 3 + tv) * 3] = cc2.r; tCol[(tf * 3 + tv) * 3 + 1] = cc2.g; tCol[(tf * 3 + tv) * 3 + 2] = cc2.b;
+      }
+    }
+    tg.setAttribute('color', new THREE.BufferAttribute(tCol, 3));
+    tg.rotateY(ry2); tg.translate(tx, 1.7, tz);
+    toonParts.push(tg);
+    T(xform(new THREE.ConeGeometry(0.09, 0.5, 4), tx, 3.2, tz, 1, 1, 1), PAL.gold); // 頂旗桿
+    T(xform(new THREE.BoxGeometry(0.8, 1.05, 0.1), tx, 0.92, tz + 2.02, 1, 1, 1, ry2 * 0.2), 0x3A2C24); // 門簾
+  }
+  tent(13.5, 34, 0xFF6FA5, 0.2);
+  tent(18.5, 33, 0x5FB2FF, -0.3);
+  tent(16.5, 37.5, 0xFFD23F, 0.5);
+  // 營火：石圈+交叉木柴（火光 glow 在下方動態區閃爍）
+  for (var fs2 = 0; fs2 < 6; fs2++) {
+    var fsa = fs2 / 6 * Math.PI * 2;
+    T(xform(new THREE.SphereGeometry(0.16, 6, 5).scale(1, 0.7, 1), 16 + Math.cos(fsa) * 0.75, 0.5, 35 + Math.sin(fsa) * 0.75, 1, 1, 1), 0xB8A088);
+  }
+  T(xform(new THREE.CylinderGeometry(0.07, 0.08, 1.1, 5).rotateZ(Math.PI / 2).rotateY(0.6), 16, 0.56, 35, 1, 1, 1), 0x8A5A38);
+  T(xform(new THREE.CylinderGeometry(0.07, 0.08, 1.1, 5).rotateZ(Math.PI / 2).rotateY(-0.7), 16, 0.62, 35, 1, 1, 1), 0x6E4528);
+  var fireGlowA = glowSprite('rgba(255,150,60,.85)', 3);
+  fireGlowA.position.set(16, 1.1, 35);
+  scene.add(fireGlowA);
+  var fireGlowB = glowSprite('rgba(255,220,90,.8)', 1.7);
+  fireGlowB.position.set(16, 1.4, 35);
+  scene.add(fireGlowB);
+  campGlows = [fireGlowA, fireGlowB];
+  // 地毯 ×2（雙色框）
+  [[14.8, 36.6, 0xB98BFF], [17.6, 35.8, 0x3FD4C5]].forEach(function (rg2) {
+    T(xform(new THREE.BoxGeometry(1.6, 0.05, 1.05), rg2[0], 0.45, rg2[1], 1, 1, 1, 0.4), rg2[2]);
+    T(xform(new THREE.BoxGeometry(1.2, 0.06, 0.7), rg2[0], 0.46, rg2[1], 1, 1, 1, 0.4), 0xFFF6E4);
+  });
+
+  // ── 神殿後花園（0,-38）：小神龕+迷你獅身像香道+石燈 ──
+  T(xform(new THREE.BoxGeometry(2.2, 1.4, 1.4), 0, 1.1, -40.5, 1, 1, 1), PAL.sandstone);
+  T(xform(new THREE.ConeGeometry(1.5, 1.2, 4), 0, 2.4, -40.5, 1, 1, 1, Math.PI / 4), PAL.gold);
+  T(xform(new THREE.OctahedronGeometry(0.34, 0).applyMatrix4(new THREE.Matrix4().makeScale(1, 1.5, 1)), 0, 1.35, -39.7, 1, 1, 1), PAL.crystalPink);
+  for (var msx = 0; msx < 4; msx++) { // 迷你獅身像 ×4 分列香道兩側
+    var mgx = msx % 2 ? 2.1 : -2.1, mgz = -35.6 - Math.floor(msx / 2) * 2.6;
+    var mgs = msx % 2 ? -1 : 1;
+    T(xform(new THREE.BoxGeometry(1.15, 0.28, 0.75), mgx, 0.56, mgz, 1, 1, 1), PAL.sandstoneD);
+    T(xform(new THREE.SphereGeometry(0.32, 9, 7).scale(1.5, 0.85, 1), mgx, 0.95, mgz, 1, 1, 1, mgs * Math.PI / 2), 0xE8BE6E);
+    T(xform(new THREE.SphereGeometry(0.2, 8, 6), mgx, 1.3, mgz + mgs * 0.0 , 1, 1, 1), 0xF7E0CB);
+    T(xform(new THREE.SphereGeometry(0.23, 8, 6, 0, Math.PI * 2, 0, 1.4), mgx, 1.38, mgz, 1, 1, 1), PAL.gold);
+  }
+
+  // ── 碼頭貨運區：貨箱堆塔 ×2 + 纜繩樁 ──
+  [[-6, 51], [6, 51]].forEach(function (ct2) {
+    for (var ch2 = 0; ch2 < 3; ch2++) {
+      T(xform(new THREE.BoxGeometry(0.9 - ch2 * 0.12, 0.6, 0.9 - ch2 * 0.12), ct2[0], 1.35 + ch2 * 0.61, ct2[1], 1, 1, 1, ch2 * 0.35), [0xC9A26E, 0xA8865A, 0xC28F5E][ch2]);
+    }
+  });
+  T(xform(new THREE.CylinderGeometry(0.14, 0.17, 0.9, 6), -2, 1.35, 52.5, 1, 1, 1), 0x6E4528);
+  T(xform(new THREE.CylinderGeometry(0.14, 0.17, 0.9, 6), 2, 1.35, 52.5, 1, 1, 1), 0x6E4528);
+
+  // ── v8 島緣浮晶環 ×24：沿島緣漂浮的小水晶（上下浮動，華麗）──
+  rimInst = famMesh(new THREE.OctahedronGeometry(0.42, 0).applyMatrix4(new THREE.Matrix4().makeScale(1, 1.6, 1)), crystalMat(0xFFA9C8, 0.8), 24, false);
+  var RIM_COLS = [0xFF7FA8, 0xFFD23F, 0x7FE8F2, 0xB98BFF, 0x51E08A, 0x5FB2FF];
+  for (var rim = 0; rim < 24; rim++) {
+    var rima = rim / 24 * Math.PI * 2;
+    rimInst.setColorAt(rim, _c.set(RIM_COLS[rim % 6]));
+    rimData.push({ x: Math.cos(rima) * RX * 1.04, z: Math.sin(rima) * RZ * 1.04, y0: 2.5 + (rim % 4) * 1.6, ph: rim * 0.9, sp: 0.5 + (rim % 3) * 0.3 });
   }
 
   var townToon = new THREE.Mesh(mergeGeometries(toonParts.map(function (g) { return g.toNonIndexed(); })), vertexToon);
@@ -2086,6 +2236,7 @@ function buildStudio() {
   var sLabel = makeLabel('TZG 大型攝影棚 ● 拍攝中', 'sign');
   sLabel.position.set(0, 5.9, -2.6);
   g.add(sLabel);
+  signSway.push(sLabel.material); // v8 招牌微搖
   // 「溱姐寵粉」大橫幅（v7.1，輕輕浮動）
   var fanBanner = makeLabel('溱姐寵粉 ❤', 'banner');
   fanBanner.position.set(0, 7.4, 0.5);
@@ -2913,6 +3064,26 @@ function buildNPCBase() {
     npcParts.foot.setColorAt(i * 2 + 1, _c.set(0x5A4638));
     npcParts.gift.setColorAt(i, _c.set([0xF2A9C0, 0xCBB3E6, 0xA8E0F0, 0xF2E28A, 0xF5EFFA][i % 5])); // 粉晶/紫晶/海藍/黃水晶/白水晶
   }
+  // v8 生活感角色（佔用 walker 名額尾端）：坐椅小人 ×3、攤販 ×2、孩童 ×2
+  [1, 4, 8].forEach(function (bIdx, si3) {
+    var ns2 = npcs[41 + si3];
+    ns2.kind = 'sitter';
+    var sba = bIdx / 10 * Math.PI * 2 + 0.15;
+    ns2.homeX = Math.cos(sba) * 8.0;
+    ns2.homeZ = -6 + Math.sin(sba) * 8.0;
+    ns2.pos.set(ns2.homeX, 0.24, ns2.homeZ); // 壓低 = 坐姿
+    ns2.heading = Math.atan2(0 - ns2.homeX, -6 - ns2.homeZ); // 面向廣場
+  });
+  [-3, 3].forEach(function (vx2, vi3) {
+    var nv2 = npcs[39 + vi3];
+    nv2.kind = 'vendor';
+    nv2.homeX = vx2; nv2.homeZ = 4.7;
+    nv2.pos.set(vx2, 0.5, 4.7);
+    nv2.heading = Math.atan2(-vx2, -6 - 4.7); // 站攤位後面向廣場
+  });
+  npcs[37].sizeMul = 0.68; npcs[37].speed *= 1.9; // 孩童（小隻快跑，像在追逐）
+  npcs[38].sizeMul = 0.68; npcs[38].speed *= 1.9;
+
   // 員工固定位（宮殿門前，絕對座標；門在 (0,·,-20)）
   var spots = [[0, -17], [-3, -16.3], [3, -16.3], [-5.2, -14.5], [5.2, -14.5]];
   for (var s = 0; s < 5; s++) {
@@ -3009,7 +3180,7 @@ var censusTarget = 32;
 function updateCensus(hour) {
   var t = (hour >= 8 && hour < 19) ? (LITE ? 20 : 44) : (hour >= 19 || hour < 1) ? (LITE ? 14 : 30) : (LITE ? 4 : 8);
   censusTarget = t;
-  for (var i = 0; i < WALKER_N; i++) npcs[i].targetScale = i < t ? 1 : 0;
+  for (var i = 0; i < WALKER_N; i++) npcs[i].targetScale = i < t ? (npcs[i].sizeMul || 1) : 0;
   // 深夜礦工與郵差休息
   var dayShift = !(hour >= 1 && hour < 8);
   for (var m2 = MINER_BASE; m2 < MINER_BASE + 3; m2++) npcs[m2].targetScale = dayShift ? 1 : 0;
@@ -3085,6 +3256,9 @@ function updateNPCs(dt) {
     } else if (n.kind === 'staff') {
       // 原地小晃 + 接單跳躍
       if (n.jumpT < 1.5) n.jumpT += dt;
+    } else if (n.kind === 'sitter' || n.kind === 'vendor') {
+      // 坐椅/顧攤：定點，偶爾興奮跳一下（攤販更常招呼）
+      if (Math.random() < dt / (n.kind === 'vendor' ? 9 : 16)) n.jumpT = 0;
     } else if (n.kind === 'courier' && n.courierT !== undefined) {
       n.courierT += dt / n.courierDur;
       if (n.courierT >= 1) { n.targetScale = 0; n.courierT = undefined; }
@@ -3575,6 +3749,22 @@ function updateTown(dt) {
     pa2.needsUpdate = true;
   }
   if (boats.length) updateBoats(dt);
+  // v8：招牌微搖 + 營火閃爍 + 島緣浮晶上下漂
+  for (var sw2 = 0; sw2 < signSway.length; sw2++) signSway[sw2].rotation = Math.sin(et * 1.2 + sw2 * 2.1) * 0.035;
+  if (campGlows.length) {
+    var fl = 0.75 + Math.sin(et * 9) * 0.12 + Math.sin(et * 23) * 0.08;
+    campGlows[0].scale.set(3 * fl, 3 * fl, 1);
+    campGlows[1].scale.set(1.7 * (2 - fl), 1.7 * (2 - fl), 1);
+  }
+  if (rimInst) {
+    for (var rb = 0; rb < rimData.length; rb++) {
+      var RB = rimData[rb];
+      _q.setFromAxisAngle(UP, et * 0.4 + RB.ph);
+      _m.compose(_v.set(RB.x, RB.y0 + Math.sin(et * RB.sp + RB.ph) * 1.1, RB.z), _q, _s.set(1, 1, 1));
+      rimInst.setMatrixAt(rb, _m);
+    }
+    rimInst.instanceMatrix.needsUpdate = true;
+  }
   // v7 環境慶典：白天不定時煙火 + 禮物氣球升空（熱鬧感）
   world._festT = (world._festT === undefined ? 25 : world._festT) - dt;
   if (world._festT < 0) {
@@ -3720,7 +3910,7 @@ function buildParticles() {
     new THREE.SphereGeometry(1.4, 8, 6).translate(0.4, 1.1, -0.6).toNonIndexed()
   ]);
   cloudGeo.scale(1, 0.72, 1);
-  var cloudN = LITE ? 5 : 10;
+  var cloudN = LITE ? 5 : 14;
   cloudInst = new THREE.InstancedMesh(cloudGeo, toonMat(0xFFFFFF), cloudN);
   cloudInst.frustumCulled = false;
   var crng = mulberry32(77);
@@ -3857,7 +4047,8 @@ function buildCritters() {
   scene.add(camelInst);
 
   // v7.1 風箏 ×2（菱形箏面 + 彩色尾帶 + 牽線，天空搖曳）
-  [[18, 21, 26, 0xFF6FA5], [-22, 19, 30, 0x5FB2FF]].forEach(function (kd) {
+  [[18, 21, 26, 0xFF6FA5], [-22, 19, 30, 0x5FB2FF],
+   [30, 17, -12, 0xFFD23F]].forEach(function (kd) { // v8 風箏 2→3（call 預算內）
     var kg = new THREE.Group();
     var face = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 2.3).rotateZ(Math.PI / 4).scale(1, 0.8, 1),
       new THREE.MeshBasicMaterial({ color: kd[3], side: THREE.DoubleSide }));
