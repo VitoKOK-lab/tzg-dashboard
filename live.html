@@ -16,9 +16,9 @@
        ?hour=20   時鐘跳到今天 20:00      ?time=2026-07-15T20:30
        ?demo=1    內建範例資料 + 60 倍速   ?lite=1  低階裝置模式
        ?debug=1   顯示 fps / draw calls HUD
-       ?shot=0..8&k=0..1  固定鏡位（0=空中環繞、1..8=定點視角）
-   ▸ 運鏡：預設空中環繞；畫面左下「視角切換鍵」循環 8 個定點視角
-     （數字鍵 1-8 直選、0/Esc 回環繞；90 秒沒按自動回環繞）
+       ?shot=0..9&k=0..1  固定鏡位（0=空中環繞、1..9=定點視角）
+   ▸ 運鏡：預設空中環繞；畫面左下「視角切換鍵」循環 9 個定點視角
+     （數字鍵 1-9 直選、0/Esc 回環繞；90 秒沒按自動回環繞）
   ═══════════════════════════════════════════════════════════════
 -->
 <html lang="zh-TW">
@@ -448,6 +448,7 @@ function renderMeta(a) {
   // 短影音流量 → 參觀人潮：每 10 萬次播放 ≈ 每分鐘 1 位訪客（1–8 上限）
   visitorRate = clamp(a.plays / 100000, 1, 8);
   paintJumbo();
+  if (world.ok && studio.monCanvas) paintMonitor(); // 攝影棚監看螢幕同步 LIVE 觀看數
 }
 function loadMeta() {
   if (DEMO) { renderMeta({ plays: 567366, engage: 7180, fans: 445, count: 77 }); return; }
@@ -770,6 +771,8 @@ function initWorld() {
   buildLandmarks();
   buildTownStatic();
   buildTextPools();
+  buildStudio();
+  buildMountains();
   buildNPCBase();
   buildParticles();
   buildCritters();
@@ -783,7 +786,7 @@ function initWorld() {
   camBtnEl.style.display = 'block';
   camBtnEl.addEventListener('click', function (ev) { ev.stopPropagation(); cycleCam(); });
   window.addEventListener('keydown', function (ev) {
-    if (ev.key >= '1' && ev.key <= '8') setCamMode(+ev.key - 1);
+    if (ev.key >= '1' && ev.key <= '9') setCamMode(+ev.key - 1);
     else if (ev.key === '0' || ev.key === 'Escape') setCamMode(-1);
   });
   updateCamBtn();
@@ -916,7 +919,8 @@ var EXCLUDE = [
   { x: 19, z: -25, r: 2.5 },  // 礦場招牌
   { x: -30, z: -32, r: 4 },   // 風車
   { x: -46, z: -4, r: 4 }, { x: -42, z: -11, r: 4 }, { x: -36, z: -17, r: 4 }, { x: -30, z: -21, r: 4 }, // 四季金字塔
-  { x: -16, z: 38, r: 3 }     // 年度水位塔
+  { x: -16, z: 38, r: 3 },    // 年度水位塔
+  { x: 47, z: 6, r: 7.5 }     // 大型攝影棚
 ];
 
 function buildTerrain() {
@@ -1712,7 +1716,7 @@ function buildTownStatic() {
   palmParts.push(colorize(new THREE.SphereGeometry(0.15, 6, 5).translate(0.57, 4.79, 0.1), 0x8A6A48).toNonIndexed());
   var palmInst = famMesh(mergeGeometries(palmParts), vertexToon.clone(), LITE ? 10 : 16);
   var PALM_SPOTS = [[-6.5, 30], [6.5, 22], [-6.4, 14], [6.6, 33], [37, 15.5], [43, 21], [-4.6, 39.5], [4.6, 39.5],
-                    [15, -20], [-15, -20], [-44, 8], [44, 4], [-24, 40], [24, 36], [-38, -18], [32, -22]];
+                    [15, -20], [-15, -20], [-44, 8], [50, -8], [-24, 40], [24, 36], [-38, -18], [32, -22]]; // [50,-8]：讓位給攝影棚
   for (var pm = 0; pm < palmInst.count; pm++) {
     var ps2 = PALM_SPOTS[pm];
     var psc = 0.85 + scRng() * 0.45;
@@ -1726,6 +1730,340 @@ function buildTownStatic() {
   var townGold = new THREE.Mesh(mergeGeometries(goldParts.map(function (g) { return g.toNonIndexed(); })), goldMat);
   scene.add(townGold);
   goldParts.forEach(function (g) { g.dispose(); });
+}
+
+/* ═══════════════ 7c. 大型攝影棚（影音導流入口旁）＋ 北環彩礦山脈 ═══════════════ */
+// 女主角（照片特徵：長黑髮/圓框眼鏡/紅唇/寶藍水鑽洋裝）開拍中：攝影師+助理+燈光+REC+監看螢幕
+var studio = {
+  g: null, heroine: null, armL: null, armR: null, hairSway: null,
+  camHead: null, cameraman: null, assistant: null, reflGlow: null,
+  rec: null, monCanvas: null, monTex: null,
+  poseIdx: 0, poseT: 0, heartT: 9, cmJump: 9, asJump: 9, sparkleT: 20
+};
+function buildStudio() {
+  var g = new THREE.Group();
+  var S = [];                                  // 靜態件（併 1 網格）
+  function SP2(geo, hex) { S.push(colorize(geo, hex)); }
+
+  // ── 舞台地台 + 台階 + 電纜線 ──
+  SP2(new THREE.BoxGeometry(9, 0.5, 7).translate(0, 0.25, 0), 0xC9A26E);
+  SP2(new THREE.BoxGeometry(3, 0.24, 1).translate(0, 0.12, 3.9), 0xB8905E);
+  var cableCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(3.6, 0.55, 3.2), new THREE.Vector3(2.4, 0.55, 4.4),
+    new THREE.Vector3(0.8, 0.55, 4.0), new THREE.Vector3(-0.2, 0.55, 4.6), new THREE.Vector3(-1.8, 0.55, 4.1)
+  ]);
+  SP2(new THREE.TubeGeometry(cableCurve, 12, 0.045, 5, false), 0x2A2430);
+
+  // ── 背景牆 cyclorama（品牌桃紅 + 金框緣 + 半高側牆）──
+  SP2(new THREE.BoxGeometry(7.5, 4.6, 0.3).translate(0, 2.8, -2.9), 0xC2447A);
+  SP2(new THREE.BoxGeometry(7.7, 0.18, 0.34).translate(0, 5.15, -2.9), 0xC9A961);
+  SP2(new THREE.BoxGeometry(7.7, 0.18, 0.34).translate(0, 0.62, -2.9), 0xC9A961);
+  SP2(new THREE.BoxGeometry(0.3, 3.2, 3.4).translate(-3.75, 2.1, -1.3), 0xD1568A); // 側牆（左）
+  // 牆面品牌菱形飾
+  SP2(new THREE.OctahedronGeometry(0.5, 0).applyMatrix4(new THREE.Matrix4().makeScale(1, 1.5, 0.2)).translate(0, 3.4, -2.7), 0xF2A9C0);
+
+  // ── 軟箱燈 ×2（燈架 + 傾斜燈箱面向女主角）──
+  [[-2.7, 1.9], [2.7, 1.6]].forEach(function (ls) {
+    SP2(new THREE.CylinderGeometry(0.06, 0.09, 3.1, 6).translate(ls[0], 2.05, ls[1]), 0x3A3440);
+    SP2(new THREE.CylinderGeometry(0.5, 0.06, 0.5, 4).rotateY(Math.PI / 4)
+      .rotateX(0.9).rotateY(ls[0] < 0 ? 0.7 : -0.7)
+      .translate(ls[0], 3.7, ls[1]), 0x4A4450); // 燈罩斗
+    SP2(new THREE.BoxGeometry(0.72, 0.72, 0.08).rotateX(0.5).rotateY(ls[0] < 0 ? 0.7 : -0.7)
+      .translate(ls[0] * 0.92, 3.45, ls[1] + 0.28), 0xFFF6E8); // 發光面
+    SP2(new THREE.CylinderGeometry(0.5, 0.6, 0.1, 8).translate(ls[0], 0.55, ls[1]), 0x3A3440);
+  });
+  // 環形燈（靠機位）
+  SP2(new THREE.CylinderGeometry(0.05, 0.08, 2.2, 6).translate(1.5, 1.6, 3.2), 0x3A3440);
+  SP2(new THREE.TorusGeometry(0.55, 0.07, 8, 20).translate(1.5, 3, 3.2), 0xFFF2E0);
+
+  // ── 三腳架 + 導演椅 + 珠寶展示桌 + 場記板 + 咖啡杯 ──
+  for (var tl = 0; tl < 3; tl++) {
+    var ta = tl / 3 * Math.PI * 2 + 0.5;
+    SP2(new THREE.CylinderGeometry(0.045, 0.06, 1.7, 5).rotateZ(0.32).rotateY(ta)
+      .translate(Math.cos(ta) * 0.42, 1.3, 3.9 + Math.sin(ta) * 0.42), 0x3A3440);
+  }
+  SP2(new THREE.BoxGeometry(0.7, 0.09, 0.7).translate(2.9, 0.95, 2.4), 0xB8905E);       // 導演椅座
+  SP2(new THREE.BoxGeometry(0.7, 0.7, 0.09).translate(2.9, 1.45, 2.05), 0xC2447A);      // 椅背
+  [[2.62, 2.12], [3.18, 2.12], [2.62, 2.68], [3.18, 2.68]].forEach(function (cl2) {
+    SP2(new THREE.CylinderGeometry(0.035, 0.045, 0.92, 4).translate(cl2[0], 0.46, cl2[1]), 0x8A6748);
+  });
+  SP2(new THREE.BoxGeometry(1.5, 0.1, 0.9).translate(-1.9, 1.05, 1.9), 0xF5EFE4);        // 展示桌
+  SP2(new THREE.CylinderGeometry(0.07, 0.09, 1, 5).translate(-2.4, 0.5, 1.9), 0xC9A961);
+  SP2(new THREE.CylinderGeometry(0.07, 0.09, 1, 5).translate(-1.4, 0.5, 1.9), 0xC9A961);
+  [[-2.25, 0xF2A9C0], [-1.9, 0xCBB3E6], [-1.55, 0xA8E0F0]].forEach(function (gm2) {   // 桌上寶石
+    SP2(new THREE.OctahedronGeometry(0.13, 0).applyMatrix4(new THREE.Matrix4().makeScale(1, 1.5, 1)).translate(gm2[0], 1.3, 1.9), gm2[1]);
+  });
+  SP2(new THREE.BoxGeometry(0.5, 0.34, 0.06).rotateZ(0.5).translate(3.6, 0.72, 3.6), 0x2A2430); // 場記板
+  SP2(new THREE.BoxGeometry(0.52, 0.09, 0.07).rotateZ(0.9).translate(3.52, 0.95, 3.6), 0xF5EFE4);
+  SP2(new THREE.CylinderGeometry(0.07, 0.06, 0.14, 6).translate(2.75, 1.06, 2.62), 0xF5EFE4);   // 咖啡杯
+  // 播客麥克風（黑懸臂 + 奶油網頭，照片同款）
+  SP2(new THREE.CylinderGeometry(0.04, 0.06, 1.9, 5).translate(0.85, 1.5, 1.15), 0x2A2430);
+  SP2(new THREE.CylinderGeometry(0.035, 0.035, 0.85, 5).rotateZ(1.15).translate(0.5, 2.42, 1.05), 0x2A2430);
+  SP2(new THREE.CapsuleGeometry(0.09, 0.2, 3, 8).rotateZ(Math.PI / 2).translate(0.12, 2.28, 1.0), 0xEFE7D4);
+  // 監看螢幕手推車
+  SP2(new THREE.BoxGeometry(0.9, 0.7, 0.6).translate(2.7, 0.9, 4.4), 0x4A4450);
+  SP2(new THREE.CylinderGeometry(0.05, 0.05, 0.55, 5).translate(2.7, 1.5, 4.4), 0x3A3440);
+
+  var studioMesh = new THREE.Mesh(mergeGeometries(S.map(function (x) { return x.toNonIndexed(); })), vertexToon);
+  g.add(studioMesh);
+  S.forEach(function (x) { x.dispose(); });
+
+  // ── 女主角（長黑髮/圓框眼鏡/紅唇/寶藍水鑽洋裝）──
+  var her = new THREE.Group();
+  var H = [];
+  H.push(colorize(new THREE.CylinderGeometry(0.3, 0.78, 1.5, 12).translate(0, 0.75, 0), 0x2338B8)); // 絲絨長裙
+  H.push(colorize(new THREE.CapsuleGeometry(0.32, 0.36, 4, 10).translate(0, 1.68, 0), 0x2338B8));   // 上身
+  var drng = mulberry32(2026);
+  for (var dz = 0; dz < 12; dz++) { // 裙身水鑽
+    var da = (drng() - 0.5) * 2.2, dy = 0.35 + drng() * 1.5;
+    var dr2 = dy > 1.4 ? 0.34 : 0.78 - (dy / 1.5) * 0.45;
+    H.push(colorize(new THREE.SphereGeometry(0.035, 5, 4)
+      .translate(Math.sin(da) * dr2, dy, Math.cos(da) * dr2 * 0.92 + 0.06), 0xEAF0FF));
+  }
+  H.push(colorize(new THREE.SphereGeometry(0.045, 5, 4).translate(0, 1.95, 0.3), 0xC9A961));       // 領口金鑽
+  H.push(colorize(new THREE.SphereGeometry(0.36, 14, 11).translate(0, 2.32, 0), 0xF3D9C6));        // 頭
+  H.push(colorize(new THREE.SphereGeometry(0.395, 12, 8, 0, Math.PI * 2, 0, 1.5).translate(0, 2.4, -0.02), 0x241B20)); // 髮蓋
+  H.push(colorize(new THREE.CapsuleGeometry(0.09, 0.5, 3, 6).rotateX(0.12).translate(-0.34, 2.0, -0.1), 0x241B20));    // 側髮束
+  H.push(colorize(new THREE.CapsuleGeometry(0.09, 0.5, 3, 6).rotateX(0.12).translate(0.34, 2.0, -0.1), 0x241B20));
+  H.push(colorize(new THREE.TorusGeometry(0.1, 0.016, 5, 12).translate(-0.14, 2.36, 0.33), 0x33232C)); // 圓框眼鏡
+  H.push(colorize(new THREE.TorusGeometry(0.1, 0.016, 5, 12).translate(0.14, 2.36, 0.33), 0x33232C));
+  H.push(colorize(new THREE.BoxGeometry(0.09, 0.02, 0.02).translate(0, 2.37, 0.35), 0x33232C));
+  H.push(colorize(new THREE.TorusGeometry(0.07, 0.022, 5, 10, Math.PI).rotateZ(Math.PI).translate(0, 2.2, 0.34), 0xC22B4A)); // 紅唇微笑
+  var herMesh = new THREE.Mesh(mergeGeometries(H.map(function (x) { return x.toNonIndexed(); })), vertexToon);
+  her.add(herMesh);
+  H.forEach(function (x) { x.dispose(); });
+  // 後背長髮（獨立，微擺）
+  var hairBack = new THREE.Mesh(new THREE.BoxGeometry(0.52, 1.35, 0.18).translate(0, -0.62, 0), toonMat(0x241B20));
+  hairBack.position.set(0, 2.52, -0.3);
+  her.add(hairBack);
+  studio.hairSway = hairBack;
+  // 手臂 ×2（肩部樞軸，姿勢輪播）
+  function makeArm(side) {
+    var ag = new THREE.Group();
+    ag.add(new THREE.Mesh(mergeGeometries([
+      colorize(new THREE.CapsuleGeometry(0.085, 0.5, 3, 6).translate(0, -0.3, 0), 0x2338B8).toNonIndexed(),
+      colorize(new THREE.SphereGeometry(0.1, 7, 5).translate(0, -0.64, 0), 0xF3D9C6).toNonIndexed()
+    ]), vertexToon));
+    ag.position.set(side * 0.42, 1.88, 0);
+    her.add(ag);
+    return ag;
+  }
+  studio.armL = makeArm(-1);
+  studio.armR = makeArm(1);
+  // 站台 + 腳邊粉光
+  var podium = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 1.1, 0.22, 12), goldMat);
+  podium.position.y = 0.11;
+  her.add(podium);
+  var herGlow = glowSprite('rgba(242,169,192,.55)', 4.5);
+  herGlow.position.y = 1.2;
+  her.add(herGlow);
+  her.position.set(0, 0.5, 0.8);
+  g.add(her);
+  studio.heroine = her;
+  herMesh.userData.studio = 'heroine';
+
+  // ── 攝影機頭（追蹤 pan）＋ 攝影師 ──
+  var camHead = new THREE.Group();
+  var camMesh = new THREE.Mesh(mergeGeometries([
+    colorize(new THREE.BoxGeometry(0.5, 0.38, 0.72), 0x2A2430).toNonIndexed(),
+    colorize(new THREE.CylinderGeometry(0.15, 0.17, 0.5, 10).rotateX(Math.PI / 2).translate(0, 0.02, -0.55), 0x3A3440).toNonIndexed(),
+    colorize(new THREE.CylinderGeometry(0.2, 0.14, 0.16, 4).rotateY(Math.PI / 4).rotateX(Math.PI / 2).translate(0, 0.02, -0.85), 0x2A2430).toNonIndexed()
+  ]), vertexToon);
+  camHead.add(camMesh);
+  camHead.position.set(0, 2.2, 3.9);
+  g.add(camHead);
+  studio.camHead = camHead;
+  function crew(cx, cz, hex) {
+    var cg = new THREE.Group();
+    var cb = new THREE.Mesh(mergeGeometries([
+      colorize(new THREE.CapsuleGeometry(0.32, 0.3, 4, 10).translate(0, 0.95, 0), hex).toNonIndexed(),
+      colorize(new THREE.SphereGeometry(0.32, 10, 8).translate(0, 1.62, 0), 0xEDC9A8).toNonIndexed(),
+      colorize(new THREE.SphereGeometry(0.35, 9, 6, 0, Math.PI * 2, 0, 1.1).translate(0, 1.7, 0), 0x33232C).toNonIndexed(),
+      colorize(new THREE.BoxGeometry(0.3, 0.04, 0.24).translate(0, 1.72, 0.34), 0x33232C).toNonIndexed()
+    ]), vertexToon);
+    cg.add(cb);
+    cg.position.set(cx, 0, cz);
+    g.add(cg);
+    cb.userData.studio = cx > 0 ? 'cameraman' : 'assistant';
+    return { g: cg, body: cb };
+  }
+  var cm = crew(0.75, 4.7, 0x3A3440);
+  cm.g.rotation.y = Math.PI + 0.18; // 面向女主角
+  studio.cameraman = cm.g;
+  var as2 = crew(-2.6, 2.6, 0x4A4450);
+  as2.g.rotation.y = Math.PI - 0.5;
+  studio.assistant = as2.g;
+  // 助理手持金色反光板 + 閃光
+  var refl = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.04, 14).rotateX(1.25), goldMat);
+  refl.position.set(0.55, 1.15, 0.3);
+  as2.g.add(refl);
+  studio.reflGlow = glowSprite('rgba(255,235,170,.9)', 2.6);
+  studio.reflGlow.position.set(0.55, 1.2, 0.35);
+  studio.reflGlow.material.opacity = 0;
+  as2.g.add(studio.reflGlow);
+
+  // ── ● REC 漂浮字（閃爍）──
+  var rec = makeDynamicSprite(192, 80);
+  var rg = rec.canvas.getContext('2d');
+  rg.textAlign = 'left'; rg.textBaseline = 'middle';
+  rg.fillStyle = '#FF4455'; rg.beginPath(); rg.arc(30, 40, 14, 0, 6.29); rg.fill();
+  rg.fillStyle = '#FFF'; rg.font = '700 44px "Montserrat"'; rg.fillText('REC', 56, 42);
+  rec.tex.needsUpdate = true;
+  rec.sprite.scale.set(2.2, 0.92, 1);
+  rec.sprite.position.set(0, 3.1, 3.9);
+  g.add(rec.sprite);
+  studio.rec = rec.sprite;
+
+  // ── 監看螢幕（LIVE 觀看數 = 近 7 日播放）──
+  var mc = document.createElement('canvas'); mc.width = 256; mc.height = 128;
+  studio.monCanvas = mc;
+  studio.monTex = canvasTex(mc);
+  var mon = new THREE.Mesh(new THREE.PlaneGeometry(1.35, 0.7),
+    new THREE.MeshBasicMaterial({ map: studio.monTex }));
+  mon.position.set(2.7, 1.95, 4.4);
+  mon.rotation.y = Math.PI - 0.35;
+  g.add(mon);
+  paintMonitor();
+
+  // 燈箱/環燈光暈 + 棚頂招牌
+  var glowA = glowSprite('rgba(255,244,220,.7)', 4);  glowA.position.set(-2.5, 3.6, 2.1); g.add(glowA);
+  var glowB = glowSprite('rgba(255,244,220,.7)', 4);  glowB.position.set(2.5, 3.5, 1.8);  g.add(glowB);
+  var glowC = glowSprite('rgba(255,238,214,.6)', 2.4); glowC.position.set(1.5, 3, 3.25);  g.add(glowC);
+  var sLabel = makeLabel('TZG 大型攝影棚 ● 拍攝中', 'sign');
+  sLabel.position.set(0, 5.9, -2.6);
+  g.add(sLabel);
+
+  g.position.set(47, 0.4, 6);
+  g.rotation.y = Math.PI / 2; // 開口朝東（攝影棚視角看得進來）
+  scene.add(g);
+  studio.g = g;
+  meshWob.push({ obj: g, t: 99, baseRZ: 0, baseRX: 0 });
+  studioMesh.userData.meshWob = meshWob[meshWob.length - 1];
+  clickTargets.push(studioMesh, herMesh, cm.body, as2.body);
+}
+function paintMonitor() {
+  if (!studio.monCanvas) return;
+  var mg = studio.monCanvas.getContext('2d');
+  mg.fillStyle = '#141018';
+  mg.fillRect(0, 0, 256, 128);
+  mg.strokeStyle = 'rgba(201,169,97,.6)'; mg.lineWidth = 3;
+  mg.strokeRect(4, 4, 248, 120);
+  mg.fillStyle = '#FF4455'; mg.beginPath(); mg.arc(28, 30, 9, 0, 6.29); mg.fill();
+  mg.fillStyle = '#F5EFE4'; mg.font = '700 26px "Montserrat"'; mg.textAlign = 'left'; mg.textBaseline = 'middle';
+  mg.fillText('LIVE', 46, 32);
+  var md = world.metaData;
+  mg.font = '500 22px "Noto Sans TC"';
+  mg.fillStyle = 'rgba(245,239,228,.7)';
+  mg.fillText(md ? '觀看' : 'TZG', 24, 72);
+  mg.fillStyle = '#F2A9C0'; mg.font = '700 34px "Cormorant Garamond"';
+  mg.fillText(md ? fmtCompact(md.plays) : '珠寶頻道', md ? 84 : 24, 72 + (md ? 0 : 30));
+  if (md) { mg.fillStyle = 'rgba(245,239,228,.5)'; mg.font = '400 18px "Noto Sans TC"'; mg.fillText('近 7 日播放', 24, 104); }
+  studio.monTex.needsUpdate = true;
+}
+// 姿勢表：[左臂 rotX,rotZ, 右臂 rotX,rotZ]
+var HER_POSES = [
+  [0, 0.25, -0.4, -2.5],   // 揮手（右手高舉，updateStudio 加擺動）
+  [0, 0.9, 0, -0.9],       // 叉腰
+  [-0.7, 1.9, -0.7, -1.9], // 雙手比愛心（高舉合攏）
+  [0, 0.2, -1.25, -0.5]    // 伸手展示珠寶桌
+];
+function updateStudio(dt) {
+  if (!studio.g) return;
+  // 女主角：身體慢慢左右轉 + 髮擺 + 姿勢輪播
+  studio.poseT += dt;
+  var heartLock = studio.heartT < 2.5;
+  if (heartLock) studio.heartT += dt;
+  if (!heartLock && studio.poseT > 6) { studio.poseT = 0; studio.poseIdx = (studio.poseIdx + 1) % HER_POSES.length; }
+  var P = HER_POSES[heartLock ? 2 : studio.poseIdx];
+  var wave = (!heartLock && studio.poseIdx === 0) ? Math.sin(et * 6) * 0.3 : 0;
+  studio.armL.rotation.x += (P[0] - studio.armL.rotation.x) * Math.min(1, dt * 5);
+  studio.armL.rotation.z += (P[1] - studio.armL.rotation.z) * Math.min(1, dt * 5);
+  studio.armR.rotation.x += (P[2] - studio.armR.rotation.x) * Math.min(1, dt * 5);
+  studio.armR.rotation.z += (P[3] + wave - studio.armR.rotation.z) * Math.min(1, dt * 5);
+  studio.heroine.rotation.y = Math.sin(et * 0.4) * 0.22 + (heartLock ? Math.sin(studio.heartT * 10) * 0.06 : 0);
+  studio.hairSway.rotation.x = Math.sin(et * 1.3) * 0.06;
+  // 攝影機追蹤她的擺動；攝影師跟著小幅擺
+  studio.camHead.rotation.y = Math.PI + Math.sin(et * 0.4) * 0.1;
+  studio.camHead.rotation.x = 0.12 + Math.sin(et * 0.7) * 0.02;
+  studio.cameraman.position.y = Math.abs(Math.sin(et * 2.2)) * 0.03;
+  if (studio.cmJump < 1.2) { studio.cmJump += dt; studio.cameraman.position.y += Math.abs(Math.sin(studio.cmJump / 1.2 * Math.PI * 2)) * 0.5; }
+  // 助理：兩點折返（反光板位 ↔ 軟箱燈）+ 反光板閃光
+  studio.aT = (studio.aT || 0) + dt * 0.1;
+  var ak = 0.5 + 0.5 * Math.sin(studio.aT * Math.PI * 2);
+  var ae = ak * ak * (3 - 2 * ak);
+  studio.assistant.position.x = -2.6 + ae * 0.9;
+  studio.assistant.position.z = 2.6 - ae * 1.1;
+  studio.assistant.position.y = Math.abs(Math.sin(et * 7)) * 0.05;
+  if (studio.asJump < 1.2) { studio.asJump += dt; studio.assistant.position.y += Math.abs(Math.sin(studio.asJump / 1.2 * Math.PI * 2)) * 0.5; }
+  studio.reflGlow.material.opacity = Math.pow(Math.max(0, Math.sin(et * 0.9)), 8) * 0.85;
+  // REC 閃爍
+  studio.rec.material.opacity = (et % 0.9 < 0.55) ? 1 : 0.3;
+  // 偶發拍攝星光
+  studio.sparkleT -= dt;
+  if (studio.sparkleT < 0) {
+    studio.sparkleT = 40 + Math.random() * 20;
+    firework(47, 5, 6, 0xF2A9C0);
+  }
+}
+function studioPoke(kind, pt) {
+  if (kind === 'heroine') {
+    studio.heartT = 0;
+    popupAt(pt.x, pt.y + 2.2, pt.z, '❤', null);
+    burstCoins(pt.x, pt.y + 1, pt.z, 6);
+    Music.sfx('pop');
+  } else if (kind === 'cameraman') {
+    studio.cmJump = 0;
+    popupAt(pt.x, pt.y + 1.8, pt.z, '❗', null);
+    Music.sfx('pop');
+  } else if (kind === 'assistant') {
+    studio.asJump = 0;
+    popupAt(pt.x, pt.y + 1.8, pt.z, '❗', null);
+    Music.sfx('pop');
+  } else if (kind === 'mountain') {
+    spawnDust(pt.x, pt.y, pt.z, 14);
+    popupAt(pt.x, pt.y + 2.5, pt.z, '⛏ ✦', null);
+    Music.sfx('thud');
+  }
+}
+
+// ── 北環彩礦山脈：島後半（-z）一整圈高山，鑲各色礦脈 ──
+function buildMountains() {
+  var M2 = [];
+  var mrng = mulberry32(4949);
+  var ROCKS = [0xD9B584, 0xC98A8A, 0x9A8FA8, 0xB87A5A, 0xB8AE9C];
+  var ORES = [0xF2A9C0, 0xF2D377, 0x9FD8D4, 0xCBB3E6, 0xA8E0F0, 0xE88CA3];
+  var N_PK = LITE ? 8 : 13;
+  for (var pk = 0; pk < N_PK; pk++) {
+    // 角度覆蓋北半圈（π..2π），避開東西兩端點
+    var ang = Math.PI * (1.08 + (pk / (N_PK - 1)) * 0.84);
+    var t2 = 1.02 + mrng() * 0.1;
+    var mx = Math.cos(ang) * RX * t2;
+    var mz = Math.sin(ang) * RZ * t2;
+    var mh = 9 + mrng() * 12;               // 高山 9–21
+    var mw = 5 + mrng() * 4.5;
+    var rc = ROCKS[pk % ROCKS.length];
+    M2.push(colorize(new THREE.ConeGeometry(mw, mh, 7).translate(mx, mh / 2 - 1.5, mz), rc));
+    M2.push(colorize(new THREE.ConeGeometry(mw * 0.62, mh * 0.66, 6)
+      .translate(mx + mw * 0.7 * (mrng() < 0.5 ? 1 : -1), mh * 0.33 - 1.5, mz + mw * 0.4), rc));
+    // 彩色礦脈：面向城鎮的坡面鑲 3-4 顆
+    for (var ore = 0; ore < 3 + (pk % 2); ore++) {
+      var oy = 1.5 + mrng() * mh * 0.55;
+      var of2 = (mh - oy) / mh * mw * 0.8;   // 依高度貼坡面
+      var oj = (mrng() - 0.5) * mw * 0.7;
+      M2.push(colorize(new THREE.OctahedronGeometry(0.5 + mrng() * 0.6, 0)
+        .applyMatrix4(new THREE.Matrix4().makeScale(1, 1.5, 1))
+        .translate(mx - Math.cos(ang) * of2 + oj * Math.sin(ang), oy, mz - Math.sin(ang) * of2 - oj * Math.cos(ang)),
+        ORES[(pk + ore) % ORES.length]));
+    }
+  }
+  var mtn = new THREE.Mesh(mergeGeometries(M2.map(function (x) { return x.toNonIndexed(); })), vertexToon);
+  scene.add(mtn);
+  M2.forEach(function (x) { x.dispose(); });
+  mtn.userData.studio = 'mountain'; // 點山 → 落石沙塵（環形合併網格不適合旋轉搖晃）
+  clickTargets.push(mtn);
+  // 兩座主峰的礦脈光暈
+  var mg1 = glowSprite('rgba(242,169,192,.4)', 10); mg1.position.set(-30, 8, -46); scene.add(mg1);
+  var mg2 = glowSprite('rgba(159,216,212,.4)', 10);  mg2.position.set(28, 8, -47);  scene.add(mg2);
 }
 
 function dockSlotPos(i) {
@@ -2802,6 +3140,7 @@ function onScenePointer(ev) {
   hits = raycaster.intersectObjects(clickTargets, false);
   if (hits.length) {
     var h0 = hits[0];
+    if (h0.object.userData.studio) { studioPoke(h0.object.userData.studio, h0.point); return; }
     if (h0.object.userData.meshWob) {
       var MW = h0.object.userData.meshWob;
       if (MW.t > 1.5) {
@@ -3747,6 +4086,10 @@ var VIEWS = [
       var a2 = t * 0.03;
       out.pos.set(Math.sin(a2) * 24, 88, 26 + Math.cos(a2) * 10);
       out.look.set(0, 0, -2);
+  }},
+  { name: '大型攝影棚', pose: function (t, out) {
+      out.pos.set(58 + Math.sin(t * 0.06) * 3, 11, 15 + Math.cos(t * 0.05) * 4);
+      out.look.set(46.5, 3, 6);
   }}
 ];
 // 視角狀態：-1 = 空中環繞（預設），0..7 = 定點視角；90 秒沒按自動回環繞
@@ -3765,7 +4108,7 @@ function cycleCam() { setCamMode(camMode >= VIEWS.length - 1 ? -1 : camMode + 1)
 function updateCamBtn() {
   var b = $('camBtn');
   if (!b) return;
-  b.textContent = camMode < 0 ? '✈ 空中環繞 ▸' : '● ' + (camMode + 1) + '/8 ' + VIEWS[camMode].name + ' ▸';
+  b.textContent = camMode < 0 ? '✈ 空中環繞 ▸' : '● ' + (camMode + 1) + '/' + VIEWS.length + ' ' + VIEWS[camMode].name + ' ▸';
 }
 // 鏡頭防遮擋：帶高度的圓柱清單；鏡頭或視線前段落入 → 平滑抬升
 var CAM_BLOCKERS = [
@@ -3779,6 +4122,7 @@ var CAM_BLOCKERS = [
   { x: 36, z: -2, r: 4.5, h: 8.5 },    // 工地吊車
   { x: -38, z: -12, r: 11, h: 6.5 },   // 四季金字塔群
   { x: -16, z: 38, r: 2.2, h: 7.5 },   // 年度水位塔
+  { x: 44.3, z: 6, r: 3, h: 6.2 },     // 攝影棚背景牆
   { x: -15.5, z: -6, r: 1.3, h: 6.4 }, { x: 15.5, z: -6, r: 1.3, h: 6.4 },   // 方尖碑
   { x: -6, z: 37.5, r: 1.3, h: 6.4 }, { x: 6, z: 37.5, r: 1.3, h: 6.4 }
 ];
@@ -4269,6 +4613,7 @@ function loop() {
   updateNPCs(dt);
   updateParticles(dt);
   updateTown(dt);
+  updateStudio(dt);
   updateWobbles(dt);
   updateCamera(dt);
   renderer.render(scene, camera);
