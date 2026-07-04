@@ -222,8 +222,8 @@ var q = new URLSearchParams(location.search);
 var DEMO = q.has('demo');
 var LITE = q.has('lite');
 var DEBUG = q.has('debug');
-// 風格2 預設鎖定夜景（霓虹+高樓窗光，都市賣點）；加 ?real=1 才跟真實時間日夜循環（?hour/?time/?demo 也解除鎖定）
-var DAY_LOCK = !q.has('real') && !q.has('hour') && !q.has('time') && !DEMO;
+// 風格2 預設跟隨真實時間日夜循環（白天/中午/夕陽/夜晚自動切換）；?hour=/?time= 仍可強制指定時刻
+var DAY_LOCK = false;
 var SPEED = DEMO ? 60 : 1;
 var TIME_TRAVEL = DEMO || q.has('hour') || q.has('time');
 var bootReal = Date.now();
@@ -4748,8 +4748,8 @@ var lastAmbHour = -1;
 function updateAmbience(t) {
   if (!world.ok) return;
   var d = new Date(t);
-  // 夜景鎖定：視覺氛圍固定在晚間 9 點（數字/事件仍走真實時鐘，鐘樓指針也是真實時間）
-  var hour = DAY_LOCK ? 21 : (d.getHours() + d.getMinutes() / 60);
+  // 都市版：視覺氛圍跟隨真實/展示時鐘走（白天/中午/夕陽/夜晚自動循環）
+  var hour = d.getHours() + d.getMinutes() / 60;
   var a = SKY[0], b = SKY[SKY.length - 1], f = 0;
   for (var i = 0; i < SKY.length - 1; i++) {
     if (hour >= SKY[i].h && hour < SKY[i + 1].h) {
