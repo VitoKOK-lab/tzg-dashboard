@@ -21,7 +21,11 @@ body { font-family: 'Montserrat', 'PingFang TC', sans-serif; background: #fff; d
   flex-shrink: 0;
   padding: 0 16px;
   gap: 2px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
 }
+.tabbar::-webkit-scrollbar { display: none; }
 
 .brand {
   display: flex;
@@ -93,6 +97,7 @@ iframe.active { display: block; }
   <div class="tab" onclick="show(3)">代理</div>
   <div class="tab" onclick="show(4)">即時</div>
   <div class="tab" onclick="show(5)">品牌</div>
+  <div class="tab" onclick="show(6)">都市</div>
 </div>
 
 <div class="content">
@@ -103,6 +108,7 @@ iframe.active { display: block; }
   <iframe id="f3" src=""></iframe>
   <iframe id="f4" allow="autoplay" src=""></iframe>
   <iframe id="f5" src=""></iframe>
+  <iframe id="f6" src=""></iframe>
 </div>
 
 <script>
@@ -113,13 +119,14 @@ const urls = [
   'https://tzg-commission.fly.dev/review/2026-04?t=a301e31bce1565a771691b7ad3167e05',
   'https://vitokok-lab.github.io/tzg-dashboard/live.html',
   'https://vitokok-lab.github.io/tzg-dashboard/brand/index.html',
+  'https://vitokok-lab.github.io/tzg-dashboard/city.html',
 ];
 
-const loaded = [false, false, false, false, false, false];
+const loaded = [false, false, false, false, false, false, false];
 let cur = 0;
 
 const tabs   = document.querySelectorAll('.tab');
-const frames = [0,1,2,3,4,5].map(i => document.getElementById('f'+i));
+const frames = [0,1,2,3,4,5,6].map(i => document.getElementById('f'+i));
 const loader = document.getElementById('loader');
 
 // 第一個 iframe 監聽 load
