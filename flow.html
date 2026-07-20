@@ -2,171 +2,303 @@
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>TZG 金流星河</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TZG 金流總覽</title>
 <!--
-  TZG 金流星河 — MONEY FLOW GALAXY
-  ▸ 與 live.html（沙漠水晶島）完全不同的視覺模組：純 GPU 粒子流。
-  ▸ 隱喻：流量來源化為光流匯入品牌核心，再流向熱銷商品；
-    七日營收是一條起伏的光河；12 個月是環繞的雙光環（亮=今年、暗=去年）；
-    客戶分層是腳下的星系盤；年度目標是核心的進度光環。
-  ▸ 所有粒子動畫在 vertex shader 內計算（貝茲曲線/軌道參數式），CPU 每幀零更新。
+  TZG 金流總覽 — MONEY FLOW OVERVIEW
+  ▸ Stripe / Plausible 風格的輕量分析儀表板：白底卡片、大數字 KPI、單軸圖表。
+  ▸ 「流動」以動畫呈現：數字滾動、折線描繪、沿線流光、即時訂單跑馬燈、儀表填充。
+  ▸ 零外部 JS 依賴（僅 Google Fonts）；所有圖表為手寫 SVG。
   ▸ 資料來源與 live.html 相同：output/dashboard_latest.html 的 const D + annual_plan.json。
-  ▸ 參數：?demo=1 展示資料　?lite=1 低規格　?debug=1 顯示 draw calls
+  ▸ 參數：?demo=1 展示資料
 -->
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
+:root {
+  color-scheme: light;
+  --page: #f7f6f3;
+  --surface: #ffffff;
+  --ink: #1a1a20;
+  --ink-2: #5a5e6b;
+  --ink-3: #8a8e9b;
+  --hairline: #eceae4;
+  --grid: #f0eee9;
+  --accent: #e6007e;        /* 品牌粉：主系列 / 今年 */
+  --accent-soft: rgba(230, 0, 126, .08);
+  --deemph: #9aa1ac;        /* 降調灰：去年（對照用） */
+  --gold: #b08d3e;          /* 商品 */
+  --indigo: #4f5fb0;        /* 客層 */
+  --good: #067647;
+  --bad: #d03b3b;
+}
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { height: 100%; overflow: hidden; background: #04060f; }
+html { height: 100%; }
 body {
+  min-height: 100%;
   font-family: 'Montserrat', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
-  color: #dfe6ff;
-  background: radial-gradient(120% 90% at 50% 30%, #0b1030 0%, #070a1c 45%, #04060f 100%);
+  background: var(--page);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
 }
-#c { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+/* 背景緩慢流動的品牌色暈（極低飽和，不干擾閱讀） */
+.bg-flow { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.blob { position: absolute; width: 55vw; height: 55vw; border-radius: 50%; filter: blur(80px); opacity: .5; }
+.blob.b1 { background: radial-gradient(circle, rgba(230,0,126,.07), transparent 65%); top: -18vw; right: -12vw; animation: drift1 26s ease-in-out infinite alternate; }
+.blob.b2 { background: radial-gradient(circle, rgba(197,179,130,.10), transparent 65%); bottom: -22vw; left: -14vw; animation: drift2 32s ease-in-out infinite alternate; }
+@keyframes drift1 { to { transform: translate(-9vw, 7vw) scale(1.15); } }
+@keyframes drift2 { to { transform: translate(8vw, -6vw) scale(1.1); } }
 
-/* ── HUD ── */
-.hud { position: fixed; z-index: 5; pointer-events: none; }
-#hudTitle { top: 18px; left: 22px; }
-#hudTitle h1 {
-  font-size: 20px; font-weight: 600; letter-spacing: 6px; color: #f3e9c8;
-  text-shadow: 0 0 18px rgba(246,196,83,.45);
+.wrap { position: relative; z-index: 1; max-width: 1240px; margin: 0 auto; padding: 26px 22px 40px; }
+
+/* ── 頁首 ── */
+.head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.head h1 { font-size: 21px; font-weight: 700; letter-spacing: 3px; }
+.head .en { font-size: 10px; letter-spacing: 3px; color: var(--ink-3); font-weight: 600; }
+.head .spacer { flex: 1; }
+.head .asof { font-size: 12px; color: var(--ink-3); }
+.pill {
+  font-size: 11px; font-weight: 600; color: var(--ink-2);
+  background: var(--surface); border: 1px solid var(--hairline); border-radius: 999px;
+  padding: 4px 12px;
 }
-#hudTitle .sub {
-  margin-top: 4px; font-size: 10px; letter-spacing: 4px; color: #8a93c0;
+.pill b { color: var(--accent); }
+.demo-badge { font-size: 10px; font-weight: 700; letter-spacing: 1px; color: #fff; background: var(--accent); border-radius: 999px; padding: 3px 10px; }
+
+/* ── 即時金流跑馬燈 ── */
+.ticker {
+  margin-top: 16px; overflow: hidden; white-space: nowrap; position: relative;
+  background: var(--surface); border: 1px solid var(--hairline); border-radius: 12px;
+  padding: 9px 0; font-size: 12px; color: var(--ink-2);
+  mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
 }
-#hudTitle .asof { margin-top: 8px; font-size: 10px; color: #5d668f; letter-spacing: 1px; }
+.ticker-track { display: inline-block; animation: tick var(--tickDur, 60s) linear infinite; will-change: transform; }
+.ticker:hover .ticker-track { animation-play-state: paused; }
+@keyframes tick { to { transform: translateX(-50%); } }
+.tk { display: inline-flex; align-items: center; gap: 8px; padding: 0 26px; }
+.tk .t { color: var(--ink-3); font-size: 11px; }
+.tk .amt { font-weight: 700; color: var(--accent); }
+.tk .sep { color: #d9d2c2; }
 
-#hudStats { top: 18px; right: 22px; display: flex; gap: 10px; }
-.chip {
-  background: rgba(10,14,34,.55); border: 1px solid rgba(140,150,210,.22);
-  border-radius: 10px; padding: 8px 14px; text-align: right;
-  backdrop-filter: blur(6px);
+/* ── 卡片與網格 ── */
+.grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 14px; margin-top: 16px; }
+.card {
+  background: var(--surface); border: 1px solid var(--hairline); border-radius: 14px;
+  padding: 18px 20px;
+  box-shadow: 0 1px 2px rgba(24,24,32,.04), 0 10px 28px rgba(24,24,32,.035);
 }
-.chip .k { font-size: 9px; letter-spacing: 2px; color: #8a93c0; }
-.chip .v { margin-top: 3px; font-size: 16px; font-weight: 600; color: #ffe1a0; text-shadow: 0 0 12px rgba(246,196,83,.35); }
-.chip .v.pink { color: #ff8fd8; text-shadow: 0 0 12px rgba(255,79,195,.35); }
-
-#hudLegend { bottom: 16px; right: 22px; text-align: right; font-size: 10px; line-height: 1.9; color: #6a7398; letter-spacing: 1px; }
-#hudLegend b { color: #aeb8e8; font-weight: 600; }
-
-/* 詳情卡（點擊節點） */
-#card {
-  position: fixed; z-index: 6; left: 22px; bottom: 16px; min-width: 230px; max-width: 320px;
-  background: rgba(9,12,30,.72); border: 1px solid rgba(150,160,220,.25); border-radius: 14px;
-  padding: 14px 16px; backdrop-filter: blur(10px);
-  transition: opacity .25s, transform .25s; pointer-events: none;
+.kpi { grid-column: span 3; }
+.chart-7 { grid-column: span 12; }
+.chart-m { grid-column: span 12; }
+.list-card { grid-column: span 4; }
+@media (max-width: 980px) {
+  .kpi { grid-column: span 6; }
+  .list-card { grid-column: span 12; }
 }
-#card.hide { opacity: 0; transform: translateY(8px); }
-#card .tag { font-size: 9px; letter-spacing: 3px; color: #8a93c0; }
-#card .name { margin-top: 4px; font-size: 15px; font-weight: 600; color: #f3e9c8; }
-#card .rows { margin-top: 8px; font-size: 12px; line-height: 2; color: #b9c2ea; }
-#card .rows b { color: #ffe1a0; font-weight: 600; }
-#card .rows .up { color: #7dffc8; }
-#card .rows .down { color: #ff7d9e; }
+@media (max-width: 560px) {
+  .wrap { padding: 18px 12px 30px; }
+  .kpi { grid-column: span 12; }
+}
 
-#hint { bottom: 16px; left: 50%; transform: translateX(-50%); font-size: 10px; letter-spacing: 2px; color: #565f86; }
+/* ── KPI 卡 ── */
+.kpi .label { font-size: 11px; font-weight: 600; letter-spacing: 1px; color: var(--ink-3); }
+.kpi .value { margin-top: 8px; font-size: 32px; font-weight: 700; line-height: 1.1; letter-spacing: .5px; }
+.kpi.hero .value { font-size: 40px; }
+.kpi .sub { margin-top: 7px; font-size: 12px; color: var(--ink-2); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.chip { font-size: 11px; font-weight: 700; border-radius: 999px; padding: 2px 9px; }
+.chip.up { color: var(--good); background: rgba(6,118,71,.09); }
+.chip.down { color: var(--bad); background: rgba(208,59,59,.08); }
+.chip.flat { color: var(--ink-2); background: rgba(90,94,107,.08); }
 
-#dbg { top: 60px; left: 22px; font-size: 10px; color: #4a5378; display: none; }
+/* 儀表（同色系軌道） */
+.meter { margin-top: 12px; height: 8px; border-radius: 999px; background: var(--accent-soft); overflow: hidden; position: relative; }
+.meter .fill {
+  height: 100%; width: 0; border-radius: 999px;
+  background: linear-gradient(90deg, #ff5fb0, var(--accent));
+  transition: width 1.2s cubic-bezier(.2,.7,.2,1); position: relative; overflow: hidden;
+}
+.meter .fill::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(105deg, transparent 30%, rgba(255,255,255,.55) 50%, transparent 70%);
+  transform: translateX(-100%); animation: sheen 3.2s ease-in-out infinite;
+}
+@keyframes sheen { 40%, 100% { transform: translateX(100%); } }
+.meter.goldy { background: rgba(176,141,62,.12); }
+.meter.goldy .fill { background: linear-gradient(90deg, #d9b96a, var(--gold)); }
 
-/* 載入 / 錯誤 */
+/* ── 圖表卡通用 ── */
+.card-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+.card-head h2 { font-size: 13px; font-weight: 700; letter-spacing: 1px; }
+.card-head .hint { font-size: 11px; color: var(--ink-3); }
+.card-head .spacer { flex: 1; }
+.legend { display: flex; gap: 14px; font-size: 11px; color: var(--ink-2); }
+.legend .key { display: inline-flex; align-items: center; gap: 6px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; }
+.chart-box { position: relative; }
+.chart-box svg { display: block; width: 100%; }
+
+/* 提示框 */
+.tip {
+  position: absolute; z-index: 5; pointer-events: none; min-width: 130px;
+  background: #26262e; color: #fff; border-radius: 10px; padding: 9px 12px;
+  font-size: 12px; line-height: 1.75; opacity: 0; transform: translateY(4px);
+  transition: opacity .15s, transform .15s; box-shadow: 0 8px 24px rgba(20,20,30,.25);
+}
+.tip.show { opacity: 1; transform: translateY(0); }
+.tip .tt { font-size: 11px; color: #b9bcc8; }
+.tip b { font-weight: 700; }
+.tip .up { color: #5ad598; } .tip .down { color: #ff8f8f; }
+
+/* ── 排行清單（來源 / 商品 / 客層） ── */
+.rows { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.rowi { position: relative; padding: 8px 10px; border-radius: 8px; overflow: hidden; }
+.rowi .bar {
+  position: absolute; inset: 0; width: 0; border-radius: 8px;
+  transition: width 1s cubic-bezier(.2,.7,.2,1);
+}
+.rowi.pinkish .bar { background: rgba(230,0,126,.09); }
+.rowi.goldish .bar { background: rgba(176,141,62,.13); }
+.rowi.indigoish .bar { background: rgba(79,95,176,.11); }
+.rowi .fg { position: relative; display: flex; align-items: baseline; gap: 8px; font-size: 12.5px; }
+.rowi .nm { font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
+.rowi .pct { font-size: 11px; color: var(--ink-3); }
+.rowi .val { font-weight: 700; font-variant-numeric: tabular-nums; }
+.rowi .rk { font-size: 10px; font-weight: 700; color: var(--ink-3); width: 14px; }
+
+/* ── 覆蓋層 ── */
 .overlay {
-  position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 14px;
-  background: radial-gradient(120% 90% at 50% 30%, #0b1030 0%, #04060f 100%);
-  transition: opacity .5s; text-align: center; padding: 0 30px;
+  position: fixed; inset: 0; z-index: 30; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 16px; background: var(--page);
+  transition: opacity .4s; text-align: center; padding: 0 30px;
 }
 .overlay.hidden { opacity: 0; pointer-events: none; }
-.overlay .ttl { font-size: 15px; letter-spacing: 5px; color: #cfd6ff; }
-.overlay p { font-size: 11px; color: #6a7398; letter-spacing: 1px; line-height: 1.8; }
-.orb {
-  width: 34px; height: 34px; border-radius: 50%;
-  background: radial-gradient(circle at 40% 35%, #fff6d8, #f6c453 45%, rgba(246,196,83,0) 72%);
-  animation: breathe 1.6s ease-in-out infinite;
-}
-@keyframes breathe { 0%,100% { transform: scale(.82); opacity: .7; } 50% { transform: scale(1.08); opacity: 1; } }
+.overlay .ttl { font-size: 14px; letter-spacing: 4px; color: var(--ink-2); font-weight: 600; }
+.overlay p { font-size: 12px; color: var(--ink-3); line-height: 1.8; }
+.spin { width: 30px; height: 30px; border-radius: 50%; border: 3px solid #f0e6d8; border-top-color: var(--accent); animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 
-@media (max-width: 700px) {
-  #hudTitle h1 { font-size: 15px; letter-spacing: 4px; }
-  #hudStats { top: auto; bottom: 118px; right: 12px; flex-direction: column; gap: 6px; }
-  .chip { padding: 6px 10px; } .chip .v { font-size: 13px; }
-  #hudLegend { display: none; }
-  #card { left: 12px; bottom: 12px; min-width: 0; max-width: 62vw; padding: 10px 12px; }
-  #hint { display: none; }
+.foot { margin-top: 20px; text-align: center; font-size: 11px; color: var(--ink-3); letter-spacing: 1px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .blob, .meter .fill::after, .ticker-track { animation: none !important; }
 }
 </style>
 </head>
 <body>
-<canvas id="c"></canvas>
+<div class="bg-flow"><div class="blob b1"></div><div class="blob b2"></div></div>
 
-<div class="hud" id="hudTitle">
-  <h1>金流星河</h1>
-  <div class="sub">TZG&ensp;MONEY&ensp;FLOW&ensp;GALAXY</div>
-  <div class="asof" id="asOf"></div>
+<div class="wrap">
+  <div class="head">
+    <h1>金流總覽</h1><span class="en">MONEY&ensp;FLOW</span>
+    <span id="demoBadge" class="demo-badge" style="display:none">DEMO</span>
+    <div class="spacer"></div>
+    <span class="pill" id="monthPill" style="display:none"></span>
+    <span class="asof" id="asOf"></span>
+  </div>
+
+  <div class="ticker" id="ticker" style="display:none"><div class="ticker-track" id="tickerTrack"></div></div>
+
+  <div class="grid">
+    <!-- KPI 列 -->
+    <div class="card kpi hero">
+      <div class="label">本月營收</div>
+      <div class="value" id="kMtd">—</div>
+      <div class="sub"><span id="kMtdTarget"></span><span class="chip" id="kPace" style="display:none"></span></div>
+      <div class="meter"><div class="fill" id="mMtd"></div></div>
+    </div>
+    <div class="card kpi">
+      <div class="label">昨日營收</div>
+      <div class="value" id="kYest">—</div>
+      <div class="sub"><span id="kYestSub"></span><span class="chip" id="kYestChip" style="display:none"></span></div>
+    </div>
+    <div class="card kpi">
+      <div class="label">本月訂單</div>
+      <div class="value" id="kOrders">—</div>
+      <div class="sub" id="kOrdersSub"></div>
+    </div>
+    <div class="card kpi">
+      <div class="label">年度累計</div>
+      <div class="value" id="kYtd">—</div>
+      <div class="sub"><span id="kYtdSub"></span><span class="chip" id="kYtdPace" style="display:none"></span></div>
+      <div class="meter goldy"><div class="fill" id="mYtd"></div></div>
+    </div>
+
+    <!-- 近七日 -->
+    <div class="card chart-7">
+      <div class="card-head">
+        <h2>近七日營收</h2><span class="hint" id="hint7"></span>
+        <div class="spacer"></div>
+      </div>
+      <div class="chart-box" id="box7"><div class="tip" id="tip7"></div></div>
+    </div>
+
+    <!-- 月營收對比 -->
+    <div class="card chart-m">
+      <div class="card-head">
+        <h2>月營收 · 今年 vs 去年</h2><span class="hint" id="hintM"></span>
+        <div class="spacer"></div>
+        <div class="legend">
+          <span class="key"><span class="dot" style="background:var(--accent)"></span><span id="lgY1">今年</span></span>
+          <span class="key"><span class="dot" style="background:var(--deemph)"></span><span id="lgY0">去年</span></span>
+        </div>
+      </div>
+      <div class="chart-box" id="boxM"><div class="tip" id="tipM"></div></div>
+    </div>
+
+    <!-- 排行清單 -->
+    <div class="card list-card">
+      <div class="card-head"><h2>訂單來源</h2><div class="spacer"></div><span class="hint">訂單占比</span></div>
+      <div class="rows" id="listSrc"></div>
+    </div>
+    <div class="card list-card">
+      <div class="card-head"><h2>熱銷商品 TOP 6</h2><div class="spacer"></div><span class="hint">本月營收</span></div>
+      <div class="rows" id="listProd"></div>
+    </div>
+    <div class="card list-card">
+      <div class="card-head"><h2>客戶分層</h2><div class="spacer"></div><span class="hint" id="hintTier"></span></div>
+      <div class="rows" id="listTier"></div>
+    </div>
+  </div>
+
+  <div class="foot">每 10 分鐘自動更新 · TZG 泰熙爾札娜珠寶</div>
 </div>
 
-<div class="hud" id="hudStats">
-  <div class="chip"><div class="k">本月營收</div><div class="v" id="chipMtd">—</div></div>
-  <div class="chip"><div class="k">年度累計</div><div class="v pink" id="chipYtd">—</div></div>
-</div>
-
-<div class="hud" id="hudLegend">
-  <b>左岸</b> 流量來源 → <b>核心</b> → <b>右岸</b> 熱銷商品<br>
-  外環雙軌 <b>月營收</b>（亮金=今年 · 暗銀=去年）<br>
-  腳下星盤 <b>客戶分層</b> · 前景 <b>七日光河</b> · 核心光環 <b>年度進度</b>
-</div>
-
-<div id="card" class="hide">
-  <div class="tag" id="cardTag"></div>
-  <div class="name" id="cardName"></div>
-  <div class="rows" id="cardRows"></div>
-</div>
-
-<div class="hud" id="hint">點 擊 發 光 節 點 查 看 數 據</div>
-<div class="hud" id="dbg"></div>
-
-<div class="overlay" id="loadingOverlay"><div class="orb"></div><div class="ttl">金 流 匯 聚 中</div><p>正在載入營運資料…</p></div>
-<div class="overlay hidden" id="errorOverlay"><div class="ttl">星 河 暫 時 失 聯</div><p id="errText">無法載入資料或 3D 引擎（需可連線 cdn.jsdelivr.net）。<br>兩分鐘後自動重試，或重新整理頁面。</p></div>
-
-<script type="importmap">
-{ "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
-</script>
+<div class="overlay" id="loadingOverlay"><div class="spin"></div><div class="ttl">金流匯整中</div><p>正在載入營運資料…</p></div>
+<div class="overlay hidden" id="errorOverlay"><div class="ttl">暫時無法載入</div><p>資料載入失敗，兩分鐘後自動重試，<br>或請重新整理頁面。</p></div>
 
 <script>
-/* 模組載入逾時保險：9 秒內未啟動則顯示錯誤層 */
-window.__flowBooted = false;
-setTimeout(function () {
-  if (!window.__flowBooted) {
-    document.getElementById('loadingOverlay').classList.add('hidden');
-    document.getElementById('errorOverlay').classList.remove('hidden');
-  }
-}, 9000);
-</script>
-
-<script type="module">
-import * as THREE from 'three';
-
-/* ═════════ 0. 參數與小工具 ═════════ */
+/* ═════════ 0. 工具 ═════════ */
 var Q = new URLSearchParams(location.search);
 var DEMO = Q.get('demo') === '1';
-var LITE = Q.get('lite') === '1' || (Math.min(screen.width, screen.height) < 620 && window.devicePixelRatio > 2);
-var DEBUG = Q.get('debug') === '1';
 function $(id) { return document.getElementById(id); }
 function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
 function fmt(n) { return '$' + Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
-function fmtCompact(n) {
-  if (n >= 1e8) return (n / 1e8).toFixed(2) + ' 億';
-  if (n >= 1e4) return Math.round(n / 1e4).toLocaleString() + ' 萬';
+function fmtWan(n) {
+  if (Math.abs(n) >= 1e8) return (n / 1e8).toFixed(2) + ' 億';
+  if (Math.abs(n) >= 1e6) return Math.round(n / 1e4).toLocaleString() + ' 萬';
+  if (Math.abs(n) >= 1e4) return (n / 1e4).toFixed(1).replace(/\.0$/, '') + ' 萬';
   return '$' + Math.round(n).toLocaleString();
 }
 function ymd(t) { var d = new Date(t); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+/* 數字滾動 */
+function countUp(el, target, fmtFn, dur) {
+  var t0 = performance.now();
+  function step(t) {
+    var p = clamp((t - t0) / (dur || 900), 0, 1);
+    var e = 1 - Math.pow(1 - p, 3);
+    el.textContent = fmtFn(target * e);
+    if (p < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
 
-/* ═════════ 1. 展示資料（與 live.html DEMO_D 同構，精簡到本頁所需欄位） ═════════ */
+/* ═════════ 1. 展示資料 ═════════ */
 var DEMO_D = {
   target: 4500000,
-  meta: { report_month: '示範月份', data_as_of: '（展示模式）', data_as_of_iso: ymd(Date.now() - 864e5) + 'T23:30:00', days_elapsed: 16, days_total: 31 },
+  meta: { report_month: '7月', data_as_of: '（展示模式）', data_as_of_iso: ymd(Date.now() - 864e5) + 'T23:30:00', days_elapsed: 16, days_total: 31 },
   kpi: { rev_mtd: 2318400, orders_mtd: 497, avg_order: 4665, new_customers: 213, returning: 96 },
+  yesterday: { rev: 152300, orders: 31 },
   last_7_days: { daily_target: 150000, data: [
     { date: '07/10', rev: 142000, orders: 30 }, { date: '07/11', rev: 168000, orders: 36 },
     { date: '07/12', rev: 131000, orders: 27 }, { date: '07/13', rev: 176500, orders: 39 },
@@ -190,14 +322,22 @@ var DEMO_D = {
     { name: '活躍', count: 554 }, { name: '溫層', count: 978 }, { name: '冷卻', count: 1567 },
     { name: '沉睡', count: 1515 }, { name: '流失', count: 612 }
   ],
+  customers: [
+    { time: '21:18', customer: '徐O雯', products: '坦桑石手鍊', amount: 8223 },
+    { time: '20:42', customer: '林O徵', products: '925銀戒指 鴿子蛋粉水晶戒指', amount: 14563 },
+    { time: '19:05', customer: '戴O吟', products: 'Loggon碧璽裸石', amount: 1560 },
+    { time: '17:56', customer: '丁O芬', products: '太陽之石｜奧勒岡太陽石', amount: 3174 },
+    { time: '15:24', customer: 'cO6', products: '定制鉑金戒指', amount: 45063 }
+  ].map(function (c) { return { time: ymd(Date.now()) + ' ' + c.time + ':00', customer: c.customer, products: c.products, amount: c.amount }; }),
   monthly_26: [3605872, 4360250, 4571268, 5327966, 5713135, 3571133, 2318400, 0, 0, 0, 0, 0].map(function (r, i) { return { month: (i + 1) + '月', rev: r, current: i === 6 }; }),
   monthly_25: [991786, 1905087, 2685469, 2981757, 2553800, 1951963, 4243254, 4630533, 2940865, 4610805, 4706800, 5100000].map(function (r, i) { return { month: (i + 1) + '月', rev: r }; })
 };
 
-/* ═════════ 2. 資料層（同 live.html：解析 dashboard_latest.html 的 const D） ═════════ */
+/* ═════════ 2. 資料層（與 live.html 同來源） ═════════ */
 var LS_KEY = 'tzg_flow_D';
 var D = null, annualTarget = 0;
 var retryDelay = 60e3, retryTimer = null;
+var firstRender = true;
 
 function extractD(html) {
   var i = html.indexOf('const D=');
@@ -208,13 +348,13 @@ function extractD(html) {
 function applyData(newD, fromCache) {
   var changed = !D || !D.meta || D.meta.data_as_of_iso !== newD.meta.data_as_of_iso;
   D = newD;
-  if (changed) { renderHud(); buildGalaxy(); }
+  if (changed) renderAll();
   $('loadingOverlay').classList.add('hidden');
   $('errorOverlay').classList.add('hidden');
   if (fromCache) $('asOf').textContent = '⚠ 更新失敗 · 顯示 ' + ((D.meta || {}).data_as_of || '快取') + ' 快取資料';
 }
 function loadData() {
-  if (DEMO) { applyData(DEMO_D, false); return; }
+  if (DEMO) { $('demoBadge').style.display = ''; applyData(DEMO_D, false); return; }
   fetch('output/dashboard_latest.html?_flow=' + Date.now(), { cache: 'no-store' })
     .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
     .then(function (html) {
@@ -234,583 +374,392 @@ function loadData() {
       retryTimer = setTimeout(loadData, retryDelay);
       retryDelay = Math.min(retryDelay * 2, 300e3);
     });
-  setTimeout(loadData, 10 * 60e3); // 每 10 分鐘靜默更新
+  setTimeout(loadData, 10 * 60e3);
 }
 function loadAnnualPlan() {
-  if (DEMO) { annualTarget = 54000000; if (D) { renderHud(); buildGalaxy(); } return; }
+  if (DEMO) { annualTarget = 54000000; if (D) renderAll(); return; }
   fetch('annual_plan.json?_flow=' + Date.now(), { cache: 'no-store' })
     .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
     .then(function (ap) {
       var sum = 0, mo = (ap && ap.monthly) || {}, yr = new Date().getFullYear();
       for (var m = 1; m <= 12; m++) sum += +mo[yr + '-' + String(m).padStart(2, '0')] || +ap._default_monthly || 0;
-      if (sum > 0) { annualTarget = sum; if (D) { renderHud(); buildGalaxy(); } }
+      if (sum > 0) { annualTarget = sum; if (D) renderAll(); }
     })
     .catch(function () {});
 }
 function ytdSum() { var s = 0; ((D && D.monthly_26) || []).forEach(function (m) { s += m.rev || 0; }); return s; }
-function renderHud() {
-  var m = (D && D.meta) || {};
-  $('asOf').textContent = '資料截至 ' + (m.data_as_of || '—') + (m.data_as_of_iso ? ' ' + String(m.data_as_of_iso).slice(11, 16) : '');
-  $('chipMtd').textContent = fmtCompact(((D && D.kpi) || {}).rev_mtd || 0);
+
+/* ═════════ 3. KPI 列 ═════════ */
+function renderKpis() {
+  var kpi = D.kpi || {}, meta = D.meta || {};
+  var anim = firstRender;
+  function setNum(el, v, f) { anim ? countUp(el, v, f) : (el.textContent = f(v)); }
+
+  // 本月營收 + 月目標
+  setNum($('kMtd'), kpi.rev_mtd || 0, fmtWan);
+  var pct = D.target > 0 ? (kpi.rev_mtd || 0) / D.target : 0;
+  $('kMtdTarget').textContent = D.target > 0 ? '月目標 ' + fmtWan(D.target) + ' · 達成 ' + Math.round(pct * 100) + '%' : '';
+  requestAnimationFrame(function () { $('mMtd').style.width = clamp(pct, 0, 1) * 100 + '%'; });
+  // 進度 vs 時程
+  if (meta.days_total > 0 && D.target > 0) {
+    var timePct = (meta.days_elapsed || 0) / meta.days_total;
+    var diff = Math.round((pct - timePct) * 100);
+    var chip = $('kPace'); chip.style.display = '';
+    if (diff >= 2) { chip.className = 'chip up'; chip.textContent = '▲ 超前時程 ' + diff + '%'; }
+    else if (diff <= -2) { chip.className = 'chip down'; chip.textContent = '▼ 落後時程 ' + (-diff) + '%'; }
+    else { chip.className = 'chip flat'; chip.textContent = '— 與時程同步'; }
+  }
+
+  // 昨日
+  var y = D.yesterday || {};
+  setNum($('kYest'), y.rev || 0, fmtWan);
+  $('kYestSub').textContent = (y.orders || 0) + ' 筆訂單';
+  var dt = (D.last_7_days && D.last_7_days.daily_target) || 0;
+  if (dt > 0) {
+    var yp = Math.round((y.rev || 0) / dt * 100);
+    var yc = $('kYestChip'); yc.style.display = '';
+    yc.className = 'chip ' + (yp >= 100 ? 'up' : 'down');
+    yc.textContent = (yp >= 100 ? '▲' : '▼') + ' 日標 ' + yp + '%';
+  }
+
+  // 訂單
+  setNum($('kOrders'), kpi.orders_mtd || 0, function (v) { return Math.round(v).toLocaleString(); });
+  $('kOrdersSub').innerHTML = '客單 <b>' + fmt(kpi.avg_order || 0) + '</b>　新客 <b>' + (kpi.new_customers || 0) + '</b> · 回購 <b>' + (kpi.returning || 0) + '</b>';
+
+  // 年度
   var ytd = ytdSum();
-  $('chipYtd').textContent = fmtCompact(ytd) + (annualTarget > 0 ? ' · ' + Math.round(ytd / annualTarget * 100) + '%' : '');
-}
-
-/* ═════════ 3. Three.js 場景基礎 ═════════ */
-var renderer, scene, camera, clock;
-var uTime = { value: 0 };
-var CAM_BASE = new THREE.Vector3(0, 15, 47);
-var CAM_LOOK = new THREE.Vector3(0, 7.5, 0);
-var mouseNX = 0, mouseNY = 0;
-
-renderer = new THREE.WebGLRenderer({ canvas: $('c'), antialias: !LITE, alpha: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, LITE ? 1 : 2));
-renderer.setSize(innerWidth, innerHeight);
-scene = new THREE.Scene();
-camera = new THREE.PerspectiveCamera(46, innerWidth / innerHeight, 0.1, 300);
-camera.position.copy(CAM_BASE);
-clock = new THREE.Clock();
-
-addEventListener('resize', function () {
-  camera.aspect = innerWidth / innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
-});
-addEventListener('pointermove', function (e) {
-  if (e.pointerType === 'mouse') {
-    mouseNX = (e.clientX / innerWidth) * 2 - 1;
-    mouseNY = (e.clientY / innerHeight) * 2 - 1;
-  }
-});
-
-/* ═════════ 4. 貼圖工廠（光暈 / 文字，全部 canvas 產生，零外部資源） ═════════ */
-function glowTexture(inner, outer) {
-  var cv = document.createElement('canvas'); cv.width = cv.height = 128;
-  var g = cv.getContext('2d');
-  var gr = g.createRadialGradient(64, 64, 2, 64, 64, 62);
-  gr.addColorStop(0, inner); gr.addColorStop(0.35, outer); gr.addColorStop(1, 'rgba(0,0,0,0)');
-  g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
-  var t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
-  return t;
-}
-var TEX_SOFT = glowTexture('rgba(255,255,255,1)', 'rgba(255,255,255,.28)');
-
-function makeGlow(colorHex, size, opacity) {
-  var m = new THREE.SpriteMaterial({ map: TEX_SOFT, color: colorHex, transparent: true, opacity: opacity == null ? 0.9 : opacity, blending: THREE.AdditiveBlending, depthWrite: false });
-  var s = new THREE.Sprite(m); s.scale.set(size, size, 1);
-  return s;
-}
-function makeLabel(lines, opt) {
-  opt = opt || {};
-  var fs = opt.fs || 26, sub = opt.sub || 20, pad = 14;
-  var cv = document.createElement('canvas'), g = cv.getContext('2d');
-  g.font = '600 ' + fs + 'px Montserrat, "PingFang TC", sans-serif';
-  var w = 10;
-  lines.forEach(function (ln, i) {
-    g.font = (i === 0 ? '600 ' + fs : '400 ' + sub) + 'px Montserrat, "PingFang TC", sans-serif';
-    w = Math.max(w, g.measureText(ln).width);
-  });
-  var lh = fs + 8, lhs = sub + 6;
-  var H = pad * 2 + lh + (lines.length - 1) * lhs;
-  cv.width = Math.ceil(w + pad * 2); cv.height = Math.ceil(H);
-  g = cv.getContext('2d');
-  g.textAlign = 'center'; g.textBaseline = 'middle';
-  var y = pad + lh / 2;
-  lines.forEach(function (ln, i) {
-    g.font = (i === 0 ? '600 ' + fs : '400 ' + sub) + 'px Montserrat, "PingFang TC", sans-serif';
-    g.shadowColor = opt.glow || 'rgba(120,140,255,.9)'; g.shadowBlur = 12;
-    g.fillStyle = i === 0 ? (opt.color || '#f3e9c8') : (opt.subColor || '#9aa4d6');
-    g.fillText(ln, cv.width / 2, y);
-    y += lhs;
-  });
-  var t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
-  var m = new THREE.SpriteMaterial({ map: t, transparent: true, opacity: opt.opacity == null ? 0.95 : opt.opacity, depthWrite: false });
-  var s = new THREE.Sprite(m);
-  var k = opt.scale || 0.028;
-  s.scale.set(cv.width * k, cv.height * k, 1);
-  return s;
-}
-
-/* ═════════ 5. 粒子 Shader（流線=貝茲曲線 / 軌道=圓周參數式，動畫全在 GPU） ═════════ */
-var STREAM_VERT = `
-attribute vec3 aP0; attribute vec3 aP1; attribute vec3 aP2;
-attribute float aDelay; attribute float aSpeed; attribute float aSize; attribute float aSeed;
-attribute vec3 aColor;
-uniform float uTime; uniform float uPx;
-varying vec3 vColor; varying float vFade;
-void main() {
-  float t = fract(aDelay + uTime * aSpeed);
-  vec3 p01 = mix(aP0, aP1, t);
-  vec3 p12 = mix(aP1, aP2, t);
-  vec3 pos = mix(p01, p12, t);
-  vec3 tang = normalize(p12 - p01 + vec3(1e-4));
-  vec3 side = normalize(cross(tang, vec3(0.0, 1.0, 0.0)) + vec3(1e-4));
-  float wob = sin(uTime * (1.2 + aSeed * 2.4) + aSeed * 43.0) * (0.12 + aSeed * 0.3);
-  pos += side * wob;
-  pos.y += cos(uTime * (0.9 + aSeed * 1.7) + aSeed * 29.0) * 0.14;
-  vFade = smoothstep(0.0, 0.10, t) * (1.0 - smoothstep(0.82, 1.0, t));
-  vColor = aColor;
-  vec4 mv = modelViewMatrix * vec4(pos, 1.0);
-  float tw = 0.8 + 0.35 * sin(uTime * (2.0 + aSeed * 3.0) + aSeed * 91.0);
-  gl_PointSize = aSize * tw * uPx * (34.0 / max(1.0, -mv.z));
-  gl_Position = projectionMatrix * mv;
-}`;
-var ORBIT_VERT = `
-attribute vec3 aCenter; attribute vec3 aU; attribute vec3 aV;
-attribute float aRadius; attribute float aAngle0; attribute float aAngSpeed;
-attribute float aSize; attribute float aSeed;
-attribute vec3 aColor;
-uniform float uTime; uniform float uPx;
-varying vec3 vColor; varying float vFade;
-void main() {
-  float a = aAngle0 + uTime * aAngSpeed;
-  float r = aRadius * (1.0 + 0.02 * sin(uTime * 0.7 + aSeed * 37.0));
-  vec3 pos = aCenter + (cos(a) * aU + sin(a) * aV) * r;
-  pos.y += sin(uTime * (0.5 + aSeed) + aSeed * 53.0) * 0.18;
-  vFade = 1.0;
-  vColor = aColor;
-  vec4 mv = modelViewMatrix * vec4(pos, 1.0);
-  float tw = 0.75 + 0.4 * sin(uTime * (1.4 + aSeed * 2.2) + aSeed * 71.0);
-  gl_PointSize = aSize * tw * uPx * (34.0 / max(1.0, -mv.z));
-  gl_Position = projectionMatrix * mv;
-}`;
-var POINT_FRAG = `
-precision mediump float;
-varying vec3 vColor; varying float vFade;
-void main() {
-  vec2 c = gl_PointCoord - 0.5;
-  float d = length(c) * 2.0;
-  float a = smoothstep(1.0, 0.0, d);
-  a *= a;
-  gl_FragColor = vec4(vColor, a * vFade);
-}`;
-function pointsMaterial(vert) {
-  return new THREE.ShaderMaterial({
-    vertexShader: vert, fragmentShader: POINT_FRAG,
-    uniforms: { uTime: uTime, uPx: { value: renderer.getPixelRatio() } },
-    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
-  });
-}
-
-/* 建立流線粒子集（多條貝茲流共用一個 Points = 1 draw call） */
-function buildStreamPoints(specs) {
-  // specs: [{p0,p1,p2, n, color:[THREE.Color,...], size, speed:[min,max]}]
-  var total = 0; specs.forEach(function (s) { total += s.n; });
-  var P0 = new Float32Array(total * 3), P1 = new Float32Array(total * 3), P2 = new Float32Array(total * 3);
-  var DL = new Float32Array(total), SP = new Float32Array(total), SZ = new Float32Array(total), SD = new Float32Array(total);
-  var CL = new Float32Array(total * 3);
-  var k = 0;
-  specs.forEach(function (s) {
-    for (var i = 0; i < s.n; i++, k++) {
-      P0.set([s.p0.x, s.p0.y, s.p0.z], k * 3);
-      P1.set([s.p1.x, s.p1.y, s.p1.z], k * 3);
-      P2.set([s.p2.x, s.p2.y, s.p2.z], k * 3);
-      DL[k] = Math.random();
-      SP[k] = s.speed[0] + Math.random() * (s.speed[1] - s.speed[0]);
-      SZ[k] = s.size * (0.6 + Math.random() * 0.8);
-      SD[k] = Math.random();
-      var c = s.colors[(Math.random() * s.colors.length) | 0];
-      CL.set([c.r, c.g, c.b], k * 3);
-    }
-  });
-  var g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(total * 3), 3)); // 佔位（實際位置由 shader 算）
-  g.setAttribute('aP0', new THREE.BufferAttribute(P0, 3));
-  g.setAttribute('aP1', new THREE.BufferAttribute(P1, 3));
-  g.setAttribute('aP2', new THREE.BufferAttribute(P2, 3));
-  g.setAttribute('aDelay', new THREE.BufferAttribute(DL, 1));
-  g.setAttribute('aSpeed', new THREE.BufferAttribute(SP, 1));
-  g.setAttribute('aSize', new THREE.BufferAttribute(SZ, 1));
-  g.setAttribute('aSeed', new THREE.BufferAttribute(SD, 1));
-  g.setAttribute('aColor', new THREE.BufferAttribute(CL, 3));
-  g.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 8, 0), 90);
-  var pts = new THREE.Points(g, pointsMaterial(STREAM_VERT));
-  pts.frustumCulled = false;
-  return pts;
-}
-/* 建立軌道粒子集（所有環/盤/星空共用一個 Points = 1 draw call） */
-function buildOrbitPoints(specs) {
-  // specs: [{center,u,v, r:[min,max], n, colors, size, spd:[min,max], arc:[a0,a1]}]
-  var total = 0; specs.forEach(function (s) { total += s.n; });
-  var CT = new Float32Array(total * 3), U = new Float32Array(total * 3), V = new Float32Array(total * 3);
-  var R = new Float32Array(total), A0 = new Float32Array(total), AS = new Float32Array(total);
-  var SZ = new Float32Array(total), SD = new Float32Array(total), CL = new Float32Array(total * 3);
-  var k = 0;
-  specs.forEach(function (s) {
-    var arc = s.arc || [0, Math.PI * 2];
-    for (var i = 0; i < s.n; i++, k++) {
-      CT.set([s.center.x, s.center.y, s.center.z], k * 3);
-      U.set([s.u.x, s.u.y, s.u.z], k * 3);
-      V.set([s.v.x, s.v.y, s.v.z], k * 3);
-      R[k] = s.r[0] + Math.random() * (s.r[1] - s.r[0]);
-      A0[k] = arc[0] + Math.random() * (arc[1] - arc[0]);
-      AS[k] = s.spd[0] + Math.random() * (s.spd[1] - s.spd[0]);
-      SZ[k] = s.size * (0.6 + Math.random() * 0.8);
-      SD[k] = Math.random();
-      var c = s.colors[(Math.random() * s.colors.length) | 0];
-      CL.set([c.r, c.g, c.b], k * 3);
-    }
-  });
-  var g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(total * 3), 3));
-  g.setAttribute('aCenter', new THREE.BufferAttribute(CT, 3));
-  g.setAttribute('aU', new THREE.BufferAttribute(U, 3));
-  g.setAttribute('aV', new THREE.BufferAttribute(V, 3));
-  g.setAttribute('aRadius', new THREE.BufferAttribute(R, 1));
-  g.setAttribute('aAngle0', new THREE.BufferAttribute(A0, 1));
-  g.setAttribute('aAngSpeed', new THREE.BufferAttribute(AS, 1));
-  g.setAttribute('aSize', new THREE.BufferAttribute(SZ, 1));
-  g.setAttribute('aSeed', new THREE.BufferAttribute(SD, 1));
-  g.setAttribute('aColor', new THREE.BufferAttribute(CL, 3));
-  g.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 8, 0), 120);
-  var pts = new THREE.Points(g, pointsMaterial(ORBIT_VERT));
-  pts.frustumCulled = false;
-  return pts;
-}
-
-/* ═════════ 6. 佈局常數與色票 ═════════ */
-var CORE = new THREE.Vector3(0, 8, 0);
-var COL = {
-  gold: new THREE.Color('#ffd98e'), goldHi: new THREE.Color('#fff3cf'),
-  pink: new THREE.Color('#ff4fc3'), pinkHi: new THREE.Color('#ff9ede'),
-  cyan: new THREE.Color('#4ff5e8'), violet: new THREE.Color('#9b5cff'),
-  blue: new THREE.Color('#5c8dff'), silver: new THREE.Color('#7a88b8'),
-  dim: new THREE.Color('#2a3358')
-};
-var SRC_COLS = [COL.gold, COL.pink, COL.cyan, COL.violet, COL.blue];
-var TIER_COLS = [new THREE.Color('#ffd98e'), new THREE.Color('#ff9e6b'), new THREE.Color('#ff4fc3'), new THREE.Color('#7a6bff'), new THREE.Color('#3d4e7a')];
-var FLAT_U = new THREE.Vector3(1, 0, 0), FLAT_V = new THREE.Vector3(0, 0, 1);
-
-/* 月環傾斜面（微傾 14°，後方略高，像星環） */
-var RING_TILT = -14 * Math.PI / 180;
-var RING_U = new THREE.Vector3(1, 0, 0);
-var RING_V = new THREE.Vector3(0, Math.sin(RING_TILT), Math.cos(RING_TILT));
-
-/* ═════════ 7. 依資料建構整條星河（資料更新時整組重建） ═════════ */
-var gal = null;        // 動態群組
-var hitNodes = [];     // 供 raycast 的隱形節點
-var coreSprites = [];  // 核心脈動用
-var currentMonthSprite = null;
-
-function disposeGroup(gr) {
-  gr.traverse(function (o) {
-    if (o.geometry) o.geometry.dispose();
-    if (o.material) {
-      if (o.material.map && o.material.map !== TEX_SOFT) o.material.map.dispose();
-      o.material.dispose();
-    }
-  });
-}
-
-function addHit(pos, radius, info) {
-  var m = new THREE.Mesh(new THREE.SphereGeometry(radius, 6, 5), new THREE.MeshBasicMaterial({ visible: false }));
-  m.position.copy(pos);
-  m.userData = info;
-  gal.add(m); hitNodes.push(m);
-  return m;
-}
-
-function buildGalaxy() {
-  if (!D) return;
-  if (gal) { scene.remove(gal); disposeGroup(gal); }
-  gal = new THREE.Group(); scene.add(gal);
-  hitNodes = []; coreSprites = []; currentMonthSprite = null;
-
-  var K = LITE ? 0.34 : 1;  // 粒子縮放係數
-  var streams = [], orbits = [];
-  var kpi = D.kpi || {};
-
-  /* —— 星空背景（軌道系統、角速度≈0 的定點閃爍星） —— */
-  for (var s = 0; s < (LITE ? 140 : 480); s++) {
-    var az = Math.random() * Math.PI * 2, el = Math.random() * 0.9 + 0.05, rr = 95 + Math.random() * 40;
-    orbits.push({
-      center: new THREE.Vector3(Math.cos(az) * Math.cos(el) * rr, Math.sin(el) * rr - 12, Math.sin(az) * Math.cos(el) * rr),
-      u: FLAT_U, v: FLAT_V, r: [0, 0.01], n: 1, colors: [COL.goldHi, COL.silver, COL.blue],
-      size: 1.6 + Math.random() * 2.2, spd: [0, 0]
-    });
-  }
-
-  /* —— 客戶星系盤（腳下 5 圈環帶 = active_tiers，密度 ∝ 人數） —— */
-  var tiers = (D.active_tiers || []).slice(0, 5);
-  var totalTier = 1; tiers.forEach(function (t) { totalTier += t.count || 0; });
-  var diskC = new THREE.Vector3(0, 0.4, 0);
-  tiers.forEach(function (t, ti) {
-    var n = Math.max(30, Math.round(5200 * K * (t.count || 0) / totalTier));
-    orbits.push({
-      center: diskC, u: FLAT_U, v: FLAT_V,
-      r: [5.5 + ti * 3.8, 8.9 + ti * 3.8], n: n,
-      colors: [TIER_COLS[ti], TIER_COLS[ti]],
-      size: 2.7 - ti * 0.2,
-      spd: ti % 2 ? [-0.10 - 0.02 * ti, -0.05] : [0.05, 0.10 + 0.02 * ti]
-    });
-  });
-  // 星盤圖例（單一合併標籤，避免與光河日期標籤互相干擾）
-  if (tiers.length) {
-    var tl1 = tiers.slice(0, 3).map(function (t) { return t.name + ' ' + (t.count || 0); }).join('　');
-    var tl2 = tiers.slice(3).map(function (t) { return t.name + ' ' + (t.count || 0); }).join('　');
-    var tierLbl = makeLabel(['客 戶 星 盤', tl1, tl2].filter(Boolean), { fs: 18, sub: 15, color: '#c9b8ff', subColor: '#7d86b8', scale: 0.021, opacity: 0.8, glow: 'rgba(60,50,130,.8)' });
-    tierLbl.position.set(-23.5, 3.6, 8);
-    gal.add(tierLbl);
-  }
-
-  /* —— 品牌核心（本月營收）＋ 頂部金泉 —— */
-  var coreHalo = makeGlow(0xffd98e, 11, 0.5); coreHalo.position.copy(CORE); gal.add(coreHalo);
-  var coreMid = makeGlow(0xfff3cf, 6.5, 0.85); coreMid.position.copy(CORE); gal.add(coreMid);
-  var coreIn = makeGlow(0xffffff, 3.2, 1); coreIn.position.copy(CORE); gal.add(coreIn);
-  coreSprites = [coreHalo, coreMid, coreIn];
-  var pct = D.target > 0 ? clamp((kpi.rev_mtd || 0) / D.target, 0, 1.5) : 0;
-  var coreLbl = makeLabel([fmtCompact(kpi.rev_mtd || 0), (D.meta && D.meta.report_month || '本月') + ' 營收 · 達成 ' + Math.round(pct * 100) + '%'], { fs: 34, sub: 19, scale: 0.030, glow: 'rgba(246,196,83,.7)' });
-  coreLbl.position.set(CORE.x, CORE.y - 3.4, CORE.z + 1);
-  gal.add(coreLbl);
-  addHit(CORE, 3.6, { kind: 'core' });
-  // 金泉：核心上方緩緩升起消散的粒子（多束隨機彎曲，呈噴泉狀）
-  for (var fi2 = 0; fi2 < 7; fi2++) {
-    var fa = fi2 / 7 * Math.PI * 2;
-    var spread = 1.2 + Math.random() * 2.4;
-    streams.push({
-      p0: CORE.clone(),
-      p1: CORE.clone().add(new THREE.Vector3(Math.cos(fa) * spread * 0.7, 6.5 + Math.random() * 2, Math.sin(fa) * spread * 0.4 - 0.6)),
-      p2: CORE.clone().add(new THREE.Vector3(Math.cos(fa) * spread * 1.8, 11.5 + Math.random() * 2.5, Math.sin(fa) * spread - 1)),
-      n: Math.round(55 * K), colors: [COL.goldHi, COL.gold], size: 2.4, speed: [0.05, 0.11]
-    });
-  }
-  // 背景彗星帶（純氛圍：跨越天際的緩慢金色流）
-  streams.push({
-    p0: new THREE.Vector3(-62, 36, -48), p1: new THREE.Vector3(-4, 27, -55), p2: new THREE.Vector3(58, 21, -42),
-    n: Math.round(160 * K), colors: [COL.goldHi, COL.silver], size: 2.6, speed: [0.015, 0.035]
-  });
-
-  /* —— 年度進度光環（核心外圈，面向鏡頭的直立圓；亮弧=達成比例） —— */
-  var ytd = ytdSum();
-  var yPct = annualTarget > 0 ? clamp(ytd / annualTarget, 0, 1) : 0;
-  var ringU = new THREE.Vector3(0, 1, 0), ringV = new THREE.Vector3(1, 0, 0); // 12 點鐘起順時針（面向 +Z）
+  setNum($('kYtd'), ytd, fmtWan);
   if (annualTarget > 0) {
-    orbits.push({ center: CORE, u: ringU, v: ringV, r: [7.3, 7.42], n: Math.round(620 * K * yPct) + 10, colors: [COL.goldHi, COL.pinkHi], size: 2.9, spd: [0, 0], arc: [0, Math.PI * 2 * yPct] });
-    orbits.push({ center: CORE, u: ringU, v: ringV, r: [7.32, 7.4], n: Math.round(200 * K * (1 - yPct)) + 10, colors: [COL.dim], size: 1.7, spd: [0, 0], arc: [Math.PI * 2 * yPct, Math.PI * 2] });
-    var yLbl = makeLabel(['年度 ' + Math.round(yPct * 100) + '%', fmtCompact(ytd) + ' / ' + fmtCompact(annualTarget)], { fs: 22, sub: 16, color: '#ff9ede', scale: 0.026, opacity: 0.9, glow: 'rgba(255,79,195,.55)' });
-    yLbl.position.set(CORE.x, CORE.y + 7.6, CORE.z);
-    gal.add(yLbl);
+    var ypct = ytd / annualTarget;
+    $('kYtdSub').textContent = '年度目標 ' + fmtWan(annualTarget) + ' · ' + Math.round(ypct * 100) + '%';
+    requestAnimationFrame(function () { $('mYtd').style.width = clamp(ypct, 0, 1) * 100 + '%'; });
+    var mNow = new Date().getMonth() + 1;
+    var yDiff = Math.round((ypct - mNow / 12) * 100);
+    var yp2 = $('kYtdPace'); yp2.style.display = '';
+    if (yDiff >= 2) { yp2.className = 'chip up'; yp2.textContent = '▲ 超前 ' + yDiff + '%'; }
+    else if (yDiff <= -2) { yp2.className = 'chip down'; yp2.textContent = '▼ 落後 ' + (-yDiff) + '%'; }
+    else { yp2.className = 'chip flat'; yp2.textContent = '— 同步'; }
+  } else $('kYtdSub').textContent = '';
+
+  // 頁首
+  $('asOf').textContent = '資料截至 ' + (meta.data_as_of || '—') + (meta.data_as_of_iso ? ' ' + String(meta.data_as_of_iso).slice(11, 16) : '');
+  if (meta.days_total > 0) {
+    $('monthPill').style.display = '';
+    $('monthPill').innerHTML = esc(meta.report_month || '本月') + ' · 第 <b>' + (meta.days_elapsed || 0) + '</b> / ' + meta.days_total + ' 天';
   }
+}
 
-  /* —— 左岸：流量來源 → 核心（粒子流量 ∝ 訂單占比） —— */
-  var srcs = (D.sources || []).slice(0, 5);
-  var totOrd = 1; srcs.forEach(function (s) { totOrd += s.orders || 0; });
-  srcs.forEach(function (s, i) {
-    var a = (146 + i * 21) * Math.PI / 180;   // 146°..230°（左後→左前扇形展開）
-    var pos = new THREE.Vector3(Math.cos(a) * 29, 16 - i * 2.4, Math.sin(a) * 19);
-    var col = SRC_COLS[i % SRC_COLS.length];
-    var node = makeGlow(col.getHex(), 3.6, 0.95); node.position.copy(pos); gal.add(node);
-    var share = (s.orders || 0) / totOrd;
-    var lbl = makeLabel([s.src || '來源', Math.round(share * 100) + '% · ' + fmtCompact(s.rev || 0)], { fs: 22, sub: 16, color: '#' + col.getHexString(), scale: 0.026, glow: 'rgba(30,40,90,.95)' });
-    lbl.position.copy(pos).add(new THREE.Vector3(0, 2.4, 0));
-    gal.add(lbl);
-    var mid = pos.clone().lerp(CORE, 0.45).add(new THREE.Vector3(pos.x * 0.10, 3.2, 4.5));
-    streams.push({ p0: pos.clone(), p1: mid, p2: CORE.clone(), n: Math.max(160, Math.round(2600 * K * share)), colors: [col, COL.goldHi], size: 2.7, speed: [0.045, 0.11] });
-    addHit(pos, 2.8, { kind: 'src', d: s, share: share, col: col });
-  });
+/* ═════════ 4. 即時金流跑馬燈 ═════════ */
+function renderTicker() {
+  var rows = (D.customers || []).slice().sort(function (a, b) { return String(b.time).localeCompare(String(a.time)); }).slice(0, 14);
+  if (!rows.length) { $('ticker').style.display = 'none'; return; }
+  $('ticker').style.display = '';
+  var html = rows.map(function (c) {
+    var t = String(c.time || '').slice(11, 16);
+    var p = String(c.products || ''); if (p.length > 14) p = p.slice(0, 14) + '…';
+    return '<span class="tk"><span class="t">' + esc(t) + '</span>' + esc(c.customer || '') +
+      '<span class="sep">✦</span>' + esc(p) + '<span class="sep">✦</span><span class="amt">' + fmt(c.amount || 0) + '</span></span>';
+  }).join('');
+  var track = $('tickerTrack');
+  track.innerHTML = html + html;  // 雙份無縫循環
+  track.style.setProperty('--tickDur', clamp(rows.length * 7, 40, 130) + 's');
+}
 
-  /* —— 右岸：核心 → 熱銷商品（流量 ∝ 營收占比） —— */
-  var prods = (D.prod_rev || []).slice(0, 6);
-  var totPRev = 1; prods.forEach(function (p) { totPRev += p.rev || 0; });
-  prods.forEach(function (p, i) {
-    var a = (34 - i * 16) * Math.PI / 180;    // 34°..-46°（右後→右前扇形展開）
-    var pos = new THREE.Vector3(Math.cos(a) * 26.5, 16.5 - i * 2.1, Math.sin(a) * 19);
-    var col = i < 2 ? COL.gold : i < 4 ? COL.pinkHi : COL.violet;
-    var node = makeGlow(col.getHex(), 2.6 + (1 - i / 6) * 1.2, 0.95); node.position.copy(pos); gal.add(node);
-    var nm = String(p.name || '商品');
-    if (nm.length > 8) nm = nm.slice(0, 8) + '…';
-    var lbl = makeLabel([nm, fmtCompact(p.rev || 0) + ' · ' + (p.qty || 0) + ' 件'], { fs: 21, sub: 15, color: '#' + col.getHexString(), scale: 0.025, glow: 'rgba(30,40,90,.95)' });
-    lbl.position.copy(pos).add(new THREE.Vector3(pos.x > 22 ? -3 : 0, 2.1, 0));
-    gal.add(lbl);
-    var share = (p.rev || 0) / totPRev;
-    var mid = CORE.clone().lerp(pos, 0.45).add(new THREE.Vector3(pos.x * 0.10, 3.2, 4.5));
-    streams.push({ p0: CORE.clone(), p1: mid, p2: pos.clone(), n: Math.max(120, Math.round(2200 * K * share)), colors: [COL.goldHi, col], size: 2.6, speed: [0.05, 0.12] });
-    addHit(pos, 2.6, { kind: 'prod', d: p, rank: i + 1, col: col });
-  });
-
-  /* —— 月營收雙環（亮金=今年、暗銀=去年；每月 30° 弧段密度 ∝ 營收） —— */
-  var m26 = D.monthly_26 || [], m25 = D.monthly_25 || [];
-  var maxM = 1;
-  m26.concat(m25).forEach(function (m) { maxM = Math.max(maxM, m.rev || 0); });
-  for (var mi = 0; mi < 12; mi++) {
-    var a0 = -Math.PI / 2 + mi * Math.PI / 6, a1 = a0 + Math.PI / 6;  // 1 月從正前方開始順時針
-    var r26 = (m26[mi] || {}).rev || 0, r25 = (m25[mi] || {}).rev || 0;
-    if (r26 > 0) orbits.push({ center: CORE, u: RING_U, v: RING_V, r: [12.0, 13.0], n: Math.max(8, Math.round(230 * K * r26 / maxM)), colors: [COL.gold, COL.goldHi], size: 2.6, spd: [0.025, 0.05], arc: [a0 + 0.03, a1 - 0.03] });
-    if (r25 > 0) orbits.push({ center: CORE, u: RING_U, v: RING_V, r: [14.7, 15.4], n: Math.max(6, Math.round(150 * K * r25 / maxM)), colors: [COL.silver], size: 1.9, spd: [-0.05, -0.025], arc: [a0 + 0.03, a1 - 0.03] });
-    // 月份標籤 + 節點（放在兩環之間）
-    var am = (a0 + a1) / 2;
-    var mpos = CORE.clone().add(RING_U.clone().multiplyScalar(Math.cos(am) * 13.8)).add(RING_V.clone().multiplyScalar(Math.sin(am) * 13.8));
-    var isCur = !!(m26[mi] && m26[mi].current);
-    if (r26 > 0 || r25 > 0 || isCur) {
-      var mLbl = makeLabel([(mi + 1) + '月'], { fs: 18, color: isCur ? '#fff3cf' : '#8a93c0', scale: 0.020, opacity: r26 > 0 ? 0.85 : 0.4, glow: isCur ? 'rgba(246,196,83,.8)' : 'rgba(40,50,110,.8)' });
-      mLbl.position.copy(mpos).add(new THREE.Vector3(0, 1.0, 0));
-      gal.add(mLbl);
-      if (isCur) { currentMonthSprite = makeGlow(0xfff3cf, 2.4, 0.9); currentMonthSprite.position.copy(mpos); gal.add(currentMonthSprite); }
-      addHit(mpos, 1.8, { kind: 'month', i: mi, r26: r26, r25: r25 });
+/* ═════════ 5. SVG 圖表工具 ═════════ */
+var NS = 'http://www.w3.org/2000/svg';
+function svgEl(tag, attrs) {
+  var el = document.createElementNS(NS, tag);
+  for (var k in attrs) el.setAttribute(k, attrs[k]);
+  return el;
+}
+/* 乾淨刻度：step 取 1/2/2.5/5×10^k，涵蓋 3–5 格 */
+function niceTicks(maxData) {
+  if (maxData <= 0) return { max: 1, step: 1, n: 1 };
+  var cands = [1, 2, 2.5, 5];
+  for (var k = Math.floor(Math.log10(maxData)) - 1; k < Math.floor(Math.log10(maxData)) + 2; k++) {
+    for (var c = 0; c < cands.length; c++) {
+      var step = cands[c] * Math.pow(10, k);
+      var n = Math.ceil(maxData / step);
+      if (n >= 3 && n <= 5) return { max: n * step, step: step, n: n };
     }
   }
+  return { max: maxData, step: maxData / 4, n: 4 };
+}
+function tickFmt(v) {
+  if (v >= 1e4) { var w = v / 1e4; return (w % 1 ? w.toFixed(1) : w) + '萬'; }
+  return Math.round(v).toLocaleString();
+}
 
-  /* —— 前景：七日光河（水位高度 = 當日營收；顏色 = 達標程度） —— */
+/* ═════════ 6. 近七日面積圖 ═════════ */
+function render7() {
+  var box = $('box7'), tip = $('tip7');
+  Array.prototype.slice.call(box.querySelectorAll('svg')).forEach(function (s) { s.remove(); });
   var days = ((D.last_7_days || {}).data || []).slice(-7);
-  var dt7 = (D.last_7_days && D.last_7_days.daily_target) || 150000;
-  if (days.length >= 2) {
-    var RIV_Z = 16.5, RIV_Y = 0.25, SPAN = 33;
-    var px = function (i) { return -SPAN / 2 + SPAN * i / (days.length - 1); };
-    var ph = function (d) { return RIV_Y + clamp((d.rev || 0) / dt7, 0, 1.6) * 2.7; };
-    var pts7 = days.map(function (d, i) { return new THREE.Vector3(px(i), ph(d), RIV_Z); });
-    // 帶狀水體（自訂漸層 shader：向上淡出 + 流動亮帶）
-    var SEG = 12, cols = (days.length - 1) * SEG + 1;
-    var rp = new Float32Array(cols * 2 * 3), ru = new Float32Array(cols * 2), rv = new Float32Array(cols * 2), rc = new Float32Array(cols * 2 * 3);
-    for (var ci = 0; ci < cols; ci++) {
-      var fi = ci / SEG, i0 = Math.min(days.length - 2, Math.floor(fi)), ft = fi - i0;
-      // Catmull-Rom 平滑高度
-      var pA = pts7[Math.max(0, i0 - 1)], pB = pts7[i0], pC = pts7[i0 + 1], pD2 = pts7[Math.min(days.length - 1, i0 + 2)];
-      var t2 = ft * ft, t3 = t2 * ft;
-      var hy = 0.5 * ((2 * pB.y) + (-pA.y + pC.y) * ft + (2 * pA.y - 5 * pB.y + 4 * pC.y - pD2.y) * t2 + (-pA.y + 3 * pB.y - 3 * pC.y + pD2.y) * t3);
-      var hx = pB.x + (pC.x - pB.x) * ft;
-      var ratio = clamp(((days[i0].rev || 0) * (1 - ft) + (days[i0 + 1].rev || 0) * ft) / dt7, 0, 1.2);
-      var cold = new THREE.Color('#3d5a8a'), warm = new THREE.Color('#ffd98e');
-      var cc = cold.clone().lerp(warm, clamp(ratio, 0, 1));
-      // 下緣 / 上緣兩個頂點（緞帶貼著波峰，厚度固定，不落地）
-      rp.set([hx, hy - 1.7, RIV_Z], ci * 6); rp.set([hx, hy, RIV_Z], ci * 6 + 3);
-      ru[ci * 2] = ru[ci * 2 + 1] = ci / (cols - 1);
-      rv[ci * 2] = 0; rv[ci * 2 + 1] = 1;
-      rc.set([cc.r, cc.g, cc.b], ci * 6); rc.set([cc.r, cc.g, cc.b], ci * 6 + 3);
-    }
-    var idx = [];
-    for (var qi = 0; qi < cols - 1; qi++) {
-      var b0 = qi * 2;
-      idx.push(b0, b0 + 1, b0 + 2, b0 + 1, b0 + 3, b0 + 2);
-    }
-    var rg = new THREE.BufferGeometry();
-    rg.setAttribute('position', new THREE.BufferAttribute(rp, 3));
-    rg.setAttribute('aU', new THREE.BufferAttribute(ru, 1));
-    rg.setAttribute('aV', new THREE.BufferAttribute(rv, 1));
-    rg.setAttribute('aCol', new THREE.BufferAttribute(rc, 3));
-    rg.setIndex(idx);
-    var riverMat = new THREE.ShaderMaterial({
-      uniforms: { uTime: uTime },
-      vertexShader: 'attribute float aU; attribute float aV; attribute vec3 aCol; varying float vU; varying float vV; varying vec3 vC; void main(){ vU=aU; vV=aV; vC=aCol; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
-      fragmentShader: 'precision mediump float; uniform float uTime; varying float vU; varying float vV; varying vec3 vC;' +
-        'void main(){ float body = mix(0.0, 0.12, vV*vV);' +
-        ' float flow = pow(max(sin(vU*42.0 - uTime*2.6), 0.0), 3.0) * 0.22 * vV;' +
-        ' float edge = smoothstep(0.72, 1.0, vV) * 0.5;' +
-        ' gl_FragColor = vec4(vC, body + flow + edge); }',
-      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide
-    });
-    var river = new THREE.Mesh(rg, riverMat);
-    river.frustumCulled = false;
-    gal.add(river);
-    // 沿頂緣的流水粒子（貝茲鏈：中點平滑法）
-    for (var si = 0; si < days.length - 1; si++) {
-      var m0 = si === 0 ? pts7[0] : pts7[si].clone().lerp(pts7[si - 1], 0.5).lerp(pts7[si], 0.5).add(pts7[si]).multiplyScalar(0.5);
-      var p0s = si === 0 ? pts7[0].clone() : pts7[si - 1].clone().lerp(pts7[si], 0.5);
-      var p2s = si === days.length - 2 ? pts7[days.length - 1].clone() : pts7[si].clone().lerp(pts7[si + 1], 0.5);
-      streams.push({ p0: p0s.add(new THREE.Vector3(0, 0.2, 0)), p1: pts7[si].clone().lerp(pts7[si + 1], 0.5).add(new THREE.Vector3(0, 0.7, 0)), p2: p2s.add(new THREE.Vector3(0, 0.2, 0)), n: Math.round(130 * K), colors: [COL.goldHi, COL.cyan], size: 1.7, speed: [0.10, 0.22] });
-    }
-    // 日標籤 + 點擊節點
-    days.forEach(function (d, i) {
-      var pos = pts7[i];
-      var ok = (d.rev || 0) >= dt7;
-      var lbl = makeLabel([String(d.date || '').slice(-5), fmtCompact(d.rev || 0)], { fs: 17, sub: 15, color: d.is_today ? '#fff3cf' : ok ? '#ffe1a0' : '#8fa3d8', scale: 0.019, opacity: 0.85, glow: 'rgba(30,40,90,.95)' });
-      lbl.position.copy(pos).add(new THREE.Vector3(0, 1.3, 0));
-      gal.add(lbl);
-      if (d.is_today) { var tg = makeGlow(0xfff3cf, 2.4, 0.95); tg.position.copy(pos); gal.add(tg); coreSprites.push(tg); }
-      addHit(pos, 1.7, { kind: 'day', d: d, target: dt7 });
-    });
+  var dt = (D.last_7_days && D.last_7_days.daily_target) || 0;
+  if (days.length < 2) return;
+  $('hint7').textContent = dt > 0 ? '日標 ' + fmtWan(dt) : '';
+
+  var W = box.clientWidth || 1000, H = 240;
+  var padL = 46, padR = 20, padT = 18, padB = 26;
+  var iw = W - padL - padR, ih = H - padT - padB;
+  var tk = niceTicks(Math.max(dt, Math.max.apply(null, days.map(function (d) { return d.rev || 0; }))) * 1.12);
+  var maxV = tk.max;
+  var X = function (i) { return padL + iw * i / (days.length - 1); };
+  var Y = function (v) { return padT + ih * (1 - v / maxV); };
+
+  var svg = svgEl('svg', { viewBox: '0 0 ' + W + ' ' + H, width: W, height: H });
+
+  // 格線 + 刻度（乾淨整數階）
+  for (var g = 0; g <= tk.n; g++) {
+    var gv = tk.step * g, gy = Y(gv);
+    svg.appendChild(svgEl('line', { x1: padL, x2: W - padR, y1: gy, y2: gy, stroke: 'var(--grid)', 'stroke-width': 1 }));
+    var tx = svgEl('text', { x: padL - 8, y: gy + 4, 'text-anchor': 'end', 'font-size': 10, fill: 'var(--ink-3)' });
+    tx.textContent = tickFmt(gv);
+    svg.appendChild(tx);
+  }
+  // 日標參考線
+  if (dt > 0 && dt < maxV) {
+    var ty = Y(dt);
+    svg.appendChild(svgEl('line', { x1: padL, x2: W - padR, y1: ty, y2: ty, stroke: '#d9c8a0', 'stroke-width': 1 }));
+    var tl = svgEl('text', { x: W - padR, y: ty - 5, 'text-anchor': 'end', 'font-size': 10, fill: '#a08b55', 'font-weight': 600 });
+    tl.textContent = '日標';
+    svg.appendChild(tl);
   }
 
-  /* —— 合併輸出：所有流線 1 個 Points、所有軌道 1 個 Points —— */
-  gal.add(buildStreamPoints(streams));
-  gal.add(buildOrbitPoints(orbits));
-
-  /* —— 幽微星雲底色（兩片大光暈，增加空間層次） —— */
-  var neb1 = makeGlow(0x2a1b5e, 90, 0.16); neb1.position.set(-24, 18, -30); gal.add(neb1);
-  var neb2 = makeGlow(0x0e3a4a, 80, 0.14); neb2.position.set(26, 10, -34); gal.add(neb2);
-}
-
-/* ═════════ 8. 點擊互動 → 詳情卡 ═════════ */
-var raycaster = new THREE.Raycaster();
-var pointerV = new THREE.Vector2();
-function showCard(tag, name, rowsHtml) {
-  $('cardTag').textContent = tag;
-  $('cardName').textContent = name;
-  $('cardRows').innerHTML = rowsHtml;
-  $('card').classList.remove('hide');
-}
-function onTap(e) {
-  if (!gal) return;
-  pointerV.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
-  raycaster.setFromCamera(pointerV, camera);
-  var hits = raycaster.intersectObjects(hitNodes, false);
-  if (!hits.length) { $('card').classList.add('hide'); return; }
-  var info = hits[0].object.userData, kpi = (D && D.kpi) || {};
-  if (info.kind === 'core') {
-    var pct = D.target > 0 ? Math.round((kpi.rev_mtd || 0) / D.target * 100) : 0;
-    showCard('品 牌 核 心', (D.meta && D.meta.report_month || '本月'),
-      '本月營收 <b>' + fmt(kpi.rev_mtd || 0) + '</b><br>月目標達成 <b>' + pct + '%</b>（' + fmtCompact(D.target || 0) + '）<br>' +
-      '訂單 <b>' + (kpi.orders_mtd || 0) + '</b> 筆 · 客單 <b>' + fmt(kpi.avg_order || 0) + '</b><br>' +
-      '新客 <b>' + (kpi.new_customers || 0) + '</b> · 回購 <b>' + (kpi.returning || 0) + '</b>');
-  } else if (info.kind === 'src') {
-    showCard('流 量 來 源', info.d.src || '來源',
-      '訂單占比 <b>' + Math.round(info.share * 100) + '%</b>（' + (info.d.orders || 0) + ' 筆）<br>營收貢獻 <b>' + fmt(info.d.rev || 0) + '</b>');
-  } else if (info.kind === 'prod') {
-    showCard('熱 銷 商 品 · TOP ' + info.rank, info.d.name || '商品',
-      '營收 <b>' + fmt(info.d.rev || 0) + '</b><br>銷量 <b>' + (info.d.qty || 0) + '</b> 件 · 單價 <b>' + fmt(info.d.price || 0) + '</b>');
-  } else if (info.kind === 'month') {
-    var yoy = info.r25 > 0 ? Math.round((info.r26 / info.r25 - 1) * 100) : null;
-    showCard('月 營 收', (info.i + 1) + ' 月',
-      '今年 <b>' + (info.r26 > 0 ? fmt(info.r26) : '—') + '</b><br>去年 ' + (info.r25 > 0 ? fmt(info.r25) : '—') +
-      (yoy !== null && info.r26 > 0 ? '<br>年增 <span class="' + (yoy >= 0 ? 'up' : 'down') + '">' + (yoy >= 0 ? '+' : '') + yoy + '%</span>' : ''));
-  } else if (info.kind === 'day') {
-    var r = Math.round((info.d.rev || 0) / info.target * 100);
-    showCard('七 日 光 河', String(info.d.date || '') + (info.d.is_today ? ' · 今日' : ''),
-      '營收 <b>' + fmt(info.d.rev || 0) + '</b>（日標 ' + r + '%）<br>訂單 <b>' + (info.d.orders || 0) + '</b> 筆');
+  // 平滑路徑（單調 catmull-rom → bezier）
+  var pts = days.map(function (d, i) { return [X(i), Y(d.rev || 0)]; });
+  var lineD = 'M' + pts[0][0] + ',' + pts[0][1];
+  for (var i = 1; i < pts.length; i++) {
+    var p0 = pts[Math.max(0, i - 2)], p1 = pts[i - 1], p2 = pts[i], p3 = pts[Math.min(pts.length - 1, i + 1)];
+    var c1x = p1[0] + (p2[0] - p0[0]) / 6, c1y = p1[1] + (p2[1] - p0[1]) / 6;
+    var c2x = p2[0] - (p3[0] - p1[0]) / 6, c2y = p2[1] - (p3[1] - p1[1]) / 6;
+    lineD += 'C' + c1x + ',' + c1y + ' ' + c2x + ',' + c2y + ' ' + p2[0] + ',' + p2[1];
   }
+  var base = Y(0);
+  var defs = svgEl('defs', {});
+  defs.innerHTML = '<linearGradient id="a7" x1="0" y1="0" x2="0" y2="1">' +
+    '<stop offset="0" stop-color="#e6007e" stop-opacity=".10"/>' +
+    '<stop offset="1" stop-color="#e6007e" stop-opacity="0"/></linearGradient>';
+  svg.appendChild(defs);
+  svg.appendChild(svgEl('path', { d: lineD + ' L' + pts[pts.length - 1][0] + ',' + base + ' L' + pts[0][0] + ',' + base + ' Z', fill: 'url(#a7)' }));
+  var line = svgEl('path', { d: lineD, fill: 'none', stroke: 'var(--accent)', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' });
+  svg.appendChild(line);
+
+  // 折線描繪動畫 + 沿線流光（金流感）
+  if (firstRender) {
+    var len = line.getTotalLength();
+    line.style.strokeDasharray = len;
+    line.style.strokeDashoffset = len;
+    line.getBoundingClientRect();
+    line.style.transition = 'stroke-dashoffset 1.3s cubic-bezier(.3,.6,.2,1)';
+    line.style.strokeDashoffset = '0';
+  }
+  var glow = svgEl('circle', { r: 4, fill: '#ffb7dd', opacity: .9 });
+  var gm = svgEl('animateMotion', { dur: '5.5s', repeatCount: 'indefinite', path: lineD, keyPoints: '0;1', keyTimes: '0;1', calcMode: 'linear' });
+  glow.appendChild(gm);
+  svg.appendChild(glow);
+
+  // 節點：白圈粉點；今日放大脈動；端點值標
+  var narrow7 = W < 560;
+  days.forEach(function (d, i) {
+    var cx = pts[i][0], cy = pts[i][1];
+    svg.appendChild(svgEl('circle', { cx: cx, cy: cy, r: d.is_today ? 6 : 4.5, fill: 'var(--accent)', stroke: '#fff', 'stroke-width': 2 }));
+    // 窄螢幕只標 首/中/末，避免日期重疊
+    if (narrow7 && i !== 0 && i !== days.length - 1 && i !== Math.floor((days.length - 1) / 2)) return;
+    var dl = svgEl('text', { x: cx, y: H - 8, 'text-anchor': i === 0 ? 'start' : i === days.length - 1 ? 'end' : 'middle', 'font-size': 10.5, fill: d.is_today ? 'var(--ink)' : 'var(--ink-3)', 'font-weight': d.is_today ? 700 : 400 });
+    dl.textContent = String(d.date || '').slice(-5) + (d.is_today ? ' 今日' : '');
+    svg.appendChild(dl);
+  });
+  // 選擇性直標：最高日 + 最後一點
+  var maxI = 0; days.forEach(function (d, i) { if ((d.rev || 0) > (days[maxI].rev || 0)) maxI = i; });
+  [maxI, days.length - 1].filter(function (v, i, a) { return a.indexOf(v) === i; }).forEach(function (i) {
+    var vl = svgEl('text', { x: pts[i][0], y: pts[i][1] - 11, 'text-anchor': i === days.length - 1 ? 'end' : 'middle', 'font-size': 11, 'font-weight': 700, fill: 'var(--ink)' });
+    vl.textContent = fmtWan(days[i].rev || 0);
+    svg.appendChild(vl);
+  });
+
+  // 十字游標 + 提示框
+  var cross = svgEl('line', { y1: padT, y2: padT + ih, stroke: 'var(--deemph)', 'stroke-width': 1, opacity: 0 });
+  svg.appendChild(cross);
+  svg.addEventListener('mousemove', function (e) {
+    var r = svg.getBoundingClientRect();
+    var mx = (e.clientX - r.left) * (W / r.width);
+    var i = clamp(Math.round((mx - padL) / iw * (days.length - 1)), 0, days.length - 1);
+    var d = days[i];
+    cross.setAttribute('x1', pts[i][0]); cross.setAttribute('x2', pts[i][0]);
+    cross.setAttribute('opacity', .5);
+    var pr = dt > 0 ? Math.round((d.rev || 0) / dt * 100) : null;
+    tip.innerHTML = '<span class="tt">' + esc(d.date || '') + (d.is_today ? ' · 今日' : '') + '</span><br>營收 <b>' + fmt(d.rev || 0) + '</b><br>' +
+      '訂單 <b>' + (d.orders || 0) + '</b> 筆' + (pr !== null ? '<br>日標 <span class="' + (pr >= 100 ? 'up' : 'down') + '">' + pr + '%</span>' : '');
+    tip.classList.add('show');
+    var bx = box.getBoundingClientRect();
+    var tx2 = e.clientX - bx.left + 14;
+    if (tx2 > bx.width - 160) tx2 = e.clientX - bx.left - 160;
+    tip.style.left = tx2 + 'px';
+    tip.style.top = clamp(e.clientY - bx.top - 30, 0, H - 90) + 'px';
+  });
+  svg.addEventListener('mouseleave', function () { cross.setAttribute('opacity', 0); tip.classList.remove('show'); });
+  box.appendChild(svg);
 }
-addEventListener('pointerdown', function (e) {
-  if (e.target === $('c')) onTap(e);
+
+/* ═════════ 7. 月營收成組長條 ═════════ */
+function renderM() {
+  var box = $('boxM'), tip = $('tipM');
+  Array.prototype.slice.call(box.querySelectorAll('svg')).forEach(function (s) { s.remove(); });
+  var m26 = D.monthly_26 || [], m25 = D.monthly_25 || [];
+  if (!m26.length && !m25.length) return;
+  var yr = new Date().getFullYear();
+  $('lgY1').textContent = yr; $('lgY0').textContent = yr - 1;
+
+  var W = box.clientWidth || 1000, H = 250;
+  var padL = 46, padR = 14, padT = 20, padB = 26;
+  var iw = W - padL - padR, ih = H - padT - padB;
+  var maxV = 1;
+  for (var i = 0; i < 12; i++) maxV = Math.max(maxV, (m26[i] || {}).rev || 0, (m25[i] || {}).rev || 0);
+  var tkM = niceTicks(maxV * 1.06);
+  maxV = tkM.max;
+  var Y = function (v) { return padT + ih * (1 - v / maxV); };
+  var band = iw / 12;
+  var bw = Math.min(24, (band - 14) / 2);  // ≤24px、含 2px 雙條間隙
+  var svg = svgEl('svg', { viewBox: '0 0 ' + W + ' ' + H, width: W, height: H });
+
+  for (var g = 0; g <= tkM.n; g++) {
+    var gv = tkM.step * g, gy = Y(gv);
+    svg.appendChild(svgEl('line', { x1: padL, x2: W - padR, y1: gy, y2: gy, stroke: 'var(--grid)', 'stroke-width': 1 }));
+    var tx = svgEl('text', { x: padL - 8, y: gy + 4, 'text-anchor': 'end', 'font-size': 10, fill: 'var(--ink-3)' });
+    tx.textContent = tickFmt(gv);
+    svg.appendChild(tx);
+  }
+
+  var maxI26 = -1, maxR26 = 0, curI = -1;
+  m26.forEach(function (m, i) { if ((m.rev || 0) > maxR26) { maxR26 = m.rev || 0; maxI26 = i; } if (m.current) curI = i; });
+
+  function bar(x, v, color, delay) {
+    if (v <= 0) return null;
+    var h = Math.max(2, Y(0) - Y(v));
+    var rr = Math.min(4, h / 2);
+    // 頂端 4px 圓角、底部平角
+    var d = 'M' + x + ',' + Y(0) + ' L' + x + ',' + (Y(v) + rr) + ' Q' + x + ',' + Y(v) + ' ' + (x + rr) + ',' + Y(v) +
+      ' L' + (x + bw - rr) + ',' + Y(v) + ' Q' + (x + bw) + ',' + Y(v) + ' ' + (x + bw) + ',' + (Y(v) + rr) +
+      ' L' + (x + bw) + ',' + Y(0) + ' Z';
+    var p = svgEl('path', { d: d, fill: color });
+    if (firstRender) {
+      p.style.transformOrigin = '0 ' + Y(0) + 'px';
+      p.style.transform = 'scaleY(0)';
+      p.getBoundingClientRect();
+      p.style.transition = 'transform .7s cubic-bezier(.2,.7,.2,1) ' + delay + 'ms';
+      requestAnimationFrame(function () { p.style.transform = 'scaleY(1)'; });
+    }
+    return p;
+  }
+
+  for (var mi = 0; mi < 12; mi++) {
+    var r26 = (m26[mi] || {}).rev || 0, r25 = (m25[mi] || {}).rev || 0;
+    var cx0 = padL + band * mi + (band - bw * 2 - 2) / 2;
+    var b1 = bar(cx0, r26, 'var(--accent)', mi * 45);
+    var b0 = bar(cx0 + bw + 2, r25, 'var(--deemph)', mi * 45 + 60);
+    if (b1) svg.appendChild(b1);
+    if (b0) svg.appendChild(b0);
+    // 月標籤（窄螢幕隔月標示，當前月必標）
+    if (band >= 34 || mi % 2 === 0 || mi === curI) {
+      var ml = svgEl('text', { x: padL + band * mi + band / 2, y: H - 8, 'text-anchor': 'middle', 'font-size': 10.5, fill: mi === curI ? 'var(--ink)' : 'var(--ink-3)', 'font-weight': mi === curI ? 700 : 400 });
+      ml.textContent = (mi + 1) + '月';
+      svg.appendChild(ml);
+    }
+    // 選擇性直標：今年最高月 + 當前月
+    if (r26 > 0 && (mi === maxI26 || mi === curI)) {
+      var vl = svgEl('text', { x: cx0 + bw / 2, y: Y(r26) - 6, 'text-anchor': 'middle', 'font-size': 10.5, 'font-weight': 700, fill: 'var(--ink)' });
+      vl.textContent = fmtWan(r26);
+      svg.appendChild(vl);
+    }
+    // hover 區
+    (function (mi, r26, r25) {
+      var hot = svgEl('rect', { x: padL + band * mi, y: padT, width: band, height: ih + padB, fill: 'transparent' });
+      hot.addEventListener('mousemove', function (e) {
+        var yoy = r25 > 0 && r26 > 0 ? Math.round((r26 / r25 - 1) * 100) : null;
+        tip.innerHTML = '<span class="tt">' + (mi + 1) + ' 月</span><br>' +
+          yr + ' <b>' + (r26 > 0 ? fmt(r26) : '—') + '</b><br>' +
+          (yr - 1) + ' ' + (r25 > 0 ? fmt(r25) : '—') +
+          (yoy !== null ? '<br>年增 <span class="' + (yoy >= 0 ? 'up' : 'down') + '">' + (yoy >= 0 ? '+' : '') + yoy + '%</span>' : '');
+        tip.classList.add('show');
+        var bx = box.getBoundingClientRect();
+        var tx2 = e.clientX - bx.left + 14;
+        if (tx2 > bx.width - 160) tx2 = e.clientX - bx.left - 160;
+        tip.style.left = tx2 + 'px';
+        tip.style.top = clamp(e.clientY - bx.top - 30, 0, H - 100) + 'px';
+      });
+      hot.addEventListener('mouseleave', function () { tip.classList.remove('show'); });
+      svg.appendChild(hot);
+    })(mi, r26, r25);
+  }
+  // 年增摘要
+  var s26 = 0, s25 = 0;
+  for (var si = 0; si < 12; si++) {
+    if (((m26[si] || {}).rev || 0) > 0) { s26 += m26[si].rev; s25 += (m25[si] || {}).rev || 0; }
+  }
+  $('hintM').textContent = s25 > 0 ? '同期年增 ' + (s26 >= s25 ? '+' : '') + Math.round((s26 / s25 - 1) * 100) + '%' : '';
+  box.appendChild(svg);
+}
+
+/* ═════════ 8. 排行清單 ═════════ */
+function renderList(elId, items, cls, opt) {
+  var host = $(elId);
+  host.innerHTML = '';
+  var maxV = 1; items.forEach(function (it) { maxV = Math.max(maxV, it.v || 0); });
+  items.forEach(function (it, i) {
+    var row = document.createElement('div');
+    row.className = 'rowi ' + cls;
+    row.innerHTML = '<div class="bar"></div><div class="fg">' +
+      (opt.rank ? '<span class="rk">' + (i + 1) + '</span>' : '') +
+      '<span class="nm" title="' + esc(it.name) + '">' + esc(it.name) + '</span>' +
+      (it.pct != null ? '<span class="pct">' + it.pct + '</span>' : '') +
+      '<span class="val">' + it.val + '</span></div>';
+    host.appendChild(row);
+    var w = (it.v || 0) / maxV * 100;
+    var barEl = row.querySelector('.bar');
+    if (firstRender) setTimeout(function () { barEl.style.width = w + '%'; }, 80 + i * 70);
+    else barEl.style.width = w + '%';
+  });
+}
+function renderLists() {
+  var srcs = (D.sources || []).slice(0, 5).sort(function (a, b) { return (b.orders || 0) - (a.orders || 0); });
+  var totO = 0; srcs.forEach(function (s) { totO += s.orders || 0; });
+  renderList('listSrc', srcs.map(function (s) {
+    return { name: s.src || '來源', v: s.orders || 0, pct: totO > 0 ? Math.round((s.orders || 0) / totO * 100) + '%' : null, val: fmtWan(s.rev || 0) };
+  }), 'pinkish', {});
+
+  var prods = (D.prod_rev || []).slice(0, 6);
+  renderList('listProd', prods.map(function (p) {
+    return { name: p.name || '商品', v: p.rev || 0, pct: (p.qty || 0) + ' 件', val: fmtWan(p.rev || 0) };
+  }), 'goldish', { rank: true });
+
+  var tiers = (D.active_tiers || []).slice(0, 5);
+  var totT = 0; tiers.forEach(function (t) { totT += t.count || 0; });
+  $('hintTier').textContent = totT > 0 ? '共 ' + totT.toLocaleString() + ' 位' : '';
+  renderList('listTier', tiers.map(function (t) {
+    return { name: t.name || '—', v: t.count || 0, pct: totT > 0 ? Math.round((t.count || 0) / totT * 100) + '%' : null, val: (t.count || 0).toLocaleString() };
+  }), 'indigoish', {});
+}
+
+/* ═════════ 9. 總渲染 ═════════ */
+function renderAll() {
+  if (!D) return;
+  renderKpis();
+  renderTicker();
+  render7();
+  renderM();
+  renderLists();
+  firstRender = false;
+}
+var rzT = null;
+addEventListener('resize', function () {
+  clearTimeout(rzT);
+  rzT = setTimeout(function () { if (D) { render7(); renderM(); } }, 180);
 });
 
-/* ═════════ 9. 主迴圈（相機漂移 + 核心脈動；粒子動畫全在 GPU） ═════════ */
-var camAng = 0;
-function animate() {
-  requestAnimationFrame(animate);
-  var t = clock.getElapsedTime();
-  uTime.value = t;
-  // 相機：極慢環繞漂移 + 滑鼠視差
-  camAng = Math.sin(t * 0.05) * 0.16;
-  var camK = clamp(1.5 / camera.aspect, 1, 2.3);  // 窄螢幕自動拉遠，讓兩岸節點入鏡
-  var cx = CAM_BASE.x + Math.sin(camAng) * 40 + mouseNX * 3.2;
-  var cz = CAM_BASE.z * Math.cos(camAng);
-  var cy = CAM_BASE.y + Math.sin(t * 0.08) * 1.2 - mouseNY * 2.2;
-  camera.position.set(cx * camK, cy * (1 + (camK - 1) * 0.5), cz * camK);
-  camera.lookAt(CAM_LOOK);
-  // 核心呼吸
-  var pulse = 1 + Math.sin(t * 1.7) * 0.07;
-  coreSprites.forEach(function (sp, i) {
-    var base = sp.userData.baseS || (sp.userData.baseS = sp.scale.x);
-    sp.scale.set(base * pulse, base * pulse, 1);
-  });
-  if (currentMonthSprite) {
-    var mp = 1 + Math.sin(t * 2.6) * 0.28;
-    var mb = currentMonthSprite.userData.baseS || (currentMonthSprite.userData.baseS = currentMonthSprite.scale.x);
-    currentMonthSprite.scale.set(mb * mp, mb * mp, 1);
-  }
-  renderer.render(scene, camera);
-  if (DEBUG) { $('dbg').style.display = 'block'; $('dbg').textContent = 'calls ' + renderer.info.render.calls + ' · pts ' + renderer.info.render.points; }
-}
-
-/* ═════════ 10. 啟動 ═════════ */
-window.__flowBooted = true;
-window.__flow = {
-  debugState: function () {
-    return { calls: renderer.info.render.calls, points: renderer.info.render.points, tris: renderer.info.render.triangles, lite: LITE };
-  }
-};
+window.__flow = { ok: true, debugState: function () { return { ok: true, mode: 'svg-dashboard' }; } };
 loadData();
 loadAnnualPlan();
-animate();
 </script>
 </body>
 </html>
