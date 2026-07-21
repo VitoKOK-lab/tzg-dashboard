@@ -3,14 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>TZG 金流星河</title>
+<title>TZG 金流星系</title>
 <!--
-  TZG 金流星河 — MONEY FLOW GALAXY
-  ▸ 與 live.html（沙漠水晶島）完全不同的視覺模組：純 GPU 粒子流。
-  ▸ 隱喻：流量來源化為光流匯入品牌核心，再流向熱銷商品；
-    七日營收是一條起伏的光河；12 個月是環繞的雙光環（亮=今年、暗=去年）；
-    客戶分層是腳下的星系盤；年度目標是核心的進度光環。
-  ▸ 所有粒子動畫在 vertex shader 內計算（貝茲曲線/軌道參數式），CPU 每幀零更新。
+  TZG 金流星系 — SOLAR REVENUE SYSTEM
+  ▸ 科幻太陽系儀表板：
+    太陽＝本月營收（火焰翻騰+日冕）
+    12 顆行星＝12 個月營收（大小∝營收、沿軌道公轉、最大月有土星環、當月行星有信標+衛星）
+    地球＝客戶星球（大氣光暈+5 圈衛星帶＝客戶分層）
+    5 座太空站＝訂單來源（貨運飛船持續飛向太陽、班次∝訂單占比、引擎尾流）
+    6 顆寶石隕石＝熱銷商品（珠寶水晶，大小∝營收）
+    全息面板＝近七日營收　航運日誌＝即時訂單
   ▸ 資料來源與 live.html 相同：output/dashboard_latest.html 的 const D + annual_plan.json。
   ▸ 參數：?demo=1 展示資料　?lite=1 低規格　?debug=1 顯示 draw calls
 -->
@@ -20,77 +22,111 @@ html, body { height: 100%; overflow: hidden; background: #04060f; }
 body {
   font-family: 'Montserrat', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
   color: #dfe6ff;
-  background: radial-gradient(120% 90% at 50% 30%, #0b1030 0%, #070a1c 45%, #04060f 100%);
+  background: radial-gradient(130% 100% at 50% 20%, #0a1026 0%, #060a1a 50%, #04060f 100%);
 }
-#c { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+#c { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+#c.drag { cursor: grabbing; }
 
-/* ── HUD ── */
 .hud { position: fixed; z-index: 5; pointer-events: none; }
-#hudTitle { top: 18px; left: 22px; }
-#hudTitle h1 {
-  font-size: 20px; font-weight: 600; letter-spacing: 6px; color: #f3e9c8;
-  text-shadow: 0 0 18px rgba(246,196,83,.45);
-}
-#hudTitle .sub {
-  margin-top: 4px; font-size: 10px; letter-spacing: 4px; color: #8a93c0;
-}
-#hudTitle .asof { margin-top: 8px; font-size: 10px; color: #5d668f; letter-spacing: 1px; }
 
-#hudStats { top: 18px; right: 22px; display: flex; gap: 10px; }
+/* 標題 */
+#hudTitle { top: 16px; left: 20px; }
+#hudTitle h1 { font-size: 19px; font-weight: 600; letter-spacing: 6px; color: #eaf4ff; text-shadow: 0 0 16px rgba(79,245,232,.5); }
+#hudTitle .sub { margin-top: 3px; font-size: 9px; letter-spacing: 3.5px; color: #5f79a8; }
+#hudTitle .asof { margin-top: 7px; font-size: 10px; color: #48557d; }
+#hudTitle .lgd { margin-top: 8px; font-size: 10px; color: #5f6c96; letter-spacing: .5px; line-height: 1.9; }
+#hudTitle .lgd b { color: #9fb4e8; font-weight: 600; }
+.demo-badge { display: inline-block; margin-left: 8px; font-size: 9px; font-weight: 700; letter-spacing: 1px; color: #04121a; background: #4ff5e8; border-radius: 999px; padding: 2px 8px; vertical-align: 2px; }
+
+/* KPI 晶片 */
+#hudStats { top: 16px; right: 18px; display: flex; gap: 8px; }
 .chip {
-  background: rgba(10,14,34,.55); border: 1px solid rgba(140,150,210,.22);
-  border-radius: 10px; padding: 8px 14px; text-align: right;
-  backdrop-filter: blur(6px);
+  background: rgba(8, 16, 36, .6); border: 1px solid rgba(79, 245, 232, .22);
+  border-radius: 10px; padding: 7px 13px; text-align: right; backdrop-filter: blur(8px);
+  box-shadow: inset 0 0 18px rgba(79,245,232,.05);
 }
-.chip .k { font-size: 9px; letter-spacing: 2px; color: #8a93c0; }
-.chip .v { margin-top: 3px; font-size: 16px; font-weight: 600; color: #ffe1a0; text-shadow: 0 0 12px rgba(246,196,83,.35); }
-.chip .v.pink { color: #ff8fd8; text-shadow: 0 0 12px rgba(255,79,195,.35); }
+.chip .k { font-size: 9px; letter-spacing: 2px; color: #6d87b8; }
+.chip .v { margin-top: 2px; font-size: 15px; font-weight: 700; color: #ffe1a0; text-shadow: 0 0 10px rgba(255,215,140,.4); }
+.chip .v.cy { color: #7cf7ec; text-shadow: 0 0 10px rgba(79,245,232,.4); }
+.chip .s { font-size: 9px; color: #5f79a8; margin-top: 1px; }
+.chip .s .up { color: #6dedb2; } .chip .s .down { color: #ff8fa8; }
 
-#hudLegend { bottom: 16px; right: 22px; text-align: right; font-size: 10px; line-height: 1.9; color: #6a7398; letter-spacing: 1px; }
-#hudLegend b { color: #aeb8e8; font-weight: 600; }
+/* 全息七日面板 */
+#holo {
+  position: fixed; z-index: 5; right: 18px; bottom: 46px; width: 330px;
+  background: linear-gradient(160deg, rgba(8,20,40,.72), rgba(6,14,30,.6));
+  border: 1px solid rgba(79,245,232,.25); border-radius: 14px;
+  padding: 12px 14px 8px; backdrop-filter: blur(10px);
+  box-shadow: inset 0 0 24px rgba(79,245,232,.06), 0 6px 30px rgba(0,0,0,.4);
+  pointer-events: auto;
+}
+#holo::before {
+  content: ''; position: absolute; inset: 0; border-radius: 14px; pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(120,220,255,.028) 0 1px, transparent 1px 3px);
+}
+#holo .ht { display: flex; align-items: baseline; gap: 8px; font-size: 11px; font-weight: 700; letter-spacing: 2px; color: #8fe8ff; }
+#holo .ht .r { margin-left: auto; font-size: 9px; color: #5f79a8; letter-spacing: 1px; font-weight: 400; }
+#holo svg { display: block; width: 100%; margin-top: 4px; }
 
-/* 詳情卡（點擊節點） */
+/* 詳情卡 */
 #card {
-  position: fixed; z-index: 6; left: 22px; bottom: 16px; min-width: 230px; max-width: 320px;
-  background: rgba(9,12,30,.72); border: 1px solid rgba(150,160,220,.25); border-radius: 14px;
-  padding: 14px 16px; backdrop-filter: blur(10px);
+  position: fixed; z-index: 6; left: 20px; bottom: 46px; min-width: 220px; max-width: 320px;
+  background: linear-gradient(160deg, rgba(10,18,40,.8), rgba(8,14,30,.68));
+  border: 1px solid rgba(150,180,255,.25); border-radius: 14px;
+  padding: 13px 16px; backdrop-filter: blur(10px);
   transition: opacity .25s, transform .25s; pointer-events: none;
+  box-shadow: 0 6px 30px rgba(0,0,0,.4);
 }
 #card.hide { opacity: 0; transform: translateY(8px); }
-#card .tag { font-size: 9px; letter-spacing: 3px; color: #8a93c0; }
-#card .name { margin-top: 4px; font-size: 15px; font-weight: 600; color: #f3e9c8; }
-#card .rows { margin-top: 8px; font-size: 12px; line-height: 2; color: #b9c2ea; }
-#card .rows b { color: #ffe1a0; font-weight: 600; }
-#card .rows .up { color: #7dffc8; }
-#card .rows .down { color: #ff7d9e; }
+#card .tag { font-size: 9px; letter-spacing: 3px; color: #6d87b8; }
+#card .name { margin-top: 4px; font-size: 15px; font-weight: 700; color: #eaf0ff; }
+#card .rows { margin-top: 7px; font-size: 12px; line-height: 2; color: #aebbe4; }
+#card .rows b { color: #ffe1a0; font-weight: 700; }
+#card .rows .up { color: #6dedb2; } #card .rows .down { color: #ff8fa8; }
 
-#hint { bottom: 16px; left: 50%; transform: translateX(-50%); font-size: 10px; letter-spacing: 2px; color: #565f86; }
+/* 航運日誌跑馬燈 */
+#ticker {
+  position: fixed; z-index: 5; left: 0; right: 0; bottom: 0; height: 30px;
+  background: rgba(5, 10, 24, .78); border-top: 1px solid rgba(79,245,232,.15);
+  overflow: hidden; white-space: nowrap; backdrop-filter: blur(6px);
+  display: flex; align-items: center;
+}
+#ticker .cap { flex-shrink: 0; padding: 0 12px; font-size: 9px; font-weight: 700; letter-spacing: 2px; color: #4ff5e8; border-right: 1px solid rgba(79,245,232,.2); }
+#ticker .rail { flex: 1; overflow: hidden; }
+.ticker-track { display: inline-block; animation: tick var(--tickDur, 70s) linear infinite; will-change: transform; }
+@keyframes tick { to { transform: translateX(-50%); } }
+.tk { display: inline-flex; align-items: center; gap: 7px; padding: 0 24px; font-size: 11px; color: #8b98c4; }
+.tk .t { color: #55648f; font-size: 10px; }
+.tk .amt { font-weight: 700; color: #ffd98e; }
+.tk .sep { color: #2c3a63; }
 
-#dbg { top: 60px; left: 22px; font-size: 10px; color: #4a5378; display: none; }
+#hint { position: fixed; z-index: 4; bottom: 36px; left: 50%; transform: translateX(-50%); font-size: 10px; letter-spacing: 2px; color: #46527c; pointer-events: none; }
+#dbg { position: fixed; z-index: 5; top: 118px; left: 20px; font-size: 10px; color: #46527c; display: none; }
 
-/* 載入 / 錯誤 */
+/* 覆蓋層 */
 .overlay {
   position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 14px;
-  background: radial-gradient(120% 90% at 50% 30%, #0b1030 0%, #04060f 100%);
+  background: radial-gradient(130% 100% at 50% 20%, #0a1026 0%, #04060f 100%);
   transition: opacity .5s; text-align: center; padding: 0 30px;
 }
 .overlay.hidden { opacity: 0; pointer-events: none; }
-.overlay .ttl { font-size: 15px; letter-spacing: 5px; color: #cfd6ff; }
-.overlay p { font-size: 11px; color: #6a7398; letter-spacing: 1px; line-height: 1.8; }
+.overlay .ttl { font-size: 14px; letter-spacing: 5px; color: #cfd6ff; }
+.overlay p { font-size: 11px; color: #5f6c96; letter-spacing: 1px; line-height: 1.8; }
 .orb {
   width: 34px; height: 34px; border-radius: 50%;
-  background: radial-gradient(circle at 40% 35%, #fff6d8, #f6c453 45%, rgba(246,196,83,0) 72%);
-  animation: breathe 1.6s ease-in-out infinite;
+  background: radial-gradient(circle at 38% 34%, #fff2c8, #ffb347 48%, rgba(255,140,50,0) 74%);
+  animation: breathe 1.5s ease-in-out infinite;
 }
-@keyframes breathe { 0%,100% { transform: scale(.82); opacity: .7; } 50% { transform: scale(1.08); opacity: 1; } }
+@keyframes breathe { 0%,100% { transform: scale(.82); opacity: .75; } 50% { transform: scale(1.1); opacity: 1; } }
 
-@media (max-width: 700px) {
+@media (max-width: 760px) {
   #hudTitle h1 { font-size: 15px; letter-spacing: 4px; }
-  #hudStats { top: auto; bottom: 118px; right: 12px; flex-direction: column; gap: 6px; }
-  .chip { padding: 6px 10px; } .chip .v { font-size: 13px; }
-  #hudLegend { display: none; }
-  #card { left: 12px; bottom: 12px; min-width: 0; max-width: 62vw; padding: 10px 12px; }
+  #hudTitle .lgd { display: none; }
+  #hudStats { top: auto; bottom: 200px; right: 10px; flex-direction: column; gap: 5px; }
+  .chip { padding: 5px 9px; } .chip .v { font-size: 12.5px; }
+  #holo { right: 10px; left: 10px; width: auto; bottom: 40px; }
+  #card { left: 10px; right: auto; bottom: 40px; max-width: 70vw; z-index: 7; }
   #hint { display: none; }
 }
 </style>
@@ -99,20 +135,21 @@ body {
 <canvas id="c"></canvas>
 
 <div class="hud" id="hudTitle">
-  <h1>金流星河</h1>
-  <div class="sub">TZG&ensp;MONEY&ensp;FLOW&ensp;GALAXY</div>
+  <h1>金流星系<span id="demoBadge" class="demo-badge" style="display:none">DEMO</span></h1>
+  <div class="sub">TZG&ensp;SOLAR&ensp;REVENUE&ensp;SYSTEM</div>
   <div class="asof" id="asOf"></div>
+  <div class="lgd">☀ <b>太陽</b> 本月營收　◉ <b>行星</b> 月營收（大小＝金額）<br>🌍 <b>地球</b> 客戶星球　🚀 <b>飛船</b> 訂單來源　◆ <b>寶石</b> 熱銷商品</div>
 </div>
 
 <div class="hud" id="hudStats">
-  <div class="chip"><div class="k">本月營收</div><div class="v" id="chipMtd">—</div></div>
-  <div class="chip"><div class="k">年度累計</div><div class="v pink" id="chipYtd">—</div></div>
+  <div class="chip"><div class="k">本月營收</div><div class="v" id="chipMtd">—</div><div class="s" id="chipMtdS"></div></div>
+  <div class="chip"><div class="k">昨日</div><div class="v" id="chipYest">—</div><div class="s" id="chipYestS"></div></div>
+  <div class="chip"><div class="k">年度累計</div><div class="v cy" id="chipYtd">—</div><div class="s" id="chipYtdS"></div></div>
 </div>
 
-<div class="hud" id="hudLegend">
-  <b>左岸</b> 流量來源 → <b>核心</b> → <b>右岸</b> 熱銷商品<br>
-  外環雙軌 <b>月營收</b>（亮金=今年 · 暗銀=去年）<br>
-  腳下星盤 <b>客戶分層</b> · 前景 <b>七日光河</b> · 核心光環 <b>年度進度</b>
+<div id="holo">
+  <div class="ht">近七日營收 <span class="r" id="holoTarget"></span></div>
+  <div id="holoChart"></div>
 </div>
 
 <div id="card" class="hide">
@@ -121,20 +158,23 @@ body {
   <div class="rows" id="cardRows"></div>
 </div>
 
-<div class="hud" id="hint">點 擊 發 光 節 點 查 看 數 據</div>
-<div class="hud" id="dbg"></div>
+<div id="hint">拖 曳 旋 轉 · 點 擊 星 體 查 看 數 據</div>
+<div id="dbg"></div>
 
-<div class="overlay" id="loadingOverlay"><div class="orb"></div><div class="ttl">金 流 匯 聚 中</div><p>正在載入營運資料…</p></div>
-<div class="overlay hidden" id="errorOverlay"><div class="ttl">星 河 暫 時 失 聯</div><p id="errText">無法載入資料或 3D 引擎（需可連線 cdn.jsdelivr.net）。<br>兩分鐘後自動重試，或重新整理頁面。</p></div>
+<div id="ticker" style="display:none">
+  <span class="cap">航運日誌</span>
+  <div class="rail"><div class="ticker-track" id="tickerTrack"></div></div>
+</div>
+
+<div class="overlay" id="loadingOverlay"><div class="orb"></div><div class="ttl">星 系 生 成 中</div><p>正在載入營運資料…</p></div>
+<div class="overlay hidden" id="errorOverlay"><div class="ttl">星 系 暫 時 失 聯</div><p>無法載入資料或 3D 引擎（需可連線 cdn.jsdelivr.net）。<br>兩分鐘後自動重試，或重新整理頁面。</p></div>
 
 <script type="importmap">
 { "imports": {
     "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
     "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
 </script>
-
 <script>
-/* 模組載入逾時保險：9 秒內未啟動則顯示錯誤層 */
 window.__flowBooted = false;
 setTimeout(function () {
   if (!window.__flowBooted) {
@@ -146,8 +186,9 @@ setTimeout(function () {
 
 <script type="module">
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
-/* ═════════ 0. 參數與小工具 ═════════ */
+/* ═════════ 0. 參數與工具 ═════════ */
 var Q = new URLSearchParams(location.search);
 var DEMO = Q.get('demo') === '1';
 var LITE = Q.get('lite') === '1' || (Math.min(screen.width, screen.height) < 620 && window.devicePixelRatio > 2);
@@ -155,18 +196,21 @@ var DEBUG = Q.get('debug') === '1';
 function $(id) { return document.getElementById(id); }
 function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
 function fmt(n) { return '$' + Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
-function fmtCompact(n) {
-  if (n >= 1e8) return (n / 1e8).toFixed(2) + ' 億';
-  if (n >= 1e4) return Math.round(n / 1e4).toLocaleString() + ' 萬';
+function fmtWan(n) {
+  if (Math.abs(n) >= 1e8) return (n / 1e8).toFixed(2) + ' 億';
+  if (Math.abs(n) >= 1e6) return Math.round(n / 1e4).toLocaleString() + ' 萬';
+  if (Math.abs(n) >= 1e4) return (n / 1e4).toFixed(1).replace(/\.0$/, '') + ' 萬';
   return '$' + Math.round(n).toLocaleString();
 }
 function ymd(t) { var d = new Date(t); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
 
-/* ═════════ 1. 展示資料（與 live.html DEMO_D 同構，精簡到本頁所需欄位） ═════════ */
+/* ═════════ 1. 展示資料 ═════════ */
 var DEMO_D = {
   target: 4500000,
-  meta: { report_month: '示範月份', data_as_of: '（展示模式）', data_as_of_iso: ymd(Date.now() - 864e5) + 'T23:30:00', days_elapsed: 16, days_total: 31 },
+  meta: { report_month: '7月', data_as_of: '（展示模式）', data_as_of_iso: ymd(Date.now() - 864e5) + 'T23:30:00', days_elapsed: 16, days_total: 31 },
   kpi: { rev_mtd: 2318400, orders_mtd: 497, avg_order: 4665, new_customers: 213, returning: 96 },
+  yesterday: { rev: 152300, orders: 31 },
   last_7_days: { daily_target: 150000, data: [
     { date: '07/10', rev: 142000, orders: 30 }, { date: '07/11', rev: 168000, orders: 36 },
     { date: '07/12', rev: 131000, orders: 27 }, { date: '07/13', rev: 176500, orders: 39 },
@@ -190,11 +234,18 @@ var DEMO_D = {
     { name: '活躍', count: 554 }, { name: '溫層', count: 978 }, { name: '冷卻', count: 1567 },
     { name: '沉睡', count: 1515 }, { name: '流失', count: 612 }
   ],
+  customers: [
+    { time: '21:18', customer: '徐O雯', products: '坦桑石手鍊', amount: 8223 },
+    { time: '20:42', customer: '林O徵', products: '925銀戒指 鴿子蛋粉水晶戒指', amount: 14563 },
+    { time: '19:05', customer: '戴O吟', products: 'Loggon碧璽裸石', amount: 1560 },
+    { time: '17:56', customer: '丁O芬', products: '太陽之石｜奧勒岡太陽石', amount: 3174 },
+    { time: '15:24', customer: 'cO6', products: '定制鉑金戒指', amount: 45063 }
+  ].map(function (c) { return { time: ymd(Date.now()) + ' ' + c.time + ':00', customer: c.customer, products: c.products, amount: c.amount }; }),
   monthly_26: [3605872, 4360250, 4571268, 5327966, 5713135, 3571133, 2318400, 0, 0, 0, 0, 0].map(function (r, i) { return { month: (i + 1) + '月', rev: r, current: i === 6 }; }),
   monthly_25: [991786, 1905087, 2685469, 2981757, 2553800, 1951963, 4243254, 4630533, 2940865, 4610805, 4706800, 5100000].map(function (r, i) { return { month: (i + 1) + '月', rev: r }; })
 };
 
-/* ═════════ 2. 資料層（同 live.html：解析 dashboard_latest.html 的 const D） ═════════ */
+/* ═════════ 2. 資料層 ═════════ */
 var LS_KEY = 'tzg_flow_D';
 var D = null, annualTarget = 0;
 var retryDelay = 60e3, retryTimer = null;
@@ -208,13 +259,13 @@ function extractD(html) {
 function applyData(newD, fromCache) {
   var changed = !D || !D.meta || D.meta.data_as_of_iso !== newD.meta.data_as_of_iso;
   D = newD;
-  if (changed) { renderHud(); buildGalaxy(); }
+  if (changed) { renderHud(); buildSystem(); }
   $('loadingOverlay').classList.add('hidden');
   $('errorOverlay').classList.add('hidden');
   if (fromCache) $('asOf').textContent = '⚠ 更新失敗 · 顯示 ' + ((D.meta || {}).data_as_of || '快取') + ' 快取資料';
 }
 function loadData() {
-  if (DEMO) { applyData(DEMO_D, false); return; }
+  if (DEMO) { $('demoBadge').style.display = ''; applyData(DEMO_D, false); return; }
   fetch('output/dashboard_latest.html?_flow=' + Date.now(), { cache: 'no-store' })
     .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
     .then(function (html) {
@@ -234,56 +285,131 @@ function loadData() {
       retryTimer = setTimeout(loadData, retryDelay);
       retryDelay = Math.min(retryDelay * 2, 300e3);
     });
-  setTimeout(loadData, 10 * 60e3); // 每 10 分鐘靜默更新
+  setTimeout(loadData, 10 * 60e3);
 }
 function loadAnnualPlan() {
-  if (DEMO) { annualTarget = 54000000; if (D) { renderHud(); buildGalaxy(); } return; }
+  if (DEMO) { annualTarget = 54000000; if (D) { renderHud(); } return; }
   fetch('annual_plan.json?_flow=' + Date.now(), { cache: 'no-store' })
     .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
     .then(function (ap) {
       var sum = 0, mo = (ap && ap.monthly) || {}, yr = new Date().getFullYear();
       for (var m = 1; m <= 12; m++) sum += +mo[yr + '-' + String(m).padStart(2, '0')] || +ap._default_monthly || 0;
-      if (sum > 0) { annualTarget = sum; if (D) { renderHud(); buildGalaxy(); } }
+      if (sum > 0) { annualTarget = sum; if (D) renderHud(); }
     })
     .catch(function () {});
 }
 function ytdSum() { var s = 0; ((D && D.monthly_26) || []).forEach(function (m) { s += m.rev || 0; }); return s; }
+
+/* ═════════ 3. HUD（KPI 晶片 / 全息七日 / 航運日誌） ═════════ */
 function renderHud() {
-  var m = (D && D.meta) || {};
-  $('asOf').textContent = '資料截至 ' + (m.data_as_of || '—') + (m.data_as_of_iso ? ' ' + String(m.data_as_of_iso).slice(11, 16) : '');
-  $('chipMtd').textContent = fmtCompact(((D && D.kpi) || {}).rev_mtd || 0);
+  var kpi = (D && D.kpi) || {}, meta = (D && D.meta) || {};
+  $('asOf').textContent = '資料截至 ' + (meta.data_as_of || '—') + (meta.data_as_of_iso ? ' ' + String(meta.data_as_of_iso).slice(11, 16) : '');
+  $('chipMtd').textContent = fmtWan(kpi.rev_mtd || 0);
+  var pct = D.target > 0 ? Math.round((kpi.rev_mtd || 0) / D.target * 100) : 0;
+  $('chipMtdS').innerHTML = D.target > 0 ? '月目標達成 ' + pct + '%' : '';
+  var y = D.yesterday || {};
+  $('chipYest').textContent = fmtWan(y.rev || 0);
+  var dt = (D.last_7_days && D.last_7_days.daily_target) || 0;
+  if (dt > 0) {
+    var yp = Math.round((y.rev || 0) / dt * 100);
+    $('chipYestS').innerHTML = '日標 <span class="' + (yp >= 100 ? 'up' : 'down') + '">' + yp + '%</span>';
+  } else $('chipYestS').textContent = (y.orders || 0) + ' 筆';
   var ytd = ytdSum();
-  $('chipYtd').textContent = fmtCompact(ytd) + (annualTarget > 0 ? ' · ' + Math.round(ytd / annualTarget * 100) + '%' : '');
+  $('chipYtd').textContent = fmtWan(ytd);
+  $('chipYtdS').textContent = annualTarget > 0 ? '年度目標 ' + Math.round(ytd / annualTarget * 100) + '%' : '';
+  renderHolo();
+  renderTicker();
 }
 
-/* ═════════ 3. Three.js 場景基礎 ═════════ */
-var renderer, scene, camera, clock;
-var uTime = { value: 0 };
-var CAM_BASE = new THREE.Vector3(0, 15, 47);
-var CAM_LOOK = new THREE.Vector3(0, 7.5, 0);
-var mouseNX = 0, mouseNY = 0;
+/* 全息七日面積圖（小型 SVG） */
+function renderHolo() {
+  var days = ((D.last_7_days || {}).data || []).slice(-7);
+  var dt = (D.last_7_days && D.last_7_days.daily_target) || 0;
+  var host = $('holoChart');
+  if (days.length < 2) { host.innerHTML = ''; return; }
+  $('holoTarget').textContent = dt > 0 ? '日標 ' + fmtWan(dt) : '';
+  var W = 302, H = 108, padL = 4, padR = 10, padT = 18, padB = 16;
+  var iw = W - padL - padR, ih = H - padT - padB;
+  var maxV = 1; days.forEach(function (d) { maxV = Math.max(maxV, d.rev || 0); }); maxV = Math.max(maxV, dt) * 1.15;
+  var X = function (i) { return padL + iw * i / (days.length - 1); };
+  var Y = function (v) { return padT + ih * (1 - v / maxV); };
+  var pts = days.map(function (d, i) { return [X(i), Y(d.rev || 0)]; });
+  var lineD = 'M' + pts.map(function (p) { return p[0] + ',' + p[1]; }).join(' L');
+  var maxI = 0; days.forEach(function (d, i) { if ((d.rev || 0) > (days[maxI].rev || 0)) maxI = i; });
+  var html = '<svg viewBox="0 0 ' + W + ' ' + H + '">' +
+    '<defs><linearGradient id="hg" x1="0" y1="0" x2="0" y2="1">' +
+    '<stop offset="0" stop-color="#4ff5e8" stop-opacity=".28"/><stop offset="1" stop-color="#4ff5e8" stop-opacity="0"/></linearGradient>' +
+    '<filter id="hb" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="2.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>';
+  if (dt > 0 && dt < maxV) {
+    var ty = Y(dt);
+    html += '<line x1="' + padL + '" x2="' + (W - padR) + '" y1="' + ty + '" y2="' + ty + '" stroke="#ffd98e" stroke-opacity=".35" stroke-width="1"/>';
+  }
+  html += '<path d="' + lineD + ' L' + pts[pts.length - 1][0] + ',' + Y(0) + ' L' + pts[0][0] + ',' + Y(0) + ' Z" fill="url(#hg)"/>';
+  html += '<path d="' + lineD + '" fill="none" stroke="#4ff5e8" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" filter="url(#hb)"/>';
+  days.forEach(function (d, i) {
+    var ok = dt > 0 && (d.rev || 0) >= dt;
+    html += '<circle cx="' + pts[i][0] + '" cy="' + pts[i][1] + '" r="' + (d.is_today ? 4 : 2.6) + '" fill="' + (ok ? '#ffd98e' : '#4ff5e8') + '" stroke="#0a1428" stroke-width="1.5"/>';
+    if (i === maxI || i === days.length - 1) {
+      html += '<text x="' + pts[i][0] + '" y="' + (pts[i][1] - 7) + '" text-anchor="' + (i === days.length - 1 ? 'end' : 'middle') + '" font-size="10" font-weight="700" fill="#cfe9ff">' + fmtWan(days[i].rev || 0) + '</text>';
+    }
+    if (i === 0 || i === days.length - 1 || i === Math.floor((days.length - 1) / 2)) {
+      html += '<text x="' + pts[i][0] + '" y="' + (H - 3) + '" text-anchor="' + (i === 0 ? 'start' : i === days.length - 1 ? 'end' : 'middle') + '" font-size="9" fill="#5f79a8">' + esc(String(d.date || '').slice(-5)) + (d.is_today ? ' 今日' : '') + '</text>';
+    }
+  });
+  html += '</svg>';
+  host.innerHTML = html;
+}
 
-renderer = new THREE.WebGLRenderer({ canvas: $('c'), antialias: !LITE, alpha: true, powerPreference: 'high-performance' });
+function renderTicker() {
+  var rows = (D.customers || []).slice().sort(function (a, b) { return String(b.time).localeCompare(String(a.time)); }).slice(0, 14);
+  if (!rows.length) { $('ticker').style.display = 'none'; return; }
+  $('ticker').style.display = '';
+  var html = rows.map(function (c) {
+    var t = String(c.time || '').slice(11, 16);
+    var p = String(c.products || ''); if (p.length > 14) p = p.slice(0, 14) + '…';
+    return '<span class="tk"><span class="t">' + esc(t) + '</span>' + esc(c.customer || '') +
+      '<span class="sep">✦</span>' + esc(p) + '<span class="sep">✦</span><span class="amt">' + fmt(c.amount || 0) + '</span></span>';
+  }).join('');
+  var track = $('tickerTrack');
+  track.innerHTML = html + html;
+  track.style.setProperty('--tickDur', clamp(rows.length * 8, 50, 140) + 's');
+}
+
+/* ═════════ 4. Three.js 基礎 ═════════ */
+var renderer = new THREE.WebGLRenderer({ canvas: $('c'), antialias: !LITE, alpha: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, LITE ? 1 : 2));
 renderer.setSize(innerWidth, innerHeight);
-scene = new THREE.Scene();
-camera = new THREE.PerspectiveCamera(46, innerWidth / innerHeight, 0.1, 300);
-camera.position.copy(CAM_BASE);
-clock = new THREE.Clock();
+var scene = new THREE.Scene();
+var camera = new THREE.PerspectiveCamera(44, innerWidth / innerHeight, 0.1, 400);
+var clock = new THREE.Clock();
+var uTime = { value: 0 };
+
+var sunLight = new THREE.PointLight(0xffe2b0, 2.1, 0, 0);
+sunLight.position.set(0, 4, 0);
+scene.add(sunLight);
+scene.add(new THREE.AmbientLight(0x9aa8cc, 0.85));
 
 addEventListener('resize', function () {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
 });
+
+/* 相機：自動環繞 + 拖曳 + 視差 */
+var CAM_LOOK = new THREE.Vector3(0, 2, 0);
+var camYaw = 0, camYawTarget = 0, dragging = false, lastPX = 0;
+var mouseNX = 0, mouseNY = 0;
+$('c').addEventListener('pointerdown', function (e) { dragging = true; lastPX = e.clientX; $('c').classList.add('drag'); });
+addEventListener('pointerup', function () { dragging = false; $('c').classList.remove('drag'); });
 addEventListener('pointermove', function (e) {
+  if (dragging) { camYawTarget += (e.clientX - lastPX) * 0.004; lastPX = e.clientX; }
   if (e.pointerType === 'mouse') {
     mouseNX = (e.clientX / innerWidth) * 2 - 1;
     mouseNY = (e.clientY / innerHeight) * 2 - 1;
   }
 });
 
-/* ═════════ 4. 貼圖工廠（光暈 / 文字，全部 canvas 產生，零外部資源） ═════════ */
+/* ═════════ 5. 貼圖工廠（全 canvas 程序生成） ═════════ */
 function glowTexture(inner, outer) {
   var cv = document.createElement('canvas'); cv.width = cv.height = 128;
   var g = cv.getContext('2d');
@@ -294,7 +420,6 @@ function glowTexture(inner, outer) {
   return t;
 }
 var TEX_SOFT = glowTexture('rgba(255,255,255,1)', 'rgba(255,255,255,.28)');
-
 function makeGlow(colorHex, size, opacity) {
   var m = new THREE.SpriteMaterial({ map: TEX_SOFT, color: colorHex, transparent: true, opacity: opacity == null ? 0.9 : opacity, blending: THREE.AdditiveBlending, depthWrite: false });
   var s = new THREE.Sprite(m); s.scale.set(size, size, 1);
@@ -304,10 +429,9 @@ function makeLabel(lines, opt) {
   opt = opt || {};
   var fs = opt.fs || 26, sub = opt.sub || 20, pad = 14;
   var cv = document.createElement('canvas'), g = cv.getContext('2d');
-  g.font = '600 ' + fs + 'px Montserrat, "PingFang TC", sans-serif';
   var w = 10;
   lines.forEach(function (ln, i) {
-    g.font = (i === 0 ? '600 ' + fs : '400 ' + sub) + 'px Montserrat, "PingFang TC", sans-serif';
+    g.font = (i === 0 ? '700 ' + fs : '400 ' + sub) + 'px Montserrat, "PingFang TC", sans-serif';
     w = Math.max(w, g.measureText(ln).width);
   });
   var lh = fs + 8, lhs = sub + 6;
@@ -317,21 +441,95 @@ function makeLabel(lines, opt) {
   g.textAlign = 'center'; g.textBaseline = 'middle';
   var y = pad + lh / 2;
   lines.forEach(function (ln, i) {
-    g.font = (i === 0 ? '600 ' + fs : '400 ' + sub) + 'px Montserrat, "PingFang TC", sans-serif';
-    g.shadowColor = opt.glow || 'rgba(120,140,255,.9)'; g.shadowBlur = 12;
-    g.fillStyle = i === 0 ? (opt.color || '#f3e9c8') : (opt.subColor || '#9aa4d6');
+    g.font = (i === 0 ? '700 ' + fs : '400 ' + sub) + 'px Montserrat, "PingFang TC", sans-serif';
+    g.shadowColor = opt.glow || 'rgba(10,20,50,.95)'; g.shadowBlur = 10;
+    g.fillStyle = i === 0 ? (opt.color || '#eaf0ff') : (opt.subColor || '#93a3d0');
     g.fillText(ln, cv.width / 2, y);
     y += lhs;
   });
   var t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
   var m = new THREE.SpriteMaterial({ map: t, transparent: true, opacity: opt.opacity == null ? 0.95 : opt.opacity, depthWrite: false });
   var s = new THREE.Sprite(m);
-  var k = opt.scale || 0.028;
+  var k = opt.scale || 0.026;
   s.scale.set(cv.width * k, cv.height * k, 1);
   return s;
 }
+/* 行星貼圖：橫向色帶 + 噪點 */
+function planetTexture(baseHex, style) {
+  var cv = document.createElement('canvas'); cv.width = 128; cv.height = 64;
+  var g = cv.getContext('2d');
+  var c = new THREE.Color(baseHex);
+  g.fillStyle = '#' + c.getHexString(); g.fillRect(0, 0, 128, 64);
+  if (style === 'banded') {
+    for (var b = 0; b < 9; b++) {
+      var yb = b * 7 + (Math.random() * 4 - 2);
+      var shade = c.clone().offsetHSL(0, Math.random() * 0.06 - 0.03, (b % 2 ? -1 : 1) * (0.05 + Math.random() * 0.07));
+      g.fillStyle = '#' + shade.getHexString();
+      g.globalAlpha = 0.85;
+      g.fillRect(0, yb, 128, 5 + Math.random() * 4);
+    }
+    g.globalAlpha = 1;
+  } else {
+    for (var s2 = 0; s2 < 26; s2++) {
+      var shade2 = c.clone().offsetHSL(0, 0, (Math.random() - 0.5) * 0.2);
+      g.fillStyle = '#' + shade2.getHexString();
+      g.globalAlpha = 0.5;
+      g.beginPath();
+      g.ellipse(Math.random() * 128, Math.random() * 64, 4 + Math.random() * 10, 2.5 + Math.random() * 5, 0, 0, 7);
+      g.fill();
+    }
+    g.globalAlpha = 1;
+  }
+  var t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+/* 地球貼圖：海洋 + 大陸 + 雲 + 極冠 */
+function earthTexture() {
+  var cv = document.createElement('canvas'); cv.width = 256; cv.height = 128;
+  var g = cv.getContext('2d');
+  var oc = g.createLinearGradient(0, 0, 0, 128);
+  oc.addColorStop(0, '#1c4f8f'); oc.addColorStop(.5, '#1e63b0'); oc.addColorStop(1, '#1c4f8f');
+  g.fillStyle = oc; g.fillRect(0, 0, 256, 128);
+  for (var i = 0; i < 16; i++) {
+    var cx = Math.random() * 256, cy = 20 + Math.random() * 88;
+    g.fillStyle = i % 3 ? '#3f9155' : '#4fa361';
+    for (var j = 0; j < 7; j++) {
+      g.beginPath();
+      g.ellipse(cx + (Math.random() - .5) * 34, cy + (Math.random() - .5) * 20, 5 + Math.random() * 13, 3.5 + Math.random() * 8, Math.random() * 3, 0, 7);
+      g.fill();
+    }
+  }
+  g.fillStyle = 'rgba(240,248,255,.92)';
+  g.fillRect(0, 0, 256, 7); g.fillRect(0, 121, 256, 7);
+  g.fillStyle = 'rgba(255,255,255,.35)';
+  for (var k2 = 0; k2 < 34; k2++) {
+    g.beginPath();
+    g.ellipse(Math.random() * 256, Math.random() * 128, 4 + Math.random() * 9, 1.5 + Math.random() * 2.5, 0, 0, 7);
+    g.fill();
+  }
+  var t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+/* 太陽貼圖：火焰噪點 */
+function sunTexture() {
+  var cv = document.createElement('canvas'); cv.width = 256; cv.height = 128;
+  var g = cv.getContext('2d');
+  g.fillStyle = '#ff9a2e'; g.fillRect(0, 0, 256, 128);
+  for (var i = 0; i < 620; i++) {
+    var cols = ['#ffd24d', '#ffb63a', '#ff8c1f', '#ffe89a', '#ff7a12', '#ffc133'];
+    g.fillStyle = cols[(Math.random() * cols.length) | 0];
+    g.globalAlpha = 0.3 + Math.random() * 0.35;
+    g.beginPath();
+    g.ellipse(Math.random() * 256, Math.random() * 128, 1.5 + Math.random() * 6, 1 + Math.random() * 3.5, Math.random() * 3, 0, 7);
+    g.fill();
+  }
+  g.globalAlpha = 1;
+  var t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = THREE.RepeatWrapping;
+  return t;
+}
 
-/* ═════════ 5. 粒子 Shader（流線=貝茲曲線 / 軌道=圓周參數式，動畫全在 GPU） ═════════ */
+/* ═════════ 6. 粒子 shader（引擎尾流 / 星空 / 衛星帶 / 彗星） ═════════ */
 var STREAM_VERT = `
 attribute vec3 aP0; attribute vec3 aP1; attribute vec3 aP2;
 attribute float aDelay; attribute float aSpeed; attribute float aSize; attribute float aSeed;
@@ -345,10 +543,9 @@ void main() {
   vec3 pos = mix(p01, p12, t);
   vec3 tang = normalize(p12 - p01 + vec3(1e-4));
   vec3 side = normalize(cross(tang, vec3(0.0, 1.0, 0.0)) + vec3(1e-4));
-  float wob = sin(uTime * (1.2 + aSeed * 2.4) + aSeed * 43.0) * (0.12 + aSeed * 0.3);
+  float wob = sin(uTime * (1.2 + aSeed * 2.4) + aSeed * 43.0) * (0.05 + aSeed * 0.12);
   pos += side * wob;
-  pos.y += cos(uTime * (0.9 + aSeed * 1.7) + aSeed * 29.0) * 0.14;
-  vFade = smoothstep(0.0, 0.10, t) * (1.0 - smoothstep(0.82, 1.0, t));
+  vFade = smoothstep(0.0, 0.08, t) * (1.0 - smoothstep(0.8, 1.0, t));
   vColor = aColor;
   vec4 mv = modelViewMatrix * vec4(pos, 1.0);
   float tw = 0.8 + 0.35 * sin(uTime * (2.0 + aSeed * 3.0) + aSeed * 91.0);
@@ -364,9 +561,8 @@ uniform float uTime; uniform float uPx;
 varying vec3 vColor; varying float vFade;
 void main() {
   float a = aAngle0 + uTime * aAngSpeed;
-  float r = aRadius * (1.0 + 0.02 * sin(uTime * 0.7 + aSeed * 37.0));
-  vec3 pos = aCenter + (cos(a) * aU + sin(a) * aV) * r;
-  pos.y += sin(uTime * (0.5 + aSeed) + aSeed * 53.0) * 0.18;
+  vec3 pos = aCenter + (cos(a) * aU + sin(a) * aV) * aRadius;
+  pos.y += sin(uTime * (0.5 + aSeed) + aSeed * 53.0) * 0.06;
   vFade = 1.0;
   vColor = aColor;
   vec4 mv = modelViewMatrix * vec4(pos, 1.0);
@@ -391,10 +587,7 @@ function pointsMaterial(vert) {
     transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
   });
 }
-
-/* 建立流線粒子集（多條貝茲流共用一個 Points = 1 draw call） */
 function buildStreamPoints(specs) {
-  // specs: [{p0,p1,p2, n, color:[THREE.Color,...], size, speed:[min,max]}]
   var total = 0; specs.forEach(function (s) { total += s.n; });
   var P0 = new Float32Array(total * 3), P1 = new Float32Array(total * 3), P2 = new Float32Array(total * 3);
   var DL = new Float32Array(total), SP = new Float32Array(total), SZ = new Float32Array(total), SD = new Float32Array(total);
@@ -414,7 +607,7 @@ function buildStreamPoints(specs) {
     }
   });
   var g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(total * 3), 3)); // 佔位（實際位置由 shader 算）
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(total * 3), 3));
   g.setAttribute('aP0', new THREE.BufferAttribute(P0, 3));
   g.setAttribute('aP1', new THREE.BufferAttribute(P1, 3));
   g.setAttribute('aP2', new THREE.BufferAttribute(P2, 3));
@@ -423,14 +616,11 @@ function buildStreamPoints(specs) {
   g.setAttribute('aSize', new THREE.BufferAttribute(SZ, 1));
   g.setAttribute('aSeed', new THREE.BufferAttribute(SD, 1));
   g.setAttribute('aColor', new THREE.BufferAttribute(CL, 3));
-  g.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 8, 0), 90);
   var pts = new THREE.Points(g, pointsMaterial(STREAM_VERT));
   pts.frustumCulled = false;
   return pts;
 }
-/* 建立軌道粒子集（所有環/盤/星空共用一個 Points = 1 draw call） */
 function buildOrbitPoints(specs) {
-  // specs: [{center,u,v, r:[min,max], n, colors, size, spd:[min,max], arc:[a0,a1]}]
   var total = 0; specs.forEach(function (s) { total += s.n; });
   var CT = new Float32Array(total * 3), U = new Float32Array(total * 3), V = new Float32Array(total * 3);
   var R = new Float32Array(total), A0 = new Float32Array(total), AS = new Float32Array(total);
@@ -462,350 +652,477 @@ function buildOrbitPoints(specs) {
   g.setAttribute('aSize', new THREE.BufferAttribute(SZ, 1));
   g.setAttribute('aSeed', new THREE.BufferAttribute(SD, 1));
   g.setAttribute('aColor', new THREE.BufferAttribute(CL, 3));
-  g.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 8, 0), 120);
   var pts = new THREE.Points(g, pointsMaterial(ORBIT_VERT));
   pts.frustumCulled = false;
   return pts;
 }
 
-/* ═════════ 6. 佈局常數與色票 ═════════ */
-var CORE = new THREE.Vector3(0, 8, 0);
-var COL = {
-  gold: new THREE.Color('#ffd98e'), goldHi: new THREE.Color('#fff3cf'),
-  pink: new THREE.Color('#ff4fc3'), pinkHi: new THREE.Color('#ff9ede'),
-  cyan: new THREE.Color('#4ff5e8'), violet: new THREE.Color('#9b5cff'),
-  blue: new THREE.Color('#5c8dff'), silver: new THREE.Color('#7a88b8'),
-  dim: new THREE.Color('#2a3358')
-};
-var SRC_COLS = [COL.gold, COL.pink, COL.cyan, COL.violet, COL.blue];
-var TIER_COLS = [new THREE.Color('#ffd98e'), new THREE.Color('#ff9e6b'), new THREE.Color('#ff4fc3'), new THREE.Color('#7a6bff'), new THREE.Color('#3d4e7a')];
+/* ═════════ 7. 星系建構 ═════════ */
 var FLAT_U = new THREE.Vector3(1, 0, 0), FLAT_V = new THREE.Vector3(0, 0, 1);
+var SUN_POS = new THREE.Vector3(0, 4, 0);
+var SRC_COLS = [0xffd98e, 0xff6fb8, 0x4ff5e8, 0xa77bff, 0x6fa8ff];
+var GEM_COLS = [0xffd166, 0xff7bc0, 0x7be0ff, 0xb08cff, 0x8affc1, 0xffa3a3];
+var PLANET_STYLES = [
+  [0xc9a06a, 'banded'], [0x6fc4b8, 'spot'], [0xd98a6a, 'spot'], [0x8fa8d8, 'banded'],
+  [0xd6b25e, 'banded'], [0x9a7bd8, 'spot'], [0xdd7f9e, 'spot'], [0x7fc47f, 'spot'],
+  [0xc47f5a, 'banded'], [0x7f9fc4, 'spot'], [0xc4b07f, 'banded'], [0x9fd8d0, 'spot']
+];
 
-/* 月環傾斜面（微傾 14°，後方略高，像星環） */
-var RING_TILT = -14 * Math.PI / 180;
-var RING_U = new THREE.Vector3(1, 0, 0);
-var RING_V = new THREE.Vector3(0, Math.sin(RING_TILT), Math.cos(RING_TILT));
-
-/* ═════════ 7. 依資料建構整條星河（資料更新時整組重建） ═════════ */
-var gal = null;        // 動態群組
-var hitNodes = [];     // 供 raycast 的隱形節點
-var coreSprites = [];  // 核心脈動用
-var currentMonthSprite = null;
+var gal = null;
+var hitMeshes = [];
+var planets = [];   // {pivot, mesh, label, orbitR, speed, angle}
+var ships = null, shipData = [];
+var gems = [];
+var sunMesh = null, coronaSprites = [], beaconSprite = null;
+var earthMesh = null, earthCloud = null;
 
 function disposeGroup(gr) {
   gr.traverse(function (o) {
     if (o.geometry) o.geometry.dispose();
-    if (o.material) {
-      if (o.material.map && o.material.map !== TEX_SOFT) o.material.map.dispose();
-      o.material.dispose();
-    }
+    var mats = Array.isArray(o.material) ? o.material : o.material ? [o.material] : [];
+    mats.forEach(function (m) {
+      if (m.map && m.map !== TEX_SOFT) m.map.dispose();
+      m.dispose();
+    });
   });
 }
-
-function addHit(pos, radius, info) {
-  var m = new THREE.Mesh(new THREE.SphereGeometry(radius, 6, 5), new THREE.MeshBasicMaterial({ visible: false }));
-  m.position.copy(pos);
-  m.userData = info;
-  gal.add(m); hitNodes.push(m);
-  return m;
+function qb(p0, p1, p2, t, out) {
+  var a = (1 - t) * (1 - t), b = 2 * (1 - t) * t, c = t * t;
+  out.set(a * p0.x + b * p1.x + c * p2.x, a * p0.y + b * p1.y + c * p2.y, a * p0.z + b * p1.z + c * p2.z);
+  return out;
 }
 
-function buildGalaxy() {
+function buildSystem() {
   if (!D) return;
   if (gal) { scene.remove(gal); disposeGroup(gal); }
   gal = new THREE.Group(); scene.add(gal);
-  hitNodes = []; coreSprites = []; currentMonthSprite = null;
+  hitMeshes = []; planets = []; shipData = []; gems = []; coronaSprites = []; beaconSprite = null;
 
-  var K = LITE ? 0.34 : 1;  // 粒子縮放係數
-  var streams = [], orbits = [];
+  var K = LITE ? 0.4 : 1;
+  var streams = [], orbitPts = [];
   var kpi = D.kpi || {};
 
-  /* —— 星空背景（軌道系統、角速度≈0 的定點閃爍星） —— */
-  for (var s = 0; s < (LITE ? 140 : 480); s++) {
-    var az = Math.random() * Math.PI * 2, el = Math.random() * 0.9 + 0.05, rr = 95 + Math.random() * 40;
-    orbits.push({
-      center: new THREE.Vector3(Math.cos(az) * Math.cos(el) * rr, Math.sin(el) * rr - 12, Math.sin(az) * Math.cos(el) * rr),
-      u: FLAT_U, v: FLAT_V, r: [0, 0.01], n: 1, colors: [COL.goldHi, COL.silver, COL.blue],
-      size: 1.6 + Math.random() * 2.2, spd: [0, 0]
+  /* —— 星空 —— */
+  for (var s = 0; s < (LITE ? 160 : 520); s++) {
+    var az = Math.random() * Math.PI * 2, el = Math.random() * Math.PI - Math.PI / 2, rr = 120 + Math.random() * 60;
+    orbitPts.push({
+      center: new THREE.Vector3(Math.cos(az) * Math.cos(el) * rr, Math.sin(el) * rr * 0.6, Math.sin(az) * Math.cos(el) * rr),
+      u: FLAT_U, v: FLAT_V, r: [0, 0.01], n: 1,
+      colors: [new THREE.Color(0xffffff), new THREE.Color(0xbfd4ff), new THREE.Color(0xffe6c8)],
+      size: 1.4 + Math.random() * 2.2, spd: [0, 0]
+    });
+  }
+  /* 星雲底色 */
+  var neb1 = makeGlow(0x24175e, 110, 0.15); neb1.position.set(-40, 26, -60); gal.add(neb1);
+  var neb2 = makeGlow(0x0c3a4c, 100, 0.13); neb2.position.set(46, 14, -66); gal.add(neb2);
+
+  /* —— 太陽（本月營收） —— */
+  var pct = D.target > 0 ? clamp((kpi.rev_mtd || 0) / D.target, 0, 1.5) : 0.5;
+  var sunR = 3.4 + pct * 1.2;
+  sunMesh = new THREE.Mesh(new THREE.SphereGeometry(sunR, 40, 24), new THREE.MeshBasicMaterial({ map: sunTexture() }));
+  sunMesh.position.copy(SUN_POS);
+  sunMesh.userData = { kind: 'sun' };
+  gal.add(sunMesh); hitMeshes.push(sunMesh);
+  [[sunR * 3.2, 0.5, 0xffb347], [sunR * 4.8, 0.26, 0xff8c3a], [sunR * 6.5, 0.1, 0xffd98e]].forEach(function (cfg) {
+    var sp = makeGlow(cfg[2], cfg[0], cfg[1]);
+    sp.position.copy(SUN_POS); gal.add(sp); coronaSprites.push(sp);
+  });
+  var sunLbl = makeLabel([fmtWan(kpi.rev_mtd || 0), (D.meta && D.meta.report_month || '本月') + ' 營收 · 達成 ' + Math.round(pct * 100) + '%'],
+    { fs: 34, sub: 19, scale: 0.028, color: '#fff3cf', glow: 'rgba(255,150,50,.55)' });
+  sunLbl.position.set(SUN_POS.x, SUN_POS.y + sunR + 3.2, SUN_POS.z);
+  gal.add(sunLbl);
+  // 太陽金流光暈：三圈不同傾角的金色光點高速環繞（收入能量）
+  for (var hi = 0; hi < 3; hi++) {
+    var ht = 0.4 + hi * 0.5;
+    orbitPts.push({
+      center: SUN_POS,
+      u: new THREE.Vector3(Math.cos(hi), Math.sin(hi) * 0.4, Math.sin(hi) * 0.3).normalize(),
+      v: new THREE.Vector3(-Math.sin(hi) * 0.3, Math.cos(ht), Math.sin(ht)).normalize(),
+      r: [sunR + 0.7 + hi * 0.7, sunR + 1.6 + hi * 0.7],
+      n: Math.round(150 * K),
+      colors: [new THREE.Color(0xffe9a8), new THREE.Color(0xffc65e)],
+      size: 2.0, spd: hi % 2 ? [-0.75, -0.4] : [0.4, 0.75]
     });
   }
 
-  /* —— 客戶星系盤（腳下 5 圈環帶 = active_tiers，密度 ∝ 人數） —— */
-  var tiers = (D.active_tiers || []).slice(0, 5);
-  var totalTier = 1; tiers.forEach(function (t) { totalTier += t.count || 0; });
-  var diskC = new THREE.Vector3(0, 0.4, 0);
-  tiers.forEach(function (t, ti) {
-    var n = Math.max(30, Math.round(5200 * K * (t.count || 0) / totalTier));
-    orbits.push({
-      center: diskC, u: FLAT_U, v: FLAT_V,
-      r: [5.5 + ti * 3.8, 8.9 + ti * 3.8], n: n,
-      colors: [TIER_COLS[ti], TIER_COLS[ti]],
-      size: 2.7 - ti * 0.2,
-      spd: ti % 2 ? [-0.10 - 0.02 * ti, -0.05] : [0.05, 0.10 + 0.02 * ti]
-    });
-  });
-  // 星盤圖例（單一合併標籤，避免與光河日期標籤互相干擾）
-  if (tiers.length) {
-    var tl1 = tiers.slice(0, 3).map(function (t) { return t.name + ' ' + (t.count || 0); }).join('　');
-    var tl2 = tiers.slice(3).map(function (t) { return t.name + ' ' + (t.count || 0); }).join('　');
-    var tierLbl = makeLabel(['客 戶 星 盤', tl1, tl2].filter(Boolean), { fs: 18, sub: 15, color: '#c9b8ff', subColor: '#7d86b8', scale: 0.021, opacity: 0.8, glow: 'rgba(60,50,130,.8)' });
-    tierLbl.position.set(-23.5, 3.6, 8);
-    gal.add(tierLbl);
-  }
-
-  /* —— 品牌核心（本月營收）＋ 頂部金泉 —— */
-  var coreHalo = makeGlow(0xffd98e, 11, 0.5); coreHalo.position.copy(CORE); gal.add(coreHalo);
-  var coreMid = makeGlow(0xfff3cf, 6.5, 0.85); coreMid.position.copy(CORE); gal.add(coreMid);
-  var coreIn = makeGlow(0xffffff, 3.2, 1); coreIn.position.copy(CORE); gal.add(coreIn);
-  coreSprites = [coreHalo, coreMid, coreIn];
-  var pct = D.target > 0 ? clamp((kpi.rev_mtd || 0) / D.target, 0, 1.5) : 0;
-  var coreLbl = makeLabel([fmtCompact(kpi.rev_mtd || 0), (D.meta && D.meta.report_month || '本月') + ' 營收 · 達成 ' + Math.round(pct * 100) + '%'], { fs: 34, sub: 19, scale: 0.030, glow: 'rgba(246,196,83,.7)' });
-  coreLbl.position.set(CORE.x, CORE.y - 3.4, CORE.z + 1);
-  gal.add(coreLbl);
-  addHit(CORE, 3.6, { kind: 'core' });
-  // 金泉：核心上方緩緩升起消散的粒子（多束隨機彎曲，呈噴泉狀）
-  for (var fi2 = 0; fi2 < 7; fi2++) {
-    var fa = fi2 / 7 * Math.PI * 2;
-    var spread = 1.2 + Math.random() * 2.4;
-    streams.push({
-      p0: CORE.clone(),
-      p1: CORE.clone().add(new THREE.Vector3(Math.cos(fa) * spread * 0.7, 6.5 + Math.random() * 2, Math.sin(fa) * spread * 0.4 - 0.6)),
-      p2: CORE.clone().add(new THREE.Vector3(Math.cos(fa) * spread * 1.8, 11.5 + Math.random() * 2.5, Math.sin(fa) * spread - 1)),
-      n: Math.round(55 * K), colors: [COL.goldHi, COL.gold], size: 2.4, speed: [0.05, 0.11]
-    });
-  }
-  // 背景彗星帶（純氛圍：跨越天際的緩慢金色流）
-  streams.push({
-    p0: new THREE.Vector3(-62, 36, -48), p1: new THREE.Vector3(-4, 27, -55), p2: new THREE.Vector3(58, 21, -42),
-    n: Math.round(160 * K), colors: [COL.goldHi, COL.silver], size: 2.6, speed: [0.015, 0.035]
-  });
-
-  /* —— 年度進度光環（核心外圈，面向鏡頭的直立圓；亮弧=達成比例） —— */
-  var ytd = ytdSum();
-  var yPct = annualTarget > 0 ? clamp(ytd / annualTarget, 0, 1) : 0;
-  var ringU = new THREE.Vector3(0, 1, 0), ringV = new THREE.Vector3(1, 0, 0); // 12 點鐘起順時針（面向 +Z）
-  if (annualTarget > 0) {
-    orbits.push({ center: CORE, u: ringU, v: ringV, r: [7.3, 7.42], n: Math.round(620 * K * yPct) + 10, colors: [COL.goldHi, COL.pinkHi], size: 2.9, spd: [0, 0], arc: [0, Math.PI * 2 * yPct] });
-    orbits.push({ center: CORE, u: ringU, v: ringV, r: [7.32, 7.4], n: Math.round(200 * K * (1 - yPct)) + 10, colors: [COL.dim], size: 1.7, spd: [0, 0], arc: [Math.PI * 2 * yPct, Math.PI * 2] });
-    var yLbl = makeLabel(['年度 ' + Math.round(yPct * 100) + '%', fmtCompact(ytd) + ' / ' + fmtCompact(annualTarget)], { fs: 22, sub: 16, color: '#ff9ede', scale: 0.026, opacity: 0.9, glow: 'rgba(255,79,195,.55)' });
-    yLbl.position.set(CORE.x, CORE.y + 7.6, CORE.z);
-    gal.add(yLbl);
-  }
-
-  /* —— 左岸：流量來源 → 核心（粒子流量 ∝ 訂單占比） —— */
-  var srcs = (D.sources || []).slice(0, 5);
-  var totOrd = 1; srcs.forEach(function (s) { totOrd += s.orders || 0; });
-  srcs.forEach(function (s, i) {
-    var a = (146 + i * 21) * Math.PI / 180;   // 146°..230°（左後→左前扇形展開）
-    var pos = new THREE.Vector3(Math.cos(a) * 29, 16 - i * 2.4, Math.sin(a) * 19);
-    var col = SRC_COLS[i % SRC_COLS.length];
-    var node = makeGlow(col.getHex(), 3.6, 0.95); node.position.copy(pos); gal.add(node);
-    var share = (s.orders || 0) / totOrd;
-    var lbl = makeLabel([s.src || '來源', Math.round(share * 100) + '% · ' + fmtCompact(s.rev || 0)], { fs: 22, sub: 16, color: '#' + col.getHexString(), scale: 0.026, glow: 'rgba(30,40,90,.95)' });
-    lbl.position.copy(pos).add(new THREE.Vector3(0, 2.4, 0));
-    gal.add(lbl);
-    var mid = pos.clone().lerp(CORE, 0.45).add(new THREE.Vector3(pos.x * 0.10, 3.2, 4.5));
-    streams.push({ p0: pos.clone(), p1: mid, p2: CORE.clone(), n: Math.max(160, Math.round(2600 * K * share)), colors: [col, COL.goldHi], size: 2.7, speed: [0.045, 0.11] });
-    addHit(pos, 2.8, { kind: 'src', d: s, share: share, col: col });
-  });
-
-  /* —— 右岸：核心 → 熱銷商品（流量 ∝ 營收占比） —— */
-  var prods = (D.prod_rev || []).slice(0, 6);
-  var totPRev = 1; prods.forEach(function (p) { totPRev += p.rev || 0; });
-  prods.forEach(function (p, i) {
-    var a = (34 - i * 16) * Math.PI / 180;    // 34°..-46°（右後→右前扇形展開）
-    var pos = new THREE.Vector3(Math.cos(a) * 26.5, 16.5 - i * 2.1, Math.sin(a) * 19);
-    var col = i < 2 ? COL.gold : i < 4 ? COL.pinkHi : COL.violet;
-    var node = makeGlow(col.getHex(), 2.6 + (1 - i / 6) * 1.2, 0.95); node.position.copy(pos); gal.add(node);
-    var nm = String(p.name || '商品');
-    if (nm.length > 8) nm = nm.slice(0, 8) + '…';
-    var lbl = makeLabel([nm, fmtCompact(p.rev || 0) + ' · ' + (p.qty || 0) + ' 件'], { fs: 21, sub: 15, color: '#' + col.getHexString(), scale: 0.025, glow: 'rgba(30,40,90,.95)' });
-    lbl.position.copy(pos).add(new THREE.Vector3(pos.x > 22 ? -3 : 0, 2.1, 0));
-    gal.add(lbl);
-    var share = (p.rev || 0) / totPRev;
-    var mid = CORE.clone().lerp(pos, 0.45).add(new THREE.Vector3(pos.x * 0.10, 3.2, 4.5));
-    streams.push({ p0: CORE.clone(), p1: mid, p2: pos.clone(), n: Math.max(120, Math.round(2200 * K * share)), colors: [COL.goldHi, col], size: 2.6, speed: [0.05, 0.12] });
-    addHit(pos, 2.6, { kind: 'prod', d: p, rank: i + 1, col: col });
-  });
-
-  /* —— 月營收雙環（亮金=今年、暗銀=去年；每月 30° 弧段密度 ∝ 營收） —— */
+  /* —— 12 顆月營收行星 —— */
   var m26 = D.monthly_26 || [], m25 = D.monthly_25 || [];
   var maxM = 1;
-  m26.concat(m25).forEach(function (m) { maxM = Math.max(maxM, m.rev || 0); });
+  m26.forEach(function (m) { maxM = Math.max(maxM, m.rev || 0); });
+  var maxI = -1, maxR = 0;
+  m26.forEach(function (m, i) { if ((m.rev || 0) > maxR) { maxR = m.rev || 0; maxI = i; } });
+  var orbitLineGeos = [];
   for (var mi = 0; mi < 12; mi++) {
-    var a0 = -Math.PI / 2 + mi * Math.PI / 6, a1 = a0 + Math.PI / 6;  // 1 月從正前方開始順時針
     var r26 = (m26[mi] || {}).rev || 0, r25 = (m25[mi] || {}).rev || 0;
-    if (r26 > 0) orbits.push({ center: CORE, u: RING_U, v: RING_V, r: [12.0, 13.0], n: Math.max(8, Math.round(230 * K * r26 / maxM)), colors: [COL.gold, COL.goldHi], size: 2.6, spd: [0.025, 0.05], arc: [a0 + 0.03, a1 - 0.03] });
-    if (r25 > 0) orbits.push({ center: CORE, u: RING_U, v: RING_V, r: [14.7, 15.4], n: Math.max(6, Math.round(150 * K * r25 / maxM)), colors: [COL.silver], size: 1.9, spd: [-0.05, -0.025], arc: [a0 + 0.03, a1 - 0.03] });
-    // 月份標籤 + 節點（放在兩環之間）
-    var am = (a0 + a1) / 2;
-    var mpos = CORE.clone().add(RING_U.clone().multiplyScalar(Math.cos(am) * 13.8)).add(RING_V.clone().multiplyScalar(Math.sin(am) * 13.8));
+    var orbitR = 8.6 + mi * 1.72;
     var isCur = !!(m26[mi] && m26[mi].current);
-    if (r26 > 0 || r25 > 0 || isCur) {
-      var mLbl = makeLabel([(mi + 1) + '月'], { fs: 18, color: isCur ? '#fff3cf' : '#8a93c0', scale: 0.020, opacity: r26 > 0 ? 0.85 : 0.4, glow: isCur ? 'rgba(246,196,83,.8)' : 'rgba(40,50,110,.8)' });
-      mLbl.position.copy(mpos).add(new THREE.Vector3(0, 1.0, 0));
-      gal.add(mLbl);
-      if (isCur) { currentMonthSprite = makeGlow(0xfff3cf, 2.4, 0.9); currentMonthSprite.position.copy(mpos); gal.add(currentMonthSprite); }
-      addHit(mpos, 1.8, { kind: 'month', i: mi, r26: r26, r25: r25 });
+    // 軌道線
+    var seg = 110, lpts = [];
+    for (var li = 0; li <= seg; li++) {
+      var la = li / seg * Math.PI * 2;
+      lpts.push(new THREE.Vector3(SUN_POS.x + Math.cos(la) * orbitR, SUN_POS.y, SUN_POS.z + Math.sin(la) * orbitR));
+    }
+    orbitLineGeos.push(new THREE.BufferGeometry().setFromPoints(lpts));
+    // 軌道資訊流：光點沿軌道飛馳（數量 ∝ 該月營收，未來月份留微弱訊號）
+    orbitPts.push({
+      center: SUN_POS, u: FLAT_U, v: FLAT_V,
+      r: [orbitR - 0.06, orbitR + 0.06],
+      n: r26 > 0 ? Math.max(10, Math.round(64 * K * r26 / maxM)) : Math.round(5 * K) + 2,
+      colors: [new THREE.Color(0xffe9b8), new THREE.Color(0x9fe8ff)],
+      size: r26 > 0 ? 1.9 : 1.3,
+      spd: mi % 2 ? [-0.34, -0.16] : [0.16, 0.34]
+    });
+    if (r26 <= 0 && !isCur) continue;   // 未來月份只留軌道線與微弱訊號
+    var pr = 0.55 + Math.pow(r26 / maxM, 0.7) * 0.85;
+    var pmesh = new THREE.Mesh(
+      new THREE.SphereGeometry(pr, 26, 18),
+      new THREE.MeshLambertMaterial({ map: planetTexture(PLANET_STYLES[mi][0], PLANET_STYLES[mi][1]), emissive: isCur ? 0x332211 : 0x000000 })
+    );
+    pmesh.userData = { kind: 'month', i: mi, r26: r26, r25: r25 };
+    gal.add(pmesh); hitMeshes.push(pmesh);
+    // 土星環：今年最大月
+    if (mi === maxI && r26 > 0) {
+      var ring = new THREE.Mesh(
+        new THREE.RingGeometry(pr * 1.5, pr * 2.3, 40),
+        new THREE.MeshBasicMaterial({ color: 0xe8cf9a, transparent: true, opacity: 0.55, side: THREE.DoubleSide })
+      );
+      ring.rotation.x = -Math.PI / 2 + 0.35;
+      pmesh.add(ring);
+    }
+    var lbl = makeLabel([(mi + 1) + '月 ' + fmtWan(r26)], { fs: 20, scale: 0.021, color: isCur ? '#fff3cf' : '#c8d4f4', opacity: isCur ? 1 : 0.85 });
+    gal.add(lbl);
+    planets.push({
+      mesh: pmesh, label: lbl, orbitR: orbitR, radius: pr,
+      angle: -Math.PI / 2 + mi * 2.4,
+      speed: (0.16 / Math.sqrt(orbitR / 8.6)) * (LITE ? 0.7 : 1),
+      isCur: isCur
+    });
+    if (isCur) {
+      beaconSprite = makeGlow(0xfff3cf, pr * 5, 0.7);
+      gal.add(beaconSprite);
+      // 當月衛星
+      var moon = new THREE.Mesh(new THREE.SphereGeometry(pr * 0.26, 12, 8), new THREE.MeshLambertMaterial({ color: 0xd8dce8 }));
+      pmesh.add(moon);
+      planets[planets.length - 1].moon = moon;
     }
   }
+  var mergedOrbit = mergeGeometries(orbitLineGeos.map(function (g2) {
+    // LineLoop 合併：轉成 line segments 頂點對
+    var pos = g2.getAttribute('position');
+    var segPts = [];
+    for (var i = 0; i < pos.count - 1; i++) {
+      segPts.push(pos.getX(i), pos.getY(i), pos.getZ(i), pos.getX(i + 1), pos.getY(i + 1), pos.getZ(i + 1));
+    }
+    var sg = new THREE.BufferGeometry();
+    sg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(segPts), 3));
+    return sg;
+  }), false);
+  orbitLineGeos.forEach(function (g2) { g2.dispose(); });
+  var orbitLines = new THREE.LineSegments(mergedOrbit, new THREE.LineBasicMaterial({ color: 0x3a4a7c, transparent: true, opacity: 0.35 }));
+  gal.add(orbitLines);
 
-  /* —— 前景：七日光河（水位高度 = 當日營收；顏色 = 達標程度） —— */
-  var days = ((D.last_7_days || {}).data || []).slice(-7);
-  var dt7 = (D.last_7_days && D.last_7_days.daily_target) || 150000;
-  if (days.length >= 2) {
-    var RIV_Z = 16.5, RIV_Y = 0.25, SPAN = 33;
-    var px = function (i) { return -SPAN / 2 + SPAN * i / (days.length - 1); };
-    var ph = function (d) { return RIV_Y + clamp((d.rev || 0) / dt7, 0, 1.6) * 2.7; };
-    var pts7 = days.map(function (d, i) { return new THREE.Vector3(px(i), ph(d), RIV_Z); });
-    // 帶狀水體（自訂漸層 shader：向上淡出 + 流動亮帶）
-    var SEG = 12, cols = (days.length - 1) * SEG + 1;
-    var rp = new Float32Array(cols * 2 * 3), ru = new Float32Array(cols * 2), rv = new Float32Array(cols * 2), rc = new Float32Array(cols * 2 * 3);
-    for (var ci = 0; ci < cols; ci++) {
-      var fi = ci / SEG, i0 = Math.min(days.length - 2, Math.floor(fi)), ft = fi - i0;
-      // Catmull-Rom 平滑高度
-      var pA = pts7[Math.max(0, i0 - 1)], pB = pts7[i0], pC = pts7[i0 + 1], pD2 = pts7[Math.min(days.length - 1, i0 + 2)];
-      var t2 = ft * ft, t3 = t2 * ft;
-      var hy = 0.5 * ((2 * pB.y) + (-pA.y + pC.y) * ft + (2 * pA.y - 5 * pB.y + 4 * pC.y - pD2.y) * t2 + (-pA.y + 3 * pB.y - 3 * pC.y + pD2.y) * t3);
-      var hx = pB.x + (pC.x - pB.x) * ft;
-      var ratio = clamp(((days[i0].rev || 0) * (1 - ft) + (days[i0 + 1].rev || 0) * ft) / dt7, 0, 1.2);
-      var cold = new THREE.Color('#3d5a8a'), warm = new THREE.Color('#ffd98e');
-      var cc = cold.clone().lerp(warm, clamp(ratio, 0, 1));
-      // 下緣 / 上緣兩個頂點（緞帶貼著波峰，厚度固定，不落地）
-      rp.set([hx, hy - 1.7, RIV_Z], ci * 6); rp.set([hx, hy, RIV_Z], ci * 6 + 3);
-      ru[ci * 2] = ru[ci * 2 + 1] = ci / (cols - 1);
-      rv[ci * 2] = 0; rv[ci * 2 + 1] = 1;
-      rc.set([cc.r, cc.g, cc.b], ci * 6); rc.set([cc.r, cc.g, cc.b], ci * 6 + 3);
-    }
-    var idx = [];
-    for (var qi = 0; qi < cols - 1; qi++) {
-      var b0 = qi * 2;
-      idx.push(b0, b0 + 1, b0 + 2, b0 + 1, b0 + 3, b0 + 2);
-    }
-    var rg = new THREE.BufferGeometry();
-    rg.setAttribute('position', new THREE.BufferAttribute(rp, 3));
-    rg.setAttribute('aU', new THREE.BufferAttribute(ru, 1));
-    rg.setAttribute('aV', new THREE.BufferAttribute(rv, 1));
-    rg.setAttribute('aCol', new THREE.BufferAttribute(rc, 3));
-    rg.setIndex(idx);
-    var riverMat = new THREE.ShaderMaterial({
-      uniforms: { uTime: uTime },
-      vertexShader: 'attribute float aU; attribute float aV; attribute vec3 aCol; varying float vU; varying float vV; varying vec3 vC; void main(){ vU=aU; vV=aV; vC=aCol; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
-      fragmentShader: 'precision mediump float; uniform float uTime; varying float vU; varying float vV; varying vec3 vC;' +
-        'void main(){ float body = mix(0.0, 0.12, vV*vV);' +
-        ' float flow = pow(max(sin(vU*42.0 - uTime*2.6), 0.0), 3.0) * 0.22 * vV;' +
-        ' float edge = smoothstep(0.72, 1.0, vV) * 0.5;' +
-        ' gl_FragColor = vec4(vC, body + flow + edge); }',
-      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide
+  /* —— 地球（客戶星球）＋ 衛星帶 —— */
+  var EARTH_POS = new THREE.Vector3(-26.5, 3.5, 13);
+  earthMesh = new THREE.Mesh(new THREE.SphereGeometry(3.1, 36, 24), new THREE.MeshLambertMaterial({ map: earthTexture() }));
+  earthMesh.position.copy(EARTH_POS);
+  var tiers = (D.active_tiers || []).slice(0, 5);
+  var totT = 0; tiers.forEach(function (t) { totT += t.count || 0; });
+  earthMesh.userData = { kind: 'earth', tiers: tiers, total: totT };
+  gal.add(earthMesh); hitMeshes.push(earthMesh);
+  var atmo = makeGlow(0x6fc4ff, 9, 0.38); atmo.position.copy(EARTH_POS); gal.add(atmo);
+  var TIER_COLS = [0xffd98e, 0xff9e6b, 0xff6fb8, 0x8b7bff, 0x51649c];
+  tiers.forEach(function (t, ti) {
+    var tilt = 0.5 + ti * 0.12;
+    var u = new THREE.Vector3(1, 0, 0);
+    var v = new THREE.Vector3(0, Math.sin(tilt), Math.cos(tilt));
+    orbitPts.push({
+      center: EARTH_POS, u: u, v: v,
+      r: [4.1 + ti * 0.85, 4.5 + ti * 0.85],
+      n: Math.max(60, Math.round(2100 * K * (t.count || 0) / Math.max(1, totT))),
+      colors: [new THREE.Color(TIER_COLS[ti])],
+      size: 1.9 - ti * 0.14,
+      spd: ti % 2 ? [-0.6, -0.35] : [0.35, 0.6]
     });
-    var river = new THREE.Mesh(rg, riverMat);
-    river.frustumCulled = false;
-    gal.add(river);
-    // 沿頂緣的流水粒子（貝茲鏈：中點平滑法）
-    for (var si = 0; si < days.length - 1; si++) {
-      var m0 = si === 0 ? pts7[0] : pts7[si].clone().lerp(pts7[si - 1], 0.5).lerp(pts7[si], 0.5).add(pts7[si]).multiplyScalar(0.5);
-      var p0s = si === 0 ? pts7[0].clone() : pts7[si - 1].clone().lerp(pts7[si], 0.5);
-      var p2s = si === days.length - 2 ? pts7[days.length - 1].clone() : pts7[si].clone().lerp(pts7[si + 1], 0.5);
-      streams.push({ p0: p0s.add(new THREE.Vector3(0, 0.2, 0)), p1: pts7[si].clone().lerp(pts7[si + 1], 0.5).add(new THREE.Vector3(0, 0.7, 0)), p2: p2s.add(new THREE.Vector3(0, 0.2, 0)), n: Math.round(130 * K), colors: [COL.goldHi, COL.cyan], size: 1.7, speed: [0.10, 0.22] });
+    // 每層再加一批較大的「衛星」亮點
+    orbitPts.push({
+      center: EARTH_POS, u: u, v: v,
+      r: [4.2 + ti * 0.85, 4.4 + ti * 0.85],
+      n: Math.round(14 * K) + 4,
+      colors: [new THREE.Color(0xeaf4ff), new THREE.Color(TIER_COLS[ti])],
+      size: 3.2,
+      spd: ti % 2 ? [-0.8, -0.5] : [0.5, 0.8]
+    });
+  });
+  var eLbl = makeLabel(['客戶星球', '共 ' + totT.toLocaleString() + ' 位 · 5 層衛星帶'], { fs: 24, sub: 17, scale: 0.024, color: '#a8d8ff' });
+  eLbl.position.copy(EARTH_POS).add(new THREE.Vector3(0, 8.2, 0));
+  gal.add(eLbl);
+
+  /* —— 5 座太空站（訂單來源）＋ 貨運航線 —— */
+  var srcs = (D.sources || []).slice(0, 5);
+  var totO = 1; srcs.forEach(function (s2) { totO += s2.orders || 0; });
+  var shipGeo = (function () {
+    var body = new THREE.CylinderGeometry(0.13, 0.2, 0.62, 8);
+    body.rotateX(Math.PI / 2);
+    var nose = new THREE.ConeGeometry(0.13, 0.34, 8);
+    nose.rotateX(Math.PI / 2); nose.translate(0, 0, 0.48);
+    var wing = new THREE.BoxGeometry(0.72, 0.05, 0.24);
+    wing.translate(0, 0, -0.1);
+    var fin = new THREE.BoxGeometry(0.05, 0.3, 0.2);
+    fin.translate(0, 0.14, -0.2);
+    return mergeGeometries([body, nose, wing, fin], false);
+  })();
+  var totalShips = 0;
+  var routes = [];
+  srcs.forEach(function (s2, i) {
+    var a = (140 + i * 24) * Math.PI / 180;
+    var pos = new THREE.Vector3(Math.cos(a) * 34.5, 15 - i * 2.4, Math.sin(a) * 24 - 8);
+    var col = new THREE.Color(SRC_COLS[i % SRC_COLS.length]);
+    // 太空站：環 + 核心
+    var st = new THREE.Group();
+    var torus = new THREE.Mesh(new THREE.TorusGeometry(1.15, 0.16, 10, 26), new THREE.MeshLambertMaterial({ color: 0x9aa8c8 }));
+    var core = new THREE.Mesh(new THREE.SphereGeometry(0.62, 14, 10), new THREE.MeshLambertMaterial({ color: col, emissive: col, emissiveIntensity: 0.35 }));
+    var spoke = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.3, 6), new THREE.MeshLambertMaterial({ color: 0x707c9c }));
+    st.add(torus); st.add(core); st.add(spoke);
+    st.position.copy(pos);
+    st.rotation.set(0.6, 0.4 + i, 0);
+    core.userData = { kind: 'src', d: s2, share: (s2.orders || 0) / totO };
+    gal.add(st); hitMeshes.push(core);
+    var glow = makeGlow(col.getHex(), 3.6, 0.5); glow.position.copy(pos); gal.add(glow);
+    var share = (s2.orders || 0) / totO;
+    var lbl = makeLabel([s2.src || '來源', Math.round(share * 100) + '% · ' + fmtWan(s2.rev || 0)], { fs: 21, sub: 16, scale: 0.024, color: '#' + col.getHexString() });
+    lbl.position.copy(pos).add(new THREE.Vector3(0, 2.5 + (i % 2) * 1.4, 0));
+    gal.add(lbl);
+    // 航線（貝茲）＋ 引擎尾流：每條來源航線多艘艦隊魚貫飛行
+    var mid = pos.clone().lerp(SUN_POS, 0.5).add(new THREE.Vector3(pos.x * 0.08, 5, 3));
+    var mid2 = pos.clone().lerp(SUN_POS, 0.45).add(new THREE.Vector3(pos.x * 0.04, 8.5, -2));
+    var nShips = Math.max(4, Math.round(share * 46 * (LITE ? 0.5 : 1)));
+    var dock = SUN_POS.clone().add(pos.clone().sub(SUN_POS).normalize().multiplyScalar(sunR + 1.6));
+    routes.push({ p0: pos.clone(), p1: mid, p2: dock.clone().add(new THREE.Vector3(0, 0.6, 0)), n: Math.ceil(nShips * 0.6), col: col, speed: 0.045 + share * 0.025, sc: 1.05 });
+    routes.push({ p0: pos.clone(), p1: mid2, p2: dock.clone().add(new THREE.Vector3(0, 1.6, 0)), n: Math.floor(nShips * 0.4), col: col, speed: 0.04 + share * 0.02, sc: 0.85 });
+    streams.push({ p0: pos.clone(), p1: mid, p2: SUN_POS.clone(), n: Math.round(520 * K * Math.max(share, 0.12)), colors: [col, new THREE.Color(0xffffff)], size: 1.8, speed: [0.045, 0.1] });
+  });
+
+  /* —— 客流接駁：地球 ↔ 太陽 雙向航班（青白色） —— */
+  var CYAN = new THREE.Color(0x9feaff), WHITE = new THREE.Color(0xf2f8ff);
+  [
+    { p1: EARTH_POS.clone().lerp(SUN_POS, 0.5).add(new THREE.Vector3(0, 8, 4)), n: 6 },
+    { p1: EARTH_POS.clone().lerp(SUN_POS, 0.45).add(new THREE.Vector3(2, 12, -3)), n: 5 },
+    { p1: EARTH_POS.clone().lerp(SUN_POS, 0.55).add(new THREE.Vector3(-2, 5, 9)), n: 5 }
+  ].forEach(function (rc) {
+    routes.push({ p0: EARTH_POS.clone().add(new THREE.Vector3(0, 1.5, 0)), p1: rc.p1, p2: SUN_POS.clone().add(EARTH_POS.clone().sub(SUN_POS).normalize().multiplyScalar(sunR + 1.4)), n: rc.n, col: CYAN, speed: 0.05, sc: 0.8 });
+    streams.push({ p0: EARTH_POS.clone(), p1: rc.p1, p2: SUN_POS.clone(), n: Math.round(200 * K), colors: [CYAN, WHITE], size: 1.6, speed: [0.05, 0.11] });
+  });
+  [
+    { p1: SUN_POS.clone().lerp(EARTH_POS, 0.5).add(new THREE.Vector3(0, 11, -5)), n: 4 },
+    { p1: SUN_POS.clone().lerp(EARTH_POS, 0.55).add(new THREE.Vector3(3, 6, 7)), n: 4 }
+  ].forEach(function (rc) {
+    routes.push({ p0: SUN_POS.clone().add(EARTH_POS.clone().sub(SUN_POS).normalize().multiplyScalar(sunR + 1.4)), p1: rc.p1, p2: EARTH_POS.clone().add(new THREE.Vector3(0, 2, 0)), n: rc.n, col: WHITE, speed: 0.048, sc: 0.75 });
+    streams.push({ p0: SUN_POS.clone(), p1: rc.p1, p2: EARTH_POS.clone(), n: Math.round(150 * K), colors: [WHITE, CYAN], size: 1.5, speed: [0.05, 0.1] });
+  });
+
+  /* —— 6 顆寶石隕石（熱銷商品） —— */
+  var prods = (D.prod_rev || []).slice(0, 6);
+  var maxP = 1; prods.forEach(function (p) { maxP = Math.max(maxP, p.rev || 0); });
+  prods.forEach(function (p, i) {
+    var a = (56 - i * 20) * Math.PI / 180;
+    var pos = new THREE.Vector3(Math.cos(a) * 35, 17 - i * 3.0, Math.sin(a) * 25 - 6);
+    var col = new THREE.Color(GEM_COLS[i % GEM_COLS.length]);
+    var gr = 0.55 + (p.rev || 0) / maxP * 0.7;
+    var gem = new THREE.Mesh(
+      new THREE.OctahedronGeometry(gr, 0),
+      new THREE.MeshPhongMaterial({ color: col, emissive: col, emissiveIntensity: 0.25, shininess: 90, flatShading: true })
+    );
+    gem.position.copy(pos);
+    gem.userData = { kind: 'prod', d: p, rank: i + 1 };
+    gal.add(gem); hitMeshes.push(gem);
+    var glow = makeGlow(col.getHex(), gr * 4.5, 0.45); glow.position.copy(pos); gal.add(glow);
+    var nm = String(p.name || '商品');
+    if (nm.length > 8) nm = nm.slice(0, 8) + '…';
+    var lbl = makeLabel([nm, fmtWan(p.rev || 0) + ' · ' + (p.qty || 0) + ' 件'], { fs: 20, sub: 15, scale: 0.023, color: '#' + col.getHexString() });
+    lbl.position.copy(pos).add(new THREE.Vector3(pos.x > 26 ? -3.5 : 0, gr + 1.5 + (i % 2) * 0.9, 0));
+    gal.add(lbl);
+    gems.push({ mesh: gem, glow: glow, label: lbl, base: pos.clone(), seed: i * 1.7 });
+    // 出貨航線：太陽 → 寶石（金色貨運，班次前段商品較密）
+    var gmid = SUN_POS.clone().lerp(pos, 0.5).add(new THREE.Vector3(0, 6 - i, 2));
+    routes.push({ p0: SUN_POS.clone().add(pos.clone().sub(SUN_POS).normalize().multiplyScalar(sunR + 1.4)), p1: gmid, p2: pos.clone(), n: Math.max(2, 4 - (i >> 1)), col: new THREE.Color(0xffd98e), speed: 0.052, sc: 0.75 });
+    streams.push({ p0: SUN_POS.clone(), p1: gmid, p2: pos.clone(), n: Math.round(110 * K), colors: [new THREE.Color(0xffd98e), col], size: 1.5, speed: [0.05, 0.11] });
+  });
+
+  /* —— 貨運/客運艦隊（單一 InstancedMesh，顏色區分航線） —— */
+  routes.forEach(function (rt) { totalShips += rt.n; });
+  ships = new THREE.InstancedMesh(shipGeo, new THREE.MeshLambertMaterial({ color: 0xe8ecf8 }), Math.max(1, totalShips));
+  ships.frustumCulled = false;
+  var si = 0;
+  routes.forEach(function (rt) {
+    for (var k2 = 0; k2 < rt.n; k2++) {
+      shipData.push({ route: rt, off: k2 / rt.n + Math.random() * 0.04, idx: si });
+      ships.setColorAt(si, rt.col);
+      si++;
     }
-    // 日標籤 + 點擊節點
-    days.forEach(function (d, i) {
-      var pos = pts7[i];
-      var ok = (d.rev || 0) >= dt7;
-      var lbl = makeLabel([String(d.date || '').slice(-5), fmtCompact(d.rev || 0)], { fs: 17, sub: 15, color: d.is_today ? '#fff3cf' : ok ? '#ffe1a0' : '#8fa3d8', scale: 0.019, opacity: 0.85, glow: 'rgba(30,40,90,.95)' });
-      lbl.position.copy(pos).add(new THREE.Vector3(0, 1.3, 0));
-      gal.add(lbl);
-      if (d.is_today) { var tg = makeGlow(0xfff3cf, 2.4, 0.95); tg.position.copy(pos); gal.add(tg); coreSprites.push(tg); }
-      addHit(pos, 1.7, { kind: 'day', d: d, target: dt7 });
+  });
+  if (ships.instanceColor) ships.instanceColor.needsUpdate = true;
+  gal.add(ships);
+
+  /* —— 流星群：多道流星劃過天際 —— */
+  for (var me = 0; me < (LITE ? 4 : 9); me++) {
+    var sx = -80 + Math.random() * 160, sy = 30 + Math.random() * 26, sz = -70 + Math.random() * 26;
+    var ex = sx + (Math.random() < 0.5 ? -1 : 1) * (50 + Math.random() * 50);
+    var ey = sy - 16 - Math.random() * 18, ez = sz + 10 + Math.random() * 16;
+    streams.push({
+      p0: new THREE.Vector3(sx, sy, sz),
+      p1: new THREE.Vector3((sx + ex) / 2, (sy + ey) / 2 + 3, (sz + ez) / 2),
+      p2: new THREE.Vector3(ex, ey, ez),
+      n: Math.round((30 + Math.random() * 30) * K) + 8,
+      colors: [new THREE.Color(0xeaf4ff), new THREE.Color(0x9fc8ff), new THREE.Color(0xfff2d8)],
+      size: 2.4, speed: [0.10, 0.22]
     });
   }
 
-  /* —— 合併輸出：所有流線 1 個 Points、所有軌道 1 個 Points —— */
+  /* —— 背景彗星 —— */
+  streams.push({
+    p0: new THREE.Vector3(-70, 42, -55), p1: new THREE.Vector3(0, 30, -62), p2: new THREE.Vector3(66, 22, -48),
+    n: Math.round(150 * K), colors: [new THREE.Color(0xcfe6ff), new THREE.Color(0x8fb8ff)], size: 2.2, speed: [0.014, 0.03]
+  });
+
   gal.add(buildStreamPoints(streams));
-  gal.add(buildOrbitPoints(orbits));
-
-  /* —— 幽微星雲底色（兩片大光暈，增加空間層次） —— */
-  var neb1 = makeGlow(0x2a1b5e, 90, 0.16); neb1.position.set(-24, 18, -30); gal.add(neb1);
-  var neb2 = makeGlow(0x0e3a4a, 80, 0.14); neb2.position.set(26, 10, -34); gal.add(neb2);
+  gal.add(buildOrbitPoints(orbitPts));
 }
 
-/* ═════════ 8. 點擊互動 → 詳情卡 ═════════ */
+/* ═════════ 8. 點擊互動 ═════════ */
 var raycaster = new THREE.Raycaster();
 var pointerV = new THREE.Vector2();
+var downXY = null;
 function showCard(tag, name, rowsHtml) {
   $('cardTag').textContent = tag;
   $('cardName').textContent = name;
   $('cardRows').innerHTML = rowsHtml;
   $('card').classList.remove('hide');
 }
-function onTap(e) {
+$('c').addEventListener('pointerdown', function (e) { downXY = [e.clientX, e.clientY]; });
+$('c').addEventListener('pointerup', function (e) {
+  if (!downXY || Math.abs(e.clientX - downXY[0]) + Math.abs(e.clientY - downXY[1]) > 6) return; // 拖曳不算點擊
   if (!gal) return;
   pointerV.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
   raycaster.setFromCamera(pointerV, camera);
-  var hits = raycaster.intersectObjects(hitNodes, false);
+  var hits = raycaster.intersectObjects(hitMeshes, false);
   if (!hits.length) { $('card').classList.add('hide'); return; }
   var info = hits[0].object.userData, kpi = (D && D.kpi) || {};
-  if (info.kind === 'core') {
+  if (info.kind === 'sun') {
     var pct = D.target > 0 ? Math.round((kpi.rev_mtd || 0) / D.target * 100) : 0;
-    showCard('品 牌 核 心', (D.meta && D.meta.report_month || '本月'),
-      '本月營收 <b>' + fmt(kpi.rev_mtd || 0) + '</b><br>月目標達成 <b>' + pct + '%</b>（' + fmtCompact(D.target || 0) + '）<br>' +
+    showCard('太 陽 · 品 牌 恆 星', (D.meta && D.meta.report_month || '本月') + ' 營收',
+      '本月營收 <b>' + fmt(kpi.rev_mtd || 0) + '</b><br>月目標 ' + fmtWan(D.target || 0) + ' · 達成 <b>' + pct + '%</b><br>' +
       '訂單 <b>' + (kpi.orders_mtd || 0) + '</b> 筆 · 客單 <b>' + fmt(kpi.avg_order || 0) + '</b><br>' +
       '新客 <b>' + (kpi.new_customers || 0) + '</b> · 回購 <b>' + (kpi.returning || 0) + '</b>');
+  } else if (info.kind === 'month') {
+    var yoy = info.r25 > 0 && info.r26 > 0 ? Math.round((info.r26 / info.r25 - 1) * 100) : null;
+    showCard('行 星 · 月 營 收', (info.i + 1) + ' 月',
+      '今年 <b>' + (info.r26 > 0 ? fmt(info.r26) : '—') + '</b><br>去年 ' + (info.r25 > 0 ? fmt(info.r25) : '—') +
+      (yoy !== null ? '<br>年增 <span class="' + (yoy >= 0 ? 'up' : 'down') + '">' + (yoy >= 0 ? '+' : '') + yoy + '%</span>' : ''));
+  } else if (info.kind === 'earth') {
+    showCard('地 球 · 客 戶 星 球', '共 ' + info.total.toLocaleString() + ' 位客戶',
+      info.tiers.map(function (t) { return t.name + ' <b>' + (t.count || 0).toLocaleString() + '</b>'; }).join('<br>'));
   } else if (info.kind === 'src') {
-    showCard('流 量 來 源', info.d.src || '來源',
+    showCard('太 空 站 · 訂 單 來 源', info.d.src || '來源',
       '訂單占比 <b>' + Math.round(info.share * 100) + '%</b>（' + (info.d.orders || 0) + ' 筆）<br>營收貢獻 <b>' + fmt(info.d.rev || 0) + '</b>');
   } else if (info.kind === 'prod') {
-    showCard('熱 銷 商 品 · TOP ' + info.rank, info.d.name || '商品',
+    showCard('寶 石 · 熱 銷 TOP ' + info.rank, info.d.name || '商品',
       '營收 <b>' + fmt(info.d.rev || 0) + '</b><br>銷量 <b>' + (info.d.qty || 0) + '</b> 件 · 單價 <b>' + fmt(info.d.price || 0) + '</b>');
-  } else if (info.kind === 'month') {
-    var yoy = info.r25 > 0 ? Math.round((info.r26 / info.r25 - 1) * 100) : null;
-    showCard('月 營 收', (info.i + 1) + ' 月',
-      '今年 <b>' + (info.r26 > 0 ? fmt(info.r26) : '—') + '</b><br>去年 ' + (info.r25 > 0 ? fmt(info.r25) : '—') +
-      (yoy !== null && info.r26 > 0 ? '<br>年增 <span class="' + (yoy >= 0 ? 'up' : 'down') + '">' + (yoy >= 0 ? '+' : '') + yoy + '%</span>' : ''));
-  } else if (info.kind === 'day') {
-    var r = Math.round((info.d.rev || 0) / info.target * 100);
-    showCard('七 日 光 河', String(info.d.date || '') + (info.d.is_today ? ' · 今日' : ''),
-      '營收 <b>' + fmt(info.d.rev || 0) + '</b>（日標 ' + r + '%）<br>訂單 <b>' + (info.d.orders || 0) + '</b> 筆');
   }
-}
-addEventListener('pointerdown', function (e) {
-  if (e.target === $('c')) onTap(e);
 });
 
-/* ═════════ 9. 主迴圈（相機漂移 + 核心脈動；粒子動畫全在 GPU） ═════════ */
-var camAng = 0;
+/* ═════════ 9. 主迴圈 ═════════ */
+var _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _dummy = new THREE.Object3D();
 function animate() {
   requestAnimationFrame(animate);
+  var dt = Math.min(clock.getDelta(), 0.05);
   var t = clock.getElapsedTime();
   uTime.value = t;
-  // 相機：極慢環繞漂移 + 滑鼠視差
-  camAng = Math.sin(t * 0.05) * 0.16;
-  var camK = clamp(1.5 / camera.aspect, 1, 2.3);  // 窄螢幕自動拉遠，讓兩岸節點入鏡
-  var cx = CAM_BASE.x + Math.sin(camAng) * 40 + mouseNX * 3.2;
-  var cz = CAM_BASE.z * Math.cos(camAng);
-  var cy = CAM_BASE.y + Math.sin(t * 0.08) * 1.2 - mouseNY * 2.2;
-  camera.position.set(cx * camK, cy * (1 + (camK - 1) * 0.5), cz * camK);
+
+  // 相機
+  camYaw += (camYawTarget - camYaw) * 0.08;
+  var auto = Math.sin(t * 0.05) * 0.2;   // 緩慢擺動；拖曳可自由旋轉
+  var yaw = auto + camYaw;
+  var camK = clamp(1.5 / camera.aspect, 1, 2.4);
+  var dist = 52 * camK;
+  camera.position.set(
+    Math.sin(yaw) * dist + mouseNX * 3,
+    (27 + Math.sin(t * 0.07) * 2 - mouseNY * 3) * (1 + (camK - 1) * 0.35),
+    Math.cos(yaw) * dist
+  );
   camera.lookAt(CAM_LOOK);
-  // 核心呼吸
-  var pulse = 1 + Math.sin(t * 1.7) * 0.07;
-  coreSprites.forEach(function (sp, i) {
-    var base = sp.userData.baseS || (sp.userData.baseS = sp.scale.x);
-    sp.scale.set(base * pulse, base * pulse, 1);
-  });
-  if (currentMonthSprite) {
-    var mp = 1 + Math.sin(t * 2.6) * 0.28;
-    var mb = currentMonthSprite.userData.baseS || (currentMonthSprite.userData.baseS = currentMonthSprite.scale.x);
-    currentMonthSprite.scale.set(mb * mp, mb * mp, 1);
+
+  if (gal) {
+    // 太陽
+    if (sunMesh) {
+      sunMesh.rotation.y = t * 0.06;
+      var pulse = 1 + Math.sin(t * 1.4) * 0.04;
+      sunMesh.scale.set(pulse, pulse, pulse);
+      coronaSprites.forEach(function (sp, i) {
+        var b = sp.userData.baseS || (sp.userData.baseS = sp.scale.x);
+        var p2 = 1 + Math.sin(t * (0.9 + i * 0.4) + i) * 0.08;
+        sp.scale.set(b * p2, b * p2, 1);
+      });
+    }
+    // 行星公轉 + 標籤跟隨
+    planets.forEach(function (pl) {
+      pl.angle += pl.speed * dt;
+      var px = SUN_POS.x + Math.cos(pl.angle) * pl.orbitR;
+      var pz = SUN_POS.z + Math.sin(pl.angle) * pl.orbitR;
+      pl.mesh.position.set(px, SUN_POS.y, pz);
+      pl.mesh.rotation.y += dt * 0.5;
+      pl.label.position.set(px, SUN_POS.y + pl.radius + 1.25, pz);
+      // 行星繞到太陽正後方時淡出標籤，避免壓在太陽數字上
+      _v.set(px - SUN_POS.x, 0, pz - SUN_POS.z).normalize();
+      _v2.copy(camera.position).sub(SUN_POS).setY(0).normalize();
+      var behind = _v.dot(_v2);
+      pl.label.material.opacity = behind < -0.82 ? Math.max(0, (behind + 0.92) * 10) * (pl.isCur ? 1 : 0.85) : (pl.isCur ? 1 : 0.85);
+      if (pl.isCur && beaconSprite) {
+        beaconSprite.position.set(px, SUN_POS.y, pz);
+        var bp = 1 + Math.sin(t * 2.6) * 0.25;
+        var bb = beaconSprite.userData.baseS || (beaconSprite.userData.baseS = beaconSprite.scale.x);
+        beaconSprite.scale.set(bb * bp, bb * bp, 1);
+      }
+      if (pl.moon) {
+        pl.moon.position.set(Math.cos(t * 1.6) * pl.radius * 2.1, Math.sin(t * 0.8) * 0.3, Math.sin(t * 1.6) * pl.radius * 2.1);
+      }
+    });
+    // 地球自轉
+    if (earthMesh) earthMesh.rotation.y = t * 0.12;
+    // 貨運飛船
+    if (ships && shipData.length) {
+      shipData.forEach(function (sd) {
+        var tt = (t * sd.route.speed + sd.off) % 1;
+        qb(sd.route.p0, sd.route.p1, sd.route.p2, tt, _v);
+        qb(sd.route.p0, sd.route.p1, sd.route.p2, Math.min(1, tt + 0.02), _v2);
+        _dummy.position.copy(_v);
+        _dummy.lookAt(_v2);
+        // 出發淡入、抵達淡出（縮小），避免直接壓在星體表面
+        var edge = Math.min(1, tt / 0.07, (1 - tt) / 0.1);
+        var sc = Math.max(0.001, (sd.route.sc || 1) * (0.85 + 0.45 * (1 - tt)) * edge);
+        _dummy.scale.set(sc, sc, sc);
+        _dummy.updateMatrix();
+        ships.setMatrixAt(sd.idx, _dummy.matrix);
+      });
+      ships.instanceMatrix.needsUpdate = true;
+    }
+    // 寶石浮動 + 自轉
+    gems.forEach(function (gm) {
+      var by = Math.sin(t * 0.7 + gm.seed) * 0.5;
+      gm.mesh.position.set(gm.base.x, gm.base.y + by, gm.base.z);
+      gm.glow.position.copy(gm.mesh.position);
+      gm.mesh.rotation.y += dt * 0.7;
+      gm.mesh.rotation.x = Math.sin(t * 0.4 + gm.seed) * 0.3;
+    });
   }
   renderer.render(scene, camera);
-  if (DEBUG) { $('dbg').style.display = 'block'; $('dbg').textContent = 'calls ' + renderer.info.render.calls + ' · pts ' + renderer.info.render.points; }
+  if (DEBUG) { $('dbg').style.display = 'block'; $('dbg').textContent = 'calls ' + renderer.info.render.calls + ' · tris ' + renderer.info.render.triangles; }
 }
 
 /* ═════════ 10. 啟動 ═════════ */
 window.__flowBooted = true;
 window.__flow = {
   debugState: function () {
-    return { calls: renderer.info.render.calls, points: renderer.info.render.points, tris: renderer.info.render.triangles, lite: LITE };
+    return { calls: renderer.info.render.calls, tris: renderer.info.render.triangles, points: renderer.info.render.points, lite: LITE };
   }
 };
 loadData();
