@@ -298,6 +298,22 @@ def run(month_start=None, month_end=None):
         filename   = f'shopline_{start_safe}_to_{end_safe}_{timestamp}.xlsx'
         save_path = DATA_DIR / filename
 
+        # ── 關掉可能擋住按鈕的 modal / 遮罩 / Intercom ──
+        # Shopline 後台常跳系統公告/版本更新 modal（uib-modal-window / .modal.fade.in），
+        # 覆蓋在整個頁面上讓匯出按鈕點不到（Playwright: "modal intercepts pointer events"）。
+        # 提前清一次；點對話框確認按鈕之前會再清一次。
+        removed = page.evaluate('''() => {
+            let n = 0;
+            document.querySelectorAll('.modal.fade.in, .modal-backdrop, [uib-modal-window]').forEach(el => { el.remove(); n++; });
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+            const ic = document.getElementById('intercom-container');
+            if (ic) { ic.style.display = 'none'; n++; }
+            return n;
+        }''')
+        if removed:
+            log(f'清掉 {removed} 個遮罩元素（modal/Intercom）')
+
         # ── 第一次點擊：打開選擇欄位對話框 ──
         log('第一次點擊匯出...')
         export_btn.click()
