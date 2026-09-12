@@ -13,6 +13,7 @@ Shopline 自動下載訂單報表 v3.1
 import os
 import sys
 import json
+import time
 import argparse
 import calendar as _cal
 from pathlib import Path
@@ -20,10 +21,17 @@ from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeout
 
+try:
+    import pyotp
+    HAS_PYOTP = True
+except ImportError:
+    HAS_PYOTP = False
+
 load_dotenv()
 
-EMAIL    = os.getenv('SHOPLINE_EMAIL', '')
-PASSWORD = os.getenv('SHOPLINE_PASSWORD', '')
+EMAIL        = os.getenv('SHOPLINE_EMAIL', '')
+PASSWORD     = os.getenv('SHOPLINE_PASSWORD', '')
+TOTP_SECRET  = os.getenv('TZG_TOTP_SECRET', '').strip()
 
 SHOP_ID      = 'tzgrotw251'
 LOGIN_URL    = f'https://admin.shoplineapp.com/admin/{SHOP_ID}'
@@ -122,6 +130,101 @@ def manual_login(page):
         log(f'[X] 等待逾時，目前 URL：{page.url}')
         return False
 
+def handle_2fa_page(page):
+    """新分頁跳到 sso.shoplineapp.com 的 2FA 頁時，用 TZG_TOTP_SECRET 自動填。"""
+    if not TOTP_SECRET:
+        log('[X] .env 缺 TZG_TOTP_SECRET — 無法自動 2FA')
+        return False
+    if not HAS_PYOTP:
+        log('[X] 缺 pyotp 套件 — 請執行：pip3 install pyotp')
+        return False
+    try:
+        code = pyotp.TOTP(TOTP_SECRET).now()
+        log(f'產生 TOTP：{code[:2]}****')
+        OTP_SEL = (
+            'input[type="text"], input[type="tel"], '
+            'input[autocomplete="one-time-code"], '
+            'input[placeholder*="驗證"], input[placeholder*="6位"]'
+        )
+        page.wait_for_selector(OTP_SEL, timeout=10000)
+        otp = page.locator(OTP_SEL).first
+        otp.fill('')
+        otp.fill(code)
+        page.wait_for_timeout(300)
+        page.locator('button[type="submit"], input[type="submit"]').first.click()
+        log('已送出 TOTP')
+        page.wait_for_url('**/jobs/**/download**', timeout=30000)
+        log(f'2FA 通過，到達：{page.url[:80]}')
+        return True
+    except Exception as e:
+        log(f'[X] 2FA 流程失敗：{e}')
+        return False
+
+
+def download_via_new_tab(context, dl_link, save_path):
+    """Shopline 新的下載流程：點下載 → 開新分頁 → 可能跳 2FA → window.open() 觸發真下載。
+    這裡監聽 context 的 download 事件（不管哪個分頁觸發都會抓到）。"""
+    captured = {'dl': None}
+
+    def on_download(dl):
+        captured['dl'] = dl
+
+    context.on('download', on_download)
+    try:
+        # 開新分頁
+        try:
+            with context.expect_page(timeout=15000) as new_page_info:
+                dl_link.click()
+            new_tab = new_page_info.value
+        except PlaywrightTimeout:
+            log('[X] 點下載後沒有新分頁')
+            return None
+
+        try:
+            new_tab.wait_for_load_state('domcontentloaded', timeout=15000)
+        except Exception:
+            pass
+        log(f'新分頁：{new_tab.url[:80]}')
+
+        # 若跳 2FA → 自動填
+        if 'two_factor' in new_tab.url or 'sso.' in new_tab.url:
+            if not handle_2fa_page(new_tab):
+                return None
+
+        # 等 download 事件（window.open() 觸發）
+        deadline = time.time() + 30
+        while time.time() < deadline and captured['dl'] is None:
+            new_tab.wait_for_timeout(500)
+
+        # 若沒收到 → reload 分頁重試一次
+        if captured['dl'] is None:
+            log('未收到 download 事件，reload 分頁重試...')
+            try:
+                new_tab.reload()
+            except Exception:
+                pass
+            deadline = time.time() + 20
+            while time.time() < deadline and captured['dl'] is None:
+                new_tab.wait_for_timeout(500)
+
+        if captured['dl'] is None:
+            log('[X] 等 50 秒仍未收到 download 事件')
+            return None
+
+        captured['dl'].save_as(save_path)
+        log(f'[✓] 下載完成：{save_path}')
+        try:
+            new_tab.close()
+        except Exception:
+            pass
+        return str(save_path)
+    finally:
+        try:
+            context.remove_listener('download', on_download)
+        except Exception:
+            pass
+
+
 def parse_date_range():
     """從命令列參數決定要下載的日期範圍（回傳 YYYY/MM/DD 格式）"""
     p = argparse.ArgumentParser(description='Shopline 訂單報表下載')
@@ -167,7 +270,13 @@ def run(month_start=None, month_end=None):
     log(f'匯出範圍：{month_start} ~ {month_end}')
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=HEADLESS, slow_mo=100 if not HEADLESS else 0)
+        # --disable-popup-blocking：Shopline 下載頁用 window.open() 觸發真下載，
+        # 沒關掉會被擋 → 收不到 download 事件。
+        browser = p.chromium.launch(
+            headless=HEADLESS,
+            slow_mo=100 if not HEADLESS else 0,
+            args=['--disable-popup-blocking'],
+        )
 
         # ── 載入或建立 Session ────────────────────────────────
         if SESSION_FILE.exists():
@@ -457,13 +566,12 @@ def run(month_start=None, month_end=None):
 
                 if dl_link is not None:
                     log(f'[✓] 準備下載，href={href[:80]}')
-                    with page.expect_download(timeout=30000) as dl_info:
-                        dl_link.click()
-                    download = dl_info.value
-                    download.save_as(save_path)
-                    log(f'[✓] 下載完成：{save_path}')
-                    browser.close()
-                    return str(save_path)
+                    # 2025 起 Shopline 改成：點下載 → 新分頁 → 2FA → window.open() 真下載
+                    result_path = download_via_new_tab(context, dl_link, save_path)
+                    if result_path:
+                        browser.close()
+                        return result_path
+                    log('[!] 新分頁流程失敗，繼續下一輪重試...')
 
                 elapsed = 60 + (i + 1) * 15
                 log(f'[{i+1}/12] 尚未就緒，繼續等待... (共 {elapsed} 秒)')
