@@ -11,6 +11,7 @@ Shopline 自動下載訂單報表 v3.1
     python auto_shopline.py --start 2026-01-01 --end 2026-01-31
 """
 import os
+import re
 import sys
 import json
 import time
@@ -161,66 +162,92 @@ def handle_2fa_page(page):
         return False
 
 
+# S3 URL 放在頁面 JS 陣列裡（雙引號）；截止符只用引號 / 空白 / 角括號 / 方括號，
+# & 不能當 delimiter 否則會把 X-Amz-* query 參數切掉。
+_S3_RE = re.compile(r'"(https://[^"]*amazonaws[^"]*)"')
+
+
 def download_via_new_tab(context, dl_link, save_path):
-    """Shopline 新的下載流程：點下載 → 開新分頁 → 可能跳 2FA → window.open() 觸發真下載。
-    這裡監聽 context 的 download 事件（不管哪個分頁觸發都會抓到）。"""
-    captured = {'dl': None}
+    """
+    Shopline 2025+ 下載流程實情：
+    /admin/.../jobs/<id>/download 頁面的 HTML 內嵌一個 S3 URL 陣列
+    （window.onload 時 window.open() 各個 URL 觸發下載）。
 
-    def on_download(dl):
-        captured['dl'] = dl
-
-    context.on('download', on_download)
+    我們**不走** window.open 那條路（在 Playwright 各種擋、context download 事件
+    也不一定會 fire）。直接：
+      1. 開新分頁到 /jobs/<id>/download
+      2. 若被踢到 sso 2FA → 用 TOTP 過關
+      3. 從最終那頁 HTML regex 抽出 S3 URL
+      4. 用 context.request.get() 抓下來（S3 signed URL 本身不需要 cookies）
+    """
+    # 拿 dl_link 的 href；若沒有就 fallback 走 click → expect_page
     try:
-        # 開新分頁
-        try:
-            with context.expect_page(timeout=15000) as new_page_info:
-                dl_link.click()
-            new_tab = new_page_info.value
-        except PlaywrightTimeout:
-            log('[X] 點下載後沒有新分頁')
-            return None
+        href = dl_link.get_attribute('href')
+    except Exception:
+        href = None
 
-        try:
-            new_tab.wait_for_load_state('domcontentloaded', timeout=15000)
-        except Exception:
-            pass
-        log(f'新分頁：{new_tab.url[:80]}')
-
-        # 若跳 2FA → 自動填
-        if 'two_factor' in new_tab.url or 'sso.' in new_tab.url:
-            if not handle_2fa_page(new_tab):
-                return None
-
-        # 等 download 事件（window.open() 觸發）
-        deadline = time.time() + 30
-        while time.time() < deadline and captured['dl'] is None:
-            new_tab.wait_for_timeout(500)
-
-        # 若沒收到 → reload 分頁重試一次
-        if captured['dl'] is None:
-            log('未收到 download 事件，reload 分頁重試...')
+    page = None
+    try:
+        if href:
+            target = href if href.startswith('http') else f'https://admin.shoplineapp.com{href}'
+            page = context.new_page()
+            log(f'開新分頁下載頁：{target[:80]}')
+            page.goto(target, wait_until='load', timeout=30000)
+        else:
             try:
-                new_tab.reload()
+                with context.expect_page(timeout=15000) as new_page_info:
+                    dl_link.click()
+                page = new_page_info.value
+                page.wait_for_load_state('load', timeout=15000)
+            except PlaywrightTimeout:
+                log('[X] 點下載後沒有新分頁')
+                return None
+            log(f'新分頁：{page.url[:80]}')
+
+        # 若被踢去 2FA → 自動過
+        if 'two_factor' in page.url or 'sso.' in page.url:
+            if not handle_2fa_page(page):
+                return None
+            # handle_2fa_page 內部已經等到 /download，這裡再多等 DOM
+            try:
+                page.wait_for_load_state('load', timeout=15000)
             except Exception:
                 pass
-            deadline = time.time() + 20
-            while time.time() < deadline and captured['dl'] is None:
-                new_tab.wait_for_timeout(500)
 
-        if captured['dl'] is None:
-            log('[X] 等 50 秒仍未收到 download 事件')
+        # 抽出 S3 URL（在 <script> 的字串陣列裡）
+        html = page.content()
+        m = _S3_RE.search(html)
+        if not m:
+            log('[X] /download 頁面找不到 S3 URL')
+            page.screenshot(path='debug_download_page.png')
             return None
+        s3_url = m.group(1)
+        # Shopline 在 <script> 陣列裡把 & 編成 &、也可能有 &amp;、還有 \x2f 等 JS escape
+        s3_url = (
+            s3_url
+            .replace('\\u0026', '&')
+            .replace('\\u003d', '=')
+            .replace('&amp;', '&')
+        )
+        log(f'S3 URL（全長 {len(s3_url)}）: {s3_url[:120]}...')
 
-        captured['dl'].save_as(save_path)
-        log(f'[✓] 下載完成：{save_path}')
-        try:
-            new_tab.close()
-        except Exception:
-            pass
+        # 直接抓（S3 signed URL 已含權限資訊）
+        resp = context.request.get(s3_url, timeout=60000)
+        if resp.status != 200:
+            log(f'[X] S3 回應 {resp.status}')
+            return None
+        body = resp.body()
+        if not body or len(body) < 1000:
+            log(f'[X] 下載內容太小（{len(body)} bytes），可能不是實際檔案')
+            return None
+        with open(save_path, 'wb') as f:
+            f.write(body)
+        log(f'[✓] 下載完成：{save_path}（{len(body):,} bytes）')
         return str(save_path)
     finally:
         try:
-            context.remove_listener('download', on_download)
+            if page:
+                page.close()
         except Exception:
             pass
 
