@@ -361,8 +361,16 @@ def load_data():
     # 🔧 修復：只提取需要的欄位，以匹配 CSV 格式
     for f in xls_files:
         try:
-            df = pd.read_excel(f)  # 讓 pandas 自動選擇引擎
-            
+            # xlrd 讀大型 .xls 檔案時，遇到跨 record 的中文字串會炸
+            # （'utf-16-le' codec ... unexpected end of data，xlrd 2.x 已知限制）。
+            # 資料量小的檔案 xlrd 讀得動，資料量一大就整份被靜靜跳過、
+            # dashboard 卡在舊資料還不會報錯。改用 calamine 當 fallback。
+            try:
+                df = pd.read_excel(f)  # 讓 pandas 自動選擇引擎（通常是 xlrd）
+            except Exception as e_xlrd:
+                print(f'  [!] {f.name}  xlrd 讀取失敗（{e_xlrd}），改用 calamine 重試...')
+                df = pd.read_excel(f, engine='calamine')
+
             # 定義 CSV 的標準欄位（22 個）
             standard_cols = [
                 '訂單號碼', '訂單日期', '訂單狀態', '付款狀態', '付款方式', '訂單合計',
