@@ -62,7 +62,10 @@ def load_all_files(data_dir):
         if f.name.startswith('TZG_') and '_orders' in f.name:
             continue
         try:
-            df = pd.read_excel(f, dtype=str)
+            try:
+                df = pd.read_excel(f, dtype=str)
+            except Exception:
+                df = pd.read_excel(f, dtype=str, engine='calamine')
             df['_src_file'] = f.name
             frames.append(df)
             print(f'  [XLS] {f.name:55s}  {len(df):>6,} 列')
