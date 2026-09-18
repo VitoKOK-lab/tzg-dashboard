@@ -12,6 +12,20 @@ cd "$SCRIPT_DIR"
 PYTHON="${TZG_PYTHON:-python3}"
 MODE="${1:-}"
 
+mkdir -p logs
+
+# 這次執行發現的問題，最後統一寫診斷檔 + 發一次通知（不重試、只回報）
+PROBLEMS=()
+
+# 送 macOS 通知（處理特殊字元跳脫，訊息壓成一行）
+notify() {
+    local title="$1" msg="$2"
+    local esc_title esc_msg
+    esc_title="$(printf '%s' "$title" | sed 's/\\/\\\\/g; s/"/\\"/g')"
+    esc_msg="$(printf '%s' "$msg" | sed 's/\\/\\\\/g; s/"/\\"/g' | tr '\n' ' ')"
+    osascript -e "display notification \"$esc_msg\" with title \"$esc_title\" sound name \"Sosumi\"" 2>/dev/null || true
+}
+
 echo
 echo "==================================================="
 echo " TZG Dashboard Generator + Auto Deploy"
@@ -88,13 +102,16 @@ if [ -f ".env" ]; then
 
         if [ $rc_a -ne 0 ] && [ $rc_b -ne 0 ]; then
             echo "WARNING: Shopline 兩段下載都失敗（A=$rc_a, B=$rc_b）。沿用既有資料..."
+            PROBLEMS+=("Shopline 下載完全失敗（上月+本月，錯誤碼 A=$rc_a B=$rc_b），本次用舊資料產生報表")
             echo
         else
             if [ $rc_a -ne 0 ]; then
                 echo "WARNING: 上月下載失敗（A=$rc_a），但本月成功。"
+                PROBLEMS+=("上月資料下載失敗（錯誤碼 $rc_a），沿用舊的上月資料")
             fi
             if [ $rc_b -ne 0 ]; then
                 echo "WARNING: 本月下載失敗（B=$rc_b），但上月成功。"
+                PROBLEMS+=("本月資料下載失敗（錯誤碼 $rc_b），沿用舊的本月資料 ← 通常是資料停滯的主因")
             fi
             echo "[5a] Shopline download OK"
             echo
@@ -112,8 +129,10 @@ if [ -f ".env" ]; then
         echo "==================================================="
         echo
         "$PYTHON" auto_shopline.py
-        if [ $? -ne 0 ]; then
+        rc_manual=$?
+        if [ $rc_manual -ne 0 ]; then
             echo "WARNING: Shopline download failed. Continuing with existing data..."
+            PROBLEMS+=("Shopline 下載失敗（錯誤碼 $rc_manual），沿用舊資料")
             echo
         else
             echo "[5a] Shopline download OK"
@@ -131,16 +150,30 @@ echo "==================================================="
 echo " Generating Dashboard..."
 echo "==================================================="
 echo
-if ! "$PYTHON" generate_daily.py; then
+
+DAILY_LOG="logs/generate_daily_last.log"
+PYTHONUNBUFFERED=1 "$PYTHON" generate_daily.py 2>&1 | tee "$DAILY_LOG"
+DAILY_RC=${PIPESTATUS[0]}
+
+if [ "$DAILY_RC" -ne 0 ]; then
     echo
     echo "ERROR: Dashboard generation failed!"
+    notify "❌ TZG Dashboard 產生失敗" "generate_daily.py 整個執行失敗（錯誤碼 $DAILY_RC），詳見 logs/generate_daily_last.log"
     exit 1
 fi
 echo
 echo "[5/6] Dashboard generated OK"
 echo
 
-# 資料新鮮度檢查（資料 > 24h 沒更新 → macOS 通知 + 警示音）
+# 資料檔案讀取失敗檢查（某份 .xls/.csv 被靜靜跳過，不會讓上面整體失敗，
+# 但長期下來 dashboard 會卡在舊資料 → 不用等 24h 停滯，這次執行馬上回報）
+FAIL_LINES="$(grep -E '^[[:space:]]*\[X\]' "$DAILY_LOG" 2>/dev/null || true)"
+if [ -n "$FAIL_LINES" ]; then
+    N_FAIL=$(printf '%s\n' "$FAIL_LINES" | grep -c '^')
+    PROBLEMS+=("有 $N_FAIL 個資料檔案讀取失敗（今晚的資料可能不完整，詳見 logs/generate_daily_last.log）")
+fi
+
+# 資料新鮮度檢查（最新訂單日期距今 > 24h → 可能 session 過期或下載沒抓到新單）
 STALE_HOURS=$("$PYTHON" -c "
 import re
 from datetime import datetime
@@ -157,10 +190,37 @@ except Exception:
 " 2>/dev/null || echo "0")
 
 if [ "$STALE_HOURS" -gt 24 ]; then
-    echo "⚠️  資料停滯 $STALE_HOURS 小時，跳 macOS 通知提醒"
-    osascript -e "display notification \"資料停滯 $STALE_HOURS 小時，Shopline 可能 session 過期，請進系統重新登入\" with title \"⚠️ TZG Dashboard 同步異常\" sound name \"Sosumi\"" 2>/dev/null || true
+    PROBLEMS+=("資料停滯 $STALE_HOURS 小時，最新訂單不是今天/昨天，Shopline 可能 session 過期")
 fi
 echo
+
+# ============ 若本次執行有任何問題：寫診斷檔 + 立刻通知一次 ============
+# 只回報，不重試 —— 不確定原因時不要自己再重跑，寫清楚讓人來看。
+# 沒問題就清掉舊診斷檔，避免昨天的問題殘留誤導（檔案存在 = 現在有問題）。
+if [ ${#PROBLEMS[@]} -eq 0 ]; then
+    rm -f logs/last_diagnosis.txt
+else
+    {
+        echo "=== TZG Dashboard 執行診斷 $(date '+%Y-%m-%d %H:%M:%S') ==="
+        echo
+        for p in "${PROBLEMS[@]}"; do
+            echo "• $p"
+        done
+        if [ -n "$FAIL_LINES" ]; then
+            echo
+            echo "--- 檔案讀取失敗詳情 ---"
+            printf '%s\n' "$FAIL_LINES"
+        fi
+    } > logs/last_diagnosis.txt
+
+    echo "⚠️  本次執行有 ${#PROBLEMS[@]} 個問題，已寫入 logs/last_diagnosis.txt 並發送通知"
+    SUMMARY="${PROBLEMS[0]}"
+    if [ ${#PROBLEMS[@]} -gt 1 ]; then
+        SUMMARY="$SUMMARY（+$((${#PROBLEMS[@]} - 1)) 項問題，詳見 logs/last_diagnosis.txt）"
+    fi
+    notify "⚠️ TZG Dashboard 執行異常" "$SUMMARY"
+    echo
+fi
 
 # ============ Step 5b: Generate Monthly Review ============
 echo "==================================================="
@@ -197,11 +257,13 @@ if git diff --cached --quiet; then
 else
     if ! git commit -m "Update dashboard $TIMESTAMP"; then
         echo "ERROR: Git commit failed!"
+        notify "❌ TZG Dashboard 部署失敗" "git commit 失敗，dashboard 沒有推上 GitHub"
         exit 1
     fi
     if ! git push origin main; then
         echo "ERROR: Git push failed!"
         echo "Possible reasons: 未登入 GitHub / 網路 / 分支衝突"
+        notify "❌ TZG Dashboard 部署失敗" "git push 失敗（可能是網路或分支衝突），dashboard 沒有推上 GitHub"
         exit 1
     fi
     echo
