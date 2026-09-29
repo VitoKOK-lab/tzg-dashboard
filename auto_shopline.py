@@ -131,6 +131,39 @@ def manual_login(page):
         log(f'[X] 等待逾時，目前 URL：{page.url}')
         return False
 
+def clear_overlays(page):
+    """
+    清掉可能擋住按鈕點擊的 modal / 遮罩 / Intercom 客服訊息。
+
+    Shopline 後台常跳系統公告/版本更新 modal（uib-modal-window / .modal.fade.in），
+    覆蓋整頁讓按鈕點不到（Playwright: "element intercepts pointer events"）。
+
+    Intercom 客服視窗也會不定期自動彈出訊息/公告卡片（例如 2026-09-29 那次，
+    跳出 400x675 的 intercom-messenger-frame，剛好蓋住匯出按鈕，導致
+    Locator.click 卡滿 30 秒逾時）。Intercom 的 class 是每次改版都會變的
+    動態 hash（如 intercom-with-namespace-16hcfgl），沒辦法寫死比對，
+    只有 "intercom" 這個字首是穩定的 —— 用字串包含比對抓所有相關元素，
+    不管 Intercom 怎麼改版都擋得住。
+    """
+    return page.evaluate('''() => {
+        let n = 0;
+        document.querySelectorAll('.modal.fade.in, .modal-backdrop, [uib-modal-window]').forEach(el => { el.remove(); n++; });
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = '';
+        document.querySelectorAll('body *').forEach(el => {
+            const cls = (typeof el.className === 'string') ? el.className : '';
+            if (/intercom/i.test(cls) || /intercom/i.test(el.id || '')) {
+                const rect = el.getBoundingClientRect();
+                if (rect.width > 0 && rect.height > 0) {
+                    el.style.setProperty('display', 'none', 'important');
+                    n++;
+                }
+            }
+        });
+        return n;
+    }''')
+
+
 def handle_2fa_page(page):
     """新分頁跳到 sso.shoplineapp.com 的 2FA 頁時，用 TZG_TOTP_SECRET 自動填。"""
     if not TOTP_SECRET:
@@ -167,7 +200,7 @@ def handle_2fa_page(page):
 _S3_RE = re.compile(r'"(https://[^"]*amazonaws[^"]*)"')
 
 
-def download_via_new_tab(context, dl_link, save_path):
+def download_via_new_tab(context, dl_link, save_path, source_page=None):
     """
     Shopline 2025+ 下載流程實情：
     /admin/.../jobs/<id>/download 頁面的 HTML 內嵌一個 S3 URL 陣列
@@ -194,6 +227,13 @@ def download_via_new_tab(context, dl_link, save_path):
             log(f'開新分頁下載頁：{target[:80]}')
             page.goto(target, wait_until='load', timeout=30000)
         else:
+            # href 拿不到值時走點擊 fallback —— 這其實是常見路徑
+            # （Shopline 的下載連結常常沒有 href 屬性），Intercom 訊息卡片
+            # 隨時可能剛好蓋在按鈕上，點擊前先清一次遮罩。
+            if source_page is not None:
+                removed = clear_overlays(source_page)
+                if removed:
+                    log(f'（下載前）清掉 {removed} 個遮罩元素（modal/Intercom）')
             try:
                 with context.expect_page(timeout=15000) as new_page_info:
                     dl_link.click()
@@ -434,19 +474,8 @@ def run(month_start=None, month_end=None):
         filename   = f'shopline_{start_safe}_to_{end_safe}_{timestamp}.xlsx'
         save_path = DATA_DIR / filename
 
-        # ── 關掉可能擋住按鈕的 modal / 遮罩 / Intercom ──
-        # Shopline 後台常跳系統公告/版本更新 modal（uib-modal-window / .modal.fade.in），
-        # 覆蓋在整個頁面上讓匯出按鈕點不到（Playwright: "modal intercepts pointer events"）。
-        # 提前清一次；點對話框確認按鈕之前會再清一次。
-        removed = page.evaluate('''() => {
-            let n = 0;
-            document.querySelectorAll('.modal.fade.in, .modal-backdrop, [uib-modal-window]').forEach(el => { el.remove(); n++; });
-            document.body.classList.remove('modal-open');
-            document.body.style.overflow = '';
-            const ic = document.getElementById('intercom-container');
-            if (ic) { ic.style.display = 'none'; n++; }
-            return n;
-        }''')
+        # 提前清一次遮罩/Intercom；點對話框確認按鈕之前會再清一次。
+        removed = clear_overlays(page)
         if removed:
             log(f'清掉 {removed} 個遮罩元素（modal/Intercom）')
 
@@ -484,11 +513,10 @@ def run(month_start=None, month_end=None):
 
         if confirm_btn.count() > 0:
             log('找到對話框確認按鈕，第二次點擊匯出...')
-            # 隱藏 Intercom 聊天視窗（它浮在按鈕上方擋住點擊）
-            page.evaluate('''() => {
-                const ic = document.getElementById('intercom-container');
-                if (ic) ic.style.display = 'none';
-            }''')
+            # 再清一次遮罩/Intercom（訊息卡片可能在等待期間才彈出）
+            removed2 = clear_overlays(page)
+            if removed2:
+                log(f'清掉 {removed2} 個遮罩元素（modal/Intercom）')
             page.wait_for_timeout(500)
             # 用 JS .click() 觸發 AngularJS ng-click 事件
             page.evaluate('''() => {
@@ -594,7 +622,7 @@ def run(month_start=None, month_end=None):
                 if dl_link is not None:
                     log(f'[✓] 準備下載，href={href[:80]}')
                     # 2025 起 Shopline 改成：點下載 → 新分頁 → 2FA → window.open() 真下載
-                    result_path = download_via_new_tab(context, dl_link, save_path)
+                    result_path = download_via_new_tab(context, dl_link, save_path, source_page=page)
                     if result_path:
                         browser.close()
                         return result_path
