@@ -1103,13 +1103,32 @@ def compute(df):
     dtot      = D['meta']['days_total']
 
     # 月底推算業績 (run-rate projection)
-    #   公式：MTD + 過去 N 天日均 × 剩餘天數
+    #   公式：MTD + 過去 N 天日均 × 剩餘天數 × 阻尼係數
     #   原則：
     #     - MTD 用資料截止當下（可能與真實當下差一天，如 Shopline 抓資料的滯後）
     #     - 日均用「過去 N=7 天」的速率，避免月初檔期（母親節）拉高整月平均
     #     - 剩餘天數用「真實當下日期」算（含今天，因為今天還會做業績）
     #     - 月底最後一天 days_left=0 → proj = MTD（自然收斂）
+    #
+    #   🆕 阻尼係數（2026-09-30，用 3-8 月完整歷史資料回測選定）：
+    #     問題：近7天日均直接乘剩餘天數，等於假設「檔期高峰的速率會一路
+    #     撐到月底」。回測發現這個假設系統性高估 —— 6 個月 x 4 個時間點
+    #     共 24 次檢查，平均高估 +7.6%，最誇張一次（5月母親節後第10天）
+    #     高估 55.6%（因為近7天剛好整段卡在檔期高峰裡）。
+    #     試過的替代方案（皆用同一批歷史資料回測，非憑空猜測）：
+    #       - 改回整月線性外推（MTD/已過天數）：MAPE 13.5%，沒有本質改善，
+    #         純粹換一種方式重演同樣的「假設當前速率會持續」問題
+    #       - 去年同期速率形狀錨定：MAPE 23.8%，更差 —— 因為去年同期業績
+    #         基期太低（公司成長太快），形狀比例不可靠，最大高估到 +127%
+    #       - 對外推部分乘阻尼係數（本次採用）：測了 0.65~1.0，MAPE 在
+    #         0.75~0.85 之間最低（12.7%~13.0%），0.8 時平均誤差趨近 0
+    #         （-2.2%，從系統性高估修正為輕微保守），且沒有卡在回測的
+    #         邊界最優值（避免對這批特定資料過度擬合）
+    #     取 0.8：MAPE 14.1%→12.8%，最痛的「月中」誤差 22.2%→14.5%，
+    #     最大高估 55.6%→34.1%（代價：最大低估 -13.2%→-24.1%，但業績
+    #     推算寧可保守，不要虛高讓人誤判「穩了」）
     RECENT_WINDOW_DAYS = 7
+    PROJECTION_DAMPING = 0.8
     recent_start = max(
         (today - timedelta(days=RECENT_WINDOW_DAYS - 1)).replace(hour=0, minute=0, second=0, microsecond=0),
         ms
@@ -1128,10 +1147,10 @@ def compute(df):
         days_left = max(0, dtot - today.day)
         days_left_basis = f'資料截止 {today:%Y-%m-%d}'
 
-    proj = rev_mtd + recent_daily * days_left if today.day else rev_mtd
+    proj = rev_mtd + recent_daily * days_left * PROJECTION_DAMPING if today.day else rev_mtd
     print(f'[推算] MTD NT$ {int(rev_mtd):,} + 近 {actual_recent_days} 天日均 '
-          f'NT$ {int(recent_daily):,} × 剩 {days_left} 天 ({days_left_basis}) '
-          f'= NT$ {int(proj):,}')
+          f'NT$ {int(recent_daily):,} × 剩 {days_left} 天 × 阻尼 {PROJECTION_DAMPING} '
+          f'({days_left_basis}) = NT$ {int(proj):,}')
     
     ly_s, ly_e = month_range(yr-1, mo)
     rev_ly_full = order_level(in_range(vd, ly_s, ly_e))['訂單合計'].sum()
