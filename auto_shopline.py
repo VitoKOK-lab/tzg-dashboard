@@ -131,7 +131,7 @@ def manual_login(page):
         log(f'[X] 等待逾時，目前 URL：{page.url}')
         return False
 
-def clear_overlays(page):
+def clear_overlays(page, remove_modals=True):
     """
     清掉可能擋住按鈕點擊的 modal / 遮罩 / Intercom 客服訊息。
 
@@ -144,12 +144,19 @@ def clear_overlays(page):
     動態 hash（如 intercom-with-namespace-16hcfgl），沒辦法寫死比對，
     只有 "intercom" 這個字首是穩定的 —— 用字串包含比對抓所有相關元素，
     不管 Intercom 怎麼改版都擋得住。
+
+    remove_modals=False：只隱藏 Intercom，不動 .modal / backdrop。
+    匯出確認對話框本身就是 .modal.fade.in，在它已經開啟後再清 modal 會把
+    對話框一起刪掉（2026-09-29 引入的 bug：匯出從未真正送出，之後每晚
+    下載到的都是舊任務的檔案）。第二次點擊前務必傳 False。
     """
-    return page.evaluate('''() => {
+    return page.evaluate('''(removeModals) => {
         let n = 0;
-        document.querySelectorAll('.modal.fade.in, .modal-backdrop, [uib-modal-window]').forEach(el => { el.remove(); n++; });
-        document.body.classList.remove('modal-open');
-        document.body.style.overflow = '';
+        if (removeModals) {
+            document.querySelectorAll('.modal.fade.in, .modal-backdrop, [uib-modal-window]').forEach(el => { el.remove(); n++; });
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+        }
         document.querySelectorAll('body *').forEach(el => {
             const cls = (typeof el.className === 'string') ? el.className : '';
             if (/intercom/i.test(cls) || /intercom/i.test(el.id || '')) {
@@ -161,7 +168,7 @@ def clear_overlays(page):
             }
         });
         return n;
-    }''')
+    }''', remove_modals)
 
 
 def handle_2fa_page(page):
@@ -290,6 +297,32 @@ def download_via_new_tab(context, dl_link, save_path, source_page=None):
                 page.close()
         except Exception:
             pass
+
+
+def validate_downloaded_range(path, month_start, month_end):
+    """
+    匯出是依「訂單日期」篩選，正確的檔案不可能含範圍外的訂單。
+    若檔案內有早於 start 或晚於 end 的訂單 → 一定是下載到別的任務的舊檔。
+    month_start / month_end 格式：YYYY/MM/DD。回傳 (ok, 說明)。
+    """
+    import pandas as pd
+    try:
+        try:
+            df = pd.read_excel(path, usecols=['訂單日期'])
+        except Exception:
+            df = pd.read_excel(path, usecols=['訂單日期'], engine='calamine')
+    except Exception as e:
+        return False, f'無法讀取檔案：{e}'
+    d = pd.to_datetime(df['訂單日期'], errors='coerce').dropna()
+    if len(d) == 0:
+        return True, '檔案無訂單（範圍內可能真的沒單），無法驗證日期'
+    s = datetime.strptime(month_start, '%Y/%m/%d')
+    e = datetime.strptime(month_end, '%Y/%m/%d') + timedelta(days=1)
+    dmin, dmax = d.min().to_pydatetime(), d.max().to_pydatetime()
+    detail = f'要求 {month_start}~{month_end}，檔內訂單 {dmin:%Y-%m-%d %H:%M} ~ {dmax:%Y-%m-%d %H:%M}（{len(d)} 列）'
+    if dmin < s or dmax >= e:
+        return False, detail
+    return True, detail
 
 
 def parse_date_range():
@@ -513,19 +546,29 @@ def run(month_start=None, month_end=None):
 
         if confirm_btn.count() > 0:
             log('找到對話框確認按鈕，第二次點擊匯出...')
-            # 再清一次遮罩/Intercom（訊息卡片可能在等待期間才彈出）
-            removed2 = clear_overlays(page)
+            # 只隱藏 Intercom（訊息卡片可能在等待期間才彈出）。
+            # 絕對不能移除 .modal —— 匯出確認對話框本身就是 .modal。
+            removed2 = clear_overlays(page, remove_modals=False)
             if removed2:
-                log(f'清掉 {removed2} 個遮罩元素（modal/Intercom）')
+                log(f'隱藏 {removed2} 個 Intercom 元素')
             page.wait_for_timeout(500)
+            # 記下送出時間：之後只認「這個時間點之後建立」的匯出任務
+            submit_dt = datetime.now()
             # 用 JS .click() 觸發 AngularJS ng-click 事件
-            page.evaluate('''() => {
+            clicked = page.evaluate('''() => {
                 const btn = document.querySelector(
                     'button.btn-primary[ng-click="export()"], '  +
                     'button.btn-primary.ng-binding'
                 );
-                if (btn) btn.click();
+                if (!btn) return false;
+                btn.click();
+                return true;
             }''')
+            if not clicked:
+                log('[X] 確認按鈕不存在，匯出沒有送出，截圖：debug_modal_btn.png')
+                page.screenshot(path='debug_modal_btn.png')
+                browser.close()
+                sys.exit(1)
             log('已送出第二次點擊（JS click）')
         else:
             log('[!] 找不到藍色確認按鈕，截圖：debug_modal_btn.png')
@@ -540,66 +583,34 @@ def run(month_start=None, month_end=None):
         page.wait_for_timeout(60000)
         log('開始輪詢下載連結...')
 
-        def find_download_btn(page):
-            """嘗試多種方式找到下載按鈕，回傳 (locator, href) 或 None"""
-            # 先用 JS 列出所有按鈕文字（除錯用）
-            btn_texts = page.evaluate("""() => {
-                return Array.from(document.querySelectorAll('button, a'))
-                    .map(el => el.textContent.trim())
-                    .filter(t => t.length > 0 && t.length < 20);
-            }""")
-            log(f'[debug] 頁面文字元素：{btn_texts[:30]}')
-
-            # 方法 1：JS 直接找含「下載」的按鈕並取得 href（最可靠）
-            result = page.evaluate("""() => {
-                const candidates = Array.from(
-                    document.querySelectorAll('button, a, [role="button"]')
-                );
-                for (const el of candidates) {
-                    const t = el.textContent.trim();
-                    if (t === '下載' || t.includes('下載') || t.includes('Download')) {
-                        return {
-                            tag:  el.tagName,
-                            text: t,
-                            href: el.href || el.getAttribute('href') || '',
-                            cls:  el.className
-                        };
-                    }
-                }
-                // 也找 href 包含 csv/xlsx 的連結
-                for (const a of document.querySelectorAll('a[href]')) {
-                    const href = a.href || '';
-                    if (href.includes('.csv') || href.includes('.xlsx') ||
-                        href.includes('download')) {
-                        return { tag: 'A', text: a.textContent.trim(),
-                                 href: href, cls: a.className };
-                    }
-                }
-                return null;
-            }""")
-
-            if result:
-                log(f'[JS] 找到下載元素：{result}')
-                if result.get('href'):
-                    # 有 href → 直接用連結下載
-                    return page.locator(f'a[href="{result["href"]}"]').first, result['href']
-                else:
-                    # 無 href → 用文字定位點擊
-                    return page.get_by_text('下載', exact=True).first, ''
-
-            # 方法 2：Playwright role-based locator
-            role_btn = page.get_by_role('button', name='下載')
-            if role_btn.count() > 0:
-                log('[role] 找到下載按鈕')
-                return role_btn.first, ''
-
-            # 方法 3：get_by_text（含部分符合）
-            txt_btn = page.get_by_text('下載', exact=True)
-            if txt_btn.count() > 0:
-                log('[text] 找到下載文字元素')
-                return txt_btn.first, ''
-
-            return None, None
+        def find_my_job_download(page):
+            """
+            在 jobs 表格中找「本次送出之後建立、且已執行完成」的那一列，回傳該列的下載元素。
+            不能抓「頁面第一個下載」：新任務還沒完成時，第一個下載屬於舊任務，
+            會悄悄下載到舊檔案（資料停滯卻不報錯）。
+            回傳 (locator 或 None, 說明文字)
+            """
+            rows = page.evaluate("""() => Array.from(document.querySelectorAll('table tbody tr')).map(tr =>
+                Array.from(tr.children).map(td => td.innerText.replace(/\\s+/g, ' ').trim()))""")
+            cutoff = submit_dt.replace(second=0, microsecond=0) - timedelta(minutes=1)
+            found_pending = False
+            for idx, cells in enumerate(rows):
+                if len(cells) < 4:
+                    continue
+                status, exec_txt = cells[2], cells[3]
+                try:
+                    exec_dt = datetime.strptime(exec_txt, '%Y-%m-%d %I:%M%p')
+                except ValueError:
+                    continue
+                if exec_dt < cutoff:
+                    continue   # 舊任務（本次送出之前）
+                if '執行完成' in status:
+                    loc = page.locator('table tbody tr').nth(idx).get_by_text('下載', exact=True).first
+                    return loc, f'第 {idx + 1} 列 {exec_txt} {status}'
+                found_pending = True
+            if found_pending:
+                return None, '本次任務已建立，尚未執行完成'
+            return None, 'jobs 列表找不到本次送出的任務'
 
         # 最多再等 3 分鐘（每 15 秒一次）
         for i in range(12):
@@ -617,16 +628,28 @@ def run(month_start=None, month_end=None):
                     page.screenshot(path='debug_jobs_page.png', full_page=True)
                     log('截圖：debug_jobs_page.png')
 
-                dl_link, href = find_download_btn(page)
+                dl_link, why = find_my_job_download(page)
 
                 if dl_link is not None:
-                    log(f'[✓] 準備下載，href={href[:80]}')
-                    # 2025 起 Shopline 改成：點下載 → 新分頁 → 2FA → window.open() 真下載
+                    log(f'[✓] 準備下載：{why}')
+                    # 2025 起 Shopline 改成：點下載 → 新分頁 → 2FA → 取 S3 URL 下載
                     result_path = download_via_new_tab(context, dl_link, save_path, source_page=page)
                     if result_path:
+                        ok, detail = validate_downloaded_range(result_path, month_start, month_end)
+                        if not ok:
+                            log(f'[X] 下載的檔案日期範圍與要求不符，視為抓錯任務：{detail}')
+                            try:
+                                Path(result_path).unlink()
+                            except OSError:
+                                pass
+                            browser.close()
+                            sys.exit(1)
+                        log(f'[✓] 檔案驗證通過：{detail}')
                         browser.close()
                         return result_path
                     log('[!] 新分頁流程失敗，繼續下一輪重試...')
+                else:
+                    log(f'[wait] {why}')
 
                 elapsed = 60 + (i + 1) * 15
                 log(f'[{i+1}/12] 尚未就緒，繼續等待... (共 {elapsed} 秒)')
