@@ -1,0 +1,41 @@
+<!DOCTYPE html><!-- @dsCard group="Brand" -->
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0}
+  body{font-family:var(--font-sans-tc);background:var(--paper-warm);padding:24px;color:var(--ink)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .tile{border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;border:1px solid var(--line)}
+  .stack{flex-direction:column;gap:14px;padding:26px 20px}
+  .mark{height:58px;width:auto;object-fit:contain;display:block}
+  .wm{display:flex;flex-direction:column;align-items:center;gap:7px}
+  .lat{font-family:var(--font-display);font-weight:600;font-size:16px;letter-spacing:.26em;padding-left:.26em;line-height:1;white-space:nowrap}
+  .han{font-family:var(--font-sans-tc);font-weight:400;font-size:12px;letter-spacing:.5em;padding-left:.5em;line-height:1;white-space:nowrap}
+  /* horizontal */
+  .horiz{grid-column:1 / -1;display:flex;align-items:center;justify-content:center;gap:24px;padding:22px;background:#fff;border:1px solid var(--line);border-radius:var(--r-md)}
+  .horiz .mark{height:54px}
+  .horiz .wm{align-items:flex-start;gap:8px}
+  .cap{font-family:var(--font-sans);font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint);text-align:center;margin-top:8px}
+</style></head>
+<body>
+  <div class="grid">
+    <div>
+      <div class="tile stack" style="background:#fff">
+        <img class="mark" src="../assets/logo-black.png">
+        <div class="wm"><div class="lat" style="color:var(--ink)">TAHIR ZAINAB</div><div class="han" style="color:var(--ink)">泰熙爾札娜</div></div>
+      </div>
+      <div class="cap">淺色底 · 標準版</div>
+    </div>
+    <div>
+      <div class="tile stack" style="background:var(--zana-pink);border:none">
+        <img class="mark" src="../assets/logo-gold.png">
+        <div class="wm"><div class="lat tz-foil">TAHIR ZAINAB</div><div class="han" style="background:var(--foil-gold);-webkit-background-clip:text;background-clip:text;color:transparent">泰熙爾札娜</div></div>
+      </div>
+      <div class="cap">品牌色底 · 金色</div>
+    </div>
+    <div class="horiz">
+      <img class="mark" src="../assets/logo-black.png">
+      <div class="wm"><div class="lat" style="color:var(--ink)">TAHIR ZAINAB</div><div class="han" style="color:var(--ink)">泰熙爾札娜</div></div>
+    </div>
+  </div>
+</body></html>

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<!-- @dsCard group="UI Kit — Story Highlights" name="UI Kit · Stories & Highlights" subtitle="9:16 stories, unified highlight covers, profile avatars" viewport="980x560" -->
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TAHIR ZAINAB · Stories & Highlights</title>
+<link rel="stylesheet" href="../../colors_and_type.css">
+<style>
+  html,body{margin:0;background:var(--paper-warm);color:var(--ink);font-family:var(--font-sans-tc)}
+  .wrap{max-width:980px;margin:0 auto;padding:48px 32px 90px}
+  .head{display:flex;align-items:center;gap:18px}
+  .head img{height:46px}
+  .eyebrow{font-family:var(--font-sans);font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--gold-deep)}
+  h1{font-family:var(--font-sans-tc);font-weight:700;font-size:34px;margin:6px 0 0}
+  .sub{font-family:var(--font-serif-tc);color:var(--ink-soft);font-size:16px;margin-top:6px}
+  section{margin-top:46px}
+  .stitle{font-family:var(--font-sans);font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:18px;display:flex;align-items:center;gap:12px}
+  .stitle::after{content:"";flex:1;height:1px;background:var(--line)}
+  .stories{display:flex;gap:24px;flex-wrap:wrap}
+  .cap{font-family:var(--font-sans);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);text-align:center;margin-top:10px}
+  .cell{display:flex;flex-direction:column}
+  .covers{display:flex;gap:26px;flex-wrap:wrap;background:#fff;border:1px solid var(--line);border-radius:var(--r-md);padding:26px 28px}
+  .coverset{display:flex;gap:26px;flex-wrap:wrap}
+  .crow-label{font-family:var(--font-sans-tc);font-size:13px;color:var(--ink-soft);width:100%;margin-bottom:2px}
+  .avatars{display:flex;gap:30px;flex-wrap:wrap;align-items:center}
+  .av{display:flex;flex-direction:column;align-items:center;gap:11px}
+  .ring{width:104px;height:104px;border-radius:50%;display:flex;align-items:center;justify-content:center;padding:3px}
+  .story-ring{background:linear-gradient(135deg,var(--zana-pink),var(--gold))}
+  .disc{width:100%;height:100%;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid #fff;overflow:hidden}
+  .disc img{width:78%;height:78%;object-fit:contain}
+  .alabel{font-family:var(--font-sans);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint)}
+</style></head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/lucide@0.453.0/dist/umd/lucide.min.js"></script>
+<script src="image-slot.js"></script>
+<script type="text/babel" src="StoryHighlights.jsx"></script>
+<script type="text/babel">
+const { useState, useEffect } = React;
+const STORIES = [
+  { key:'Product', label:'商品 · Product', C:ProductStory },
+  { key:'Quote',   label:'故事 · Quote',   C:QuoteStory },
+  { key:'Teaser',  label:'預告 · Teaser',  C:TeaserStory },
+];
+function App(){
+  const [sel,setSel]=useState('Product');
+  useEffect(()=>{ if(window.lucide) window.lucide.createIcons(); });
+  return (
+    <div className="wrap">
+      <div className="head">
+        <img src="../../assets/logo-pink.png" />
+        <div><div className="eyebrow">Stories & Highlights</div><h1>限動・精選・大頭貼</h1></div>
+      </div>
+      <div className="sub">9:16 限時動態、統一風格的精選封面、與圓形裁切大頭貼。</div>
+
+      <section>
+        <div className="stitle">限時動態 · Stories (9:16)</div>
+        <div className="stories">
+          {STORIES.map(s=>(
+            <div className="cell" key={s.key}>
+              <s.C display={244} selected={sel===s.key} onClick={()=>setSel(s.key)} />
+              <div className="cap">{s.label}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <div className="stitle">精選封面 · Highlight Covers</div>
+        <div className="covers">
+          <div className="coverset">
+            <div className="crow-label">桃紅底 · 白色圖示（主）</div>
+            {HIGHLIGHTS.map(h=> <HighlightCover key={h.icon} {...h} variant="pink" />)}
+          </div>
+          <div className="coverset" style={{marginTop:8}}>
+            <div className="crow-label">白底 · 桃紅圖示（替代）</div>
+            {HIGHLIGHTS.map(h=> <HighlightCover key={h.icon} {...h} variant="white" />)}
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div className="stitle">大頭貼 · Profile Avatars</div>
+        <div className="avatars">
+          <div className="av"><div className="ring story-ring"><div className="disc" style={{background:'#fff'}}><img src="../../assets/logo-square-pink.png"/></div></div><div className="alabel">白底 · 限動環</div></div>
+          <div className="av"><div className="ring" style={{background:'#fff',border:'1px solid var(--line)'}}><div className="disc" style={{background:'var(--zana-pink)',borderColor:'var(--zana-pink)'}}><img src="../../assets/logo-square-white.png"/></div></div><div className="alabel">桃紅底</div></div>
+          <div className="av"><div className="ring" style={{background:'#fff',border:'1px solid var(--line)'}}><div className="disc" style={{background:'var(--ink)',borderColor:'var(--ink)'}}><img src="../../assets/logo-square-gold.png"/></div></div><div className="alabel">墨底 · 燙金</div></div>
+        </div>
+      </section>
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body></html>

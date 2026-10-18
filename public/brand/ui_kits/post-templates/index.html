@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<!-- @dsCard group="UI Kit — Post Templates" name="UI Kit · Post Templates" subtitle="Feed-post templates: new arrival, quote, feature, announcement" viewport="1080x620" -->
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TAHIR ZAINAB · Post Templates</title>
+<link rel="stylesheet" href="../../colors_and_type.css">
+<style>
+  html,body{margin:0;background:var(--paper-warm);color:var(--ink);font-family:var(--font-sans-tc)}
+  .wrap{max-width:1080px;margin:0 auto;padding:48px 32px 80px}
+  .head{display:flex;align-items:center;gap:18px;margin-bottom:8px}
+  .head img{height:46px}
+  .eyebrow{font-family:var(--font-sans);font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--gold-deep)}
+  h1{font-family:var(--font-sans-tc);font-weight:700;font-size:34px;margin:6px 0 0}
+  .sub{font-family:var(--font-serif-tc);color:var(--ink-soft);font-size:16px;margin-top:6px}
+  .layout{display:grid;grid-template-columns:1fr 320px;gap:34px;margin-top:40px;align-items:start}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:26px}
+  .cell{display:flex;flex-direction:column;gap:10px}
+  .cap{font-family:var(--font-sans);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint)}
+  .panel{position:sticky;top:32px;background:#fff;border:1px solid var(--line);border-radius:var(--r-md);padding:22px;box-shadow:var(--shadow-sm)}
+  .panel h3{font-family:var(--font-sans-tc);font-weight:700;font-size:15px;margin:0 0 4px}
+  .panel .hint{font-family:var(--font-sans);font-size:11px;letter-spacing:.06em;color:var(--ink-faint);margin-bottom:14px}
+  .caption{font-family:var(--font-sans-tc);font-size:14px;line-height:1.7;color:var(--ink-soft);white-space:pre-wrap;background:var(--pink-050);border-radius:var(--r-sm);padding:14px;min-height:120px}
+  .copy{margin-top:14px;width:100%;font-family:var(--font-sans-tc);font-weight:500;font-size:14px;letter-spacing:.1em;background:var(--zana-pink);color:#fff;border:none;border-radius:3px;padding:13px;cursor:pointer}
+  .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;font-size:13px;padding:11px 22px;border-radius:999px;opacity:0;transition:.3s ease;pointer-events:none}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  @media(max-width:860px){.layout{grid-template-columns:1fr}.panel{position:static}}
+</style></head>
+<body>
+<div id="root"></div>
+<div class="toast" id="toast">已複製文案 ✦</div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="image-slot.js"></script>
+<script type="text/babel" src="PostTemplates.jsx"></script>
+<script type="text/babel">
+const { useState } = React;
+const POSTS = [
+  { key:'NewArrival', label:'新品 · New Arrival (1:1)', C:NewArrivalPost },
+  { key:'Quote',      label:'品牌故事 · Quote (1:1)',    C:QuotePost },
+  { key:'Feature',    label:'商品 · Feature (4:5)',      C:FeaturePost },
+  { key:'Celestial',  label:'預告 · Announcement (1:1)', C:CelestialPost },
+];
+function App(){
+  const [sel,setSel]=useState('NewArrival');
+  const copy=()=>{
+    navigator.clipboard && navigator.clipboard.writeText(POST_CAPTIONS[sel]).catch(()=>{});
+    const t=document.getElementById('toast'); t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1600);
+  };
+  return (
+    <div className="wrap">
+      <div className="head">
+        <img src="../../assets/logo-pink.png" />
+        <div><div className="eyebrow">Post Templates</div><h1>貼文模板</h1></div>
+      </div>
+      <div className="sub">白底為主，桃紅引導，金色點綴。點選任一模板以檢視建議文案。</div>
+      <div className="layout">
+        <div className="grid">
+          {POSTS.map(p=>(
+            <div className="cell" key={p.key}>
+              <p.C display={350} selected={sel===p.key} onClick={()=>setSel(p.key)} />
+              <div className="cap">{p.label}</div>
+            </div>
+          ))}
+        </div>
+        <div className="panel">
+          <h3>建議文案 · Caption</h3>
+          <div className="hint">{POSTS.find(p=>p.key===sel).label}</div>
+          <div className="caption">{POST_CAPTIONS[sel]}</div>
+          <button className="copy" onClick={copy}>複製文案</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body></html>

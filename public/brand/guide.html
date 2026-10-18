@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<!--
+  TAHIR ZAINAB 品牌規範手冊 — A4 印刷排版，「匯出 PDF」= window.print()
+  瀏覽器列印目的地選「另存為 PDF」即可產出電子檔／送印檔。
+  工具列可勾選章節，只匯出需要的頁面。純附加靜態頁，不影響報表流程。
+-->
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TAHIR ZAINAB · 品牌規範手冊</title>
+<link rel="stylesheet" href="colors_and_type.css">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{background:#E9E2E6;font-family:var(--font-sans-tc);color:var(--ink)}
+
+/* ── 工具列（列印時隱藏） ── */
+.toolbar{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.95);backdrop-filter:blur(8px);border-bottom:1px solid var(--line-gold);padding:12px 20px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.toolbar .back{font-size:13px;color:var(--ink-soft);text-decoration:none;white-space:nowrap}
+.toolbar .back:hover{color:var(--zana-pink)}
+.toolbar .exp{font-family:var(--font-sans-tc);font-size:14px;font-weight:600;color:#fff;background:var(--zana-pink);border:none;border-radius:999px;padding:10px 28px;cursor:pointer;letter-spacing:.08em;box-shadow:0 6px 18px -6px rgba(230,0,126,.45);transition:background .3s ease-out,transform .2s ease-out;white-space:nowrap}
+.toolbar .exp:hover{background:var(--dark-pink)}
+.toolbar .exp:active{transform:scale(.97)}
+.toolbar .hint{font-size:12px;color:var(--ink-faint)}
+.toolbar .secs{display:flex;gap:4px 14px;flex-wrap:wrap;margin-left:auto}
+.toolbar label{font-size:12.5px;color:var(--ink-soft);display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none;white-space:nowrap}
+.toolbar input{accent-color:#E6007E}
+
+/* ── A4 頁 ── */
+.sheet{display:flex;flex-direction:column;align-items:center;padding:28px 12px 60px;gap:28px}
+.page{width:210mm;height:297mm;background:#fff;box-shadow:0 8px 30px -10px rgba(43,24,34,.25);padding:20mm 18mm;position:relative;overflow:hidden;flex-shrink:0}
+.page.off{display:none}
+
+/* 頁首頁尾 */
+.ph{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--line-gold);padding-bottom:5mm;margin-bottom:9mm}
+.ph .l{font-family:var(--font-sans);font-size:10px;letter-spacing:.3em;text-transform:uppercase;color:var(--gold-deep)}
+.ph .r{font-family:var(--font-sans);font-size:10px;letter-spacing:.22em;color:var(--ink-faint)}
+.pf{position:absolute;left:18mm;right:18mm;bottom:12mm;display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--line);padding-top:4mm}
+.pf .b{font-family:var(--font-sans);font-size:9px;letter-spacing:.28em;text-transform:uppercase;color:var(--ink-faint)}
+.pf .s{color:var(--gold);font-size:10px}
+
+h2.sect{font-family:var(--font-serif-tc);font-size:26px;font-weight:600;color:var(--ink)}
+.sect-en{font-family:var(--font-sans);font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--gold-deep);margin-top:2mm}
+.lede{font-size:12.5px;line-height:1.8;color:var(--ink-soft);margin-top:5mm;max-width:150mm}
+.goldrule{width:20mm;height:2px;background:var(--foil-gold);margin-top:5mm}
+
+/* 1 封面 */
+.cover{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.cover .mk{height:52mm;margin-bottom:14mm}
+.cover .wm{font-family:var(--font-sans);font-size:30px;letter-spacing:.42em;text-indent:.42em;color:var(--ink)}
+.cover .zh{font-family:var(--font-serif-tc);font-size:16px;font-weight:500;letter-spacing:.4em;text-indent:.4em;color:var(--ink-soft);margin-top:6mm}
+.cover .rule{width:44mm;height:1px;background:var(--foil-gold);margin:12mm 0 9mm}
+.cover .tt{font-size:15px;font-weight:600;letter-spacing:.24em;text-indent:.24em}
+.cover .te{font-family:var(--font-sans);font-size:10px;letter-spacing:.34em;text-transform:uppercase;color:var(--gold-deep);margin-top:3mm}
+.cover .dt{font-family:var(--font-sans);font-size:10px;letter-spacing:.2em;color:var(--ink-faint);position:absolute;bottom:16mm}
+
+/* 2 概觀 */
+.story{font-family:var(--font-serif-tc);font-size:14px;line-height:2.1;color:var(--ink);margin-top:7mm;max-width:150mm}
+.voice{display:grid;grid-template-columns:1fr 1fr;gap:6mm;margin-top:9mm}
+.vcard{border:1px solid var(--line);border-radius:8px;padding:6mm}
+.vcard.no{border-color:var(--pink-100);background:var(--pink-050)}
+.vcard h4{font-size:12px;font-weight:700;letter-spacing:.12em;margin-bottom:3mm}
+.vcard li{font-size:11px;line-height:1.9;color:var(--ink-soft);list-style:none;padding-left:5mm;position:relative}
+.vcard li::before{content:'✦';position:absolute;left:0;color:var(--gold);font-size:9px}
+.vcard.no li::before{content:'✕';color:var(--dark-pink)}
+.tone{margin-top:9mm;border-left:2px solid var(--gold-300);padding-left:6mm}
+.tone .q{font-family:var(--font-serif-tc);font-size:15px;line-height:2}
+.tone .c{font-family:var(--font-sans);font-size:10px;letter-spacing:.2em;color:var(--ink-faint);margin-top:2mm}
+
+/* 3 標誌 */
+.logogrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6mm;margin-top:7mm}
+.lg{border:1px solid var(--line);border-radius:8px;display:flex;align-items:center;justify-content:center;height:38mm;position:relative}
+.lg img{height:22mm}
+.lg .tag{position:absolute;bottom:3mm;left:0;right:0;text-align:center;font-family:var(--font-sans);font-size:8.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint)}
+.lg.pinkbg{background:#E6007E;border:none}.lg.inkbg{background:#2B1822;border:none}.lg.pinkbg .tag,.lg.inkbg .tag{color:rgba(255,255,255,.75)}
+.avrow{display:flex;gap:9mm;margin-top:7mm;align-items:center}
+.av{width:24mm;height:24mm;border-radius:50%;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.av img{width:100%;height:100%;object-fit:cover}
+.av.ring{box-shadow:0 0 0 1.2mm #fff,0 0 0 2mm #E6007E}
+.dont{margin-top:8mm}
+.dont li{font-size:11px;line-height:2;color:var(--ink-soft);list-style:none;padding-left:6mm;position:relative}
+.dont li::before{content:'✕';position:absolute;left:0;color:var(--dark-pink);font-weight:700}
+
+/* 4 色彩 */
+.swrow{display:flex;gap:5mm;margin-top:7mm}
+.sw{flex:1}
+.sw .chip{height:30mm;border-radius:6px;border:1px solid rgba(43,24,34,.08)}
+.sw .role{font-family:var(--font-sans);font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold-deep);margin-top:3mm}
+.sw .nm{font-family:var(--font-serif-tc);font-size:12px;font-weight:600;margin-top:1mm}
+.sw .mt{font-family:var(--font-sans);font-size:9px;line-height:1.7;color:var(--ink-soft);margin-top:1.5mm}
+.sw .mt b{color:var(--ink)}
+.ratio{display:flex;height:11mm;border-radius:6px;overflow:hidden;margin-top:7mm;border:1px solid var(--line)}
+.ratio div{display:flex;align-items:center;justify-content:center;font-family:var(--font-sans);font-size:8.5px;letter-spacing:.12em}
+.tintrow{display:flex;gap:3mm;margin-top:5mm}
+.tint{flex:1;height:12mm;border-radius:4px;border:1px solid rgba(43,24,34,.06);position:relative}
+.tint span{position:absolute;bottom:-5mm;left:0;font-family:var(--font-sans);font-size:7.5px;color:var(--ink-faint)}
+.foilnote{margin-top:12mm;display:flex;gap:6mm;align-items:center}
+.foilbar{width:52mm;height:12mm;border-radius:6px;background:var(--foil-gold)}
+.foilnote p{font-size:10.5px;line-height:1.8;color:var(--ink-soft);flex:1}
+
+/* 5 字體 */
+.typerow{display:grid;grid-template-columns:52mm 1fr;gap:6mm;align-items:center;border-bottom:1px solid var(--line);padding:6mm 0}
+.typerow .demo{font-size:24px}
+.typerow .who{font-size:11.5px;font-weight:700}
+.typerow .use{font-size:10.5px;color:var(--ink-soft);line-height:1.7;margin-top:1mm}
+.numnote{margin-top:7mm;background:var(--gold-050);border:1px solid var(--line-gold);border-radius:8px;padding:5mm 6mm;font-size:11px;line-height:1.9;color:var(--ink-soft)}
+.numnote b{font-family:var(--font-sans);color:var(--ink)}
+
+/* 6 花紋與包裝 */
+.patgrid{display:grid;grid-template-columns:1fr 1fr;gap:6mm;margin-top:7mm}
+.pat{border:1px solid var(--line);border-radius:8px;overflow:hidden;height:52mm;display:flex;align-items:center;justify-content:center;position:relative}
+.pat img{max-width:80%;max-height:70%;object-fit:contain}
+.pat.mag{background:#B12468}
+.pat .tag{position:absolute;bottom:3mm;left:0;right:0;text-align:center;font-family:var(--font-sans);font-size:8.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint)}
+.pat.mag .tag{color:rgba(255,255,255,.8)}
+.pat.photo img{max-width:100%;max-height:100%;width:100%;height:100%;object-fit:cover}
+.warn{margin-top:7mm;background:var(--pink-050);border:1px solid var(--pink-100);border-radius:8px;padding:5mm 6mm;font-size:11px;line-height:1.9;color:var(--ink-soft)}
+.warn b{color:var(--dark-pink)}
+
+/* 7 版面摘要 */
+.sumgrid{display:grid;grid-template-columns:1fr 1fr;gap:7mm;margin-top:7mm}
+.sum{border:1px solid var(--line);border-radius:8px;padding:6mm}
+.sum h4{font-size:12px;font-weight:700;margin-bottom:3mm}
+.sum p{font-size:10.5px;line-height:1.9;color:var(--ink-soft)}
+.spdots{display:flex;align-items:flex-end;gap:2mm;margin-top:3mm}
+.spdots i{display:block;background:var(--pink-100);border-radius:2px;width:4mm}
+.radrow{display:flex;gap:3mm;margin-top:3mm}
+.radrow i{display:block;width:10mm;height:10mm;border:1.5px solid var(--zana-pink);background:var(--pink-050)}
+.hairline{height:1px;background:var(--line-gold);margin:3mm 0}
+
+@media print{
+  body{background:#fff}
+  .toolbar{display:none}
+  .sheet{padding:0;gap:0}
+  .page{box-shadow:none;page-break-after:always;break-after:page}
+  .page:last-child{page-break-after:auto}
+}
+@page{size:A4;margin:0}
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <a class="back" href="index.html">← 回品牌首頁</a>
+  <button class="exp" onclick="window.print()">⬇ 匯出 PDF</button>
+  <span class="hint">列印視窗「目的地」選「另存為 PDF」即可輸出</span>
+  <div class="secs" id="secs">
+    <label><input type="checkbox" checked data-p="p1">封面</label>
+    <label><input type="checkbox" checked data-p="p2">概觀</label>
+    <label><input type="checkbox" checked data-p="p3">標誌</label>
+    <label><input type="checkbox" checked data-p="p4">色彩</label>
+    <label><input type="checkbox" checked data-p="p5">字體</label>
+    <label><input type="checkbox" checked data-p="p6">花紋包裝</label>
+    <label><input type="checkbox" checked data-p="p7">版面</label>
+  </div>
+</div>
+
+<div class="sheet">
+
+  <!-- 1 封面 -->
+  <section class="page cover" id="p1">
+    <img class="mk" src="assets/logo-pink.png" alt="TAHIR ZAINAB 標誌">
+    <div class="wm">TAHIR&nbsp;ZAINAB</div>
+    <div class="zh">泰熙爾札娜</div>
+    <div class="rule"></div>
+    <div class="tt">品牌規範手冊</div>
+    <div class="te">✦ Brand Guidelines ✦</div>
+    <div class="dt" id="coverDate"></div>
+  </section>
+
+  <!-- 2 品牌概觀 -->
+  <section class="page" id="p2">
+    <div class="ph"><span class="l">Brand Overview</span><span class="r">TAHIR ZAINAB</span></div>
+    <h2 class="sect">品牌概觀</h2>
+    <div class="sect-en">Overview · 星月 × 日</div>
+    <div class="goldrule"></div>
+    <p class="story">泰熙爾札娜是一個跨越座標的寶石品牌 —— 巴基斯坦的星與月，遇上台灣的日。
+    品牌世界以天球護符為語彙：羅盤座標（泰 30°N 70°E ／ 台 22°N）、星宿、寶石與沙子。
+    識別核心是一枚手寫書法標誌，兩側綴以菱形星芒 ✦，配上寬字距的大寫拉丁標準字與中文名。</p>
+    <div class="voice">
+      <div class="vcard">
+        <h4 style="color:var(--gold-deep)">聲音與語調 · Do</h4>
+        <li>溫暖、精緻、安靜自信 —— 像品味極好的優雅朋友</li>
+        <li>以「我們／你」對話：「為你準備」「追蹤我們」</li>
+        <li>一句一個念頭，留白也是文案的一部分</li>
+        <li>唯一裝飾符號：菱形星芒 ✦ ✧（呼應標誌）</li>
+        <li>全形中文標點（，。、）</li>
+      </div>
+      <div class="vcard no">
+        <h4 style="color:var(--dark-pink)">避免 · Don't</h4>
+        <li>大聲叫賣、硬性推銷的語氣</li>
+        <li>Emoji（🌸💄✨ 一律不用）</li>
+        <li>企業式第三人稱、官腔</li>
+        <li>中文全大寫式的喊話排版</li>
+        <li>品牌色以外的大面積色塊</li>
+      </div>
+    </div>
+    <div class="tone">
+      <div class="q">「每一顆寶石，都是一次跨越座標的相遇。」</div>
+      <div class="c">TONE EXAMPLE · 品牌語錄</div>
+    </div>
+    <div class="pf"><span class="b">Tahir Zainab · Brand Guidelines</span><span class="s">✦</span><span class="b">02</span></div>
+  </section>
+
+  <!-- 3 標誌 -->
+  <section class="page" id="p3">
+    <div class="ph"><span class="l">Logo</span><span class="r">TAHIR ZAINAB</span></div>
+    <h2 class="sect">標誌</h2>
+    <div class="sect-en">The Calligraphic Mark · 手寫書法標誌</div>
+    <div class="goldrule"></div>
+    <p class="lede">一枚流動的書法字符，兩側各一枚菱形星芒。依載體選用對應色版；深色底用白或燙金，淺色底用桃紅、黑或金。</p>
+    <div class="logogrid">
+      <div class="lg"><img src="assets/logo-pink.png" alt="桃紅標誌"><span class="tag">桃紅 · 主用</span></div>
+      <div class="lg"><img src="assets/logo-gold.png" alt="金色標誌"><span class="tag">燙金 · 精緻細節</span></div>
+      <div class="lg"><img src="assets/logo-black.png" alt="黑色標誌"><span class="tag">黑 · 單色印刷</span></div>
+      <div class="lg pinkbg"><img src="assets/logo-white.png" alt="白色標誌"><span class="tag">白 · 桃紅底</span></div>
+      <div class="lg inkbg"><img src="assets/logo-gold.png" alt="墨底燙金"><span class="tag">燙金 · 墨底</span></div>
+      <div class="lg"><img src="assets/logo-darkpink.png" alt="暗桃紅標誌"><span class="tag">暗桃紅 · 輔助</span></div>
+    </div>
+    <p class="lede" style="margin-top:8mm">圓形大頭貼裁切（社群用，採光學置中版本）：</p>
+    <div class="avrow">
+      <div class="av ring" style="background:#fff"><img src="assets/logo-square-pink.png" alt="白底大頭貼"></div>
+      <div class="av" style="background:#E6007E"><img src="assets/logo-square-white.png" alt="桃紅底大頭貼"></div>
+      <div class="av" style="background:#2B1822"><img src="assets/logo-square-gold.png" alt="墨底燙金大頭貼"></div>
+    </div>
+    <ul class="dont">
+      <li>勿變形、旋轉、加陰影或描邊</li>
+      <li>勿以標誌替代介面圖示使用</li>
+      <li>周圍保留淨空（至少標誌高度的 25%），文字勿貼邊</li>
+    </ul>
+    <div class="pf"><span class="b">Tahir Zainab · Brand Guidelines</span><span class="s">✦</span><span class="b">03</span></div>
+  </section>
+
+  <!-- 4 色彩 -->
+  <section class="page" id="p4">
+    <div class="ph"><span class="l">Colors · 五色制</span><span class="r">TAHIR ZAINAB</span></div>
+    <h2 class="sect">色彩系統</h2>
+    <div class="sect-en">The Five-Color System · 印刷請以 Pantone 為準</div>
+    <div class="goldrule"></div>
+    <div class="swrow">
+      <div class="sw"><div class="chip" style="background:#E6007E"></div><div class="role">主色 Primary</div><div class="nm">札娜紅 · 桃紅</div><div class="mt">#E6007E<br>RGB 230·0·126<br><b>PANTONE 213 C</b></div></div>
+      <div class="sw"><div class="chip" style="background:var(--foil-gold)"></div><div class="role">燙金 Gold</div><div class="nm">金</div><div class="mt">#C5B382<br>RGB 197·179·130<br><b>PANTONE 8640 C</b></div></div>
+      <div class="sw"><div class="chip" style="background:#50C8BE"></div><div class="role">亮點 Highlight</div><div class="nm">泰熙爾藍</div><div class="mt">#50C8BE<br>RGB 80·200·190<br><b>PANTONE 3258 C</b></div></div>
+      <div class="sw"><div class="chip" style="background:#B12468"></div><div class="role">輔助 Secondary</div><div class="nm">暗桃紅</div><div class="mt">#B12468<br>RGB 177·36·104<br><b>PANTONE 215 C</b></div></div>
+      <div class="sw"><div class="chip" style="background:#fff;border:1px solid var(--line)"></div><div class="role">背景 Base</div><div class="nm">純白</div><div class="mt">#FFFFFF<br>RGB 255·255·255<br><b>Bright White</b></div></div>
+    </div>
+    <p class="lede" style="margin-top:8mm">使用比例：純白為主場，桃紅引導視線，金色只點在珍貴之處，藍綠僅限緞帶／封印時刻 —— 永遠不作大面積使用。</p>
+    <div class="ratio">
+      <div style="flex:62;background:#fff;color:var(--ink-faint)">白 62%</div>
+      <div style="flex:22;background:#E6007E;color:#fff">桃紅 22%</div>
+      <div style="flex:10;background:#C5B382;color:#fff">金 10%</div>
+      <div style="flex:4;background:#B12468;color:#fff">4%</div>
+      <div style="flex:2;background:#50C8BE;color:#fff"></div>
+    </div>
+    <p class="lede" style="margin-top:8mm">衍生淡彩（僅作柔和分區底色，不搶主角）：</p>
+    <div class="tintrow">
+      <div class="tint" style="background:#FDF0F7"><span>pink-050</span></div>
+      <div class="tint" style="background:#FBD9EC"><span>pink-100</span></div>
+      <div class="tint" style="background:#F4A9D2"><span>pink-200</span></div>
+      <div class="tint" style="background:#FAF6EA"><span>gold-050</span></div>
+      <div class="tint" style="background:#EFE7CF"><span>gold-100</span></div>
+      <div class="tint" style="background:#EAF8F6"><span>teal-050</span></div>
+    </div>
+    <div class="foilnote">
+      <div class="foilbar"></div>
+      <p><b>燙金工藝：</b>螢幕上以金屬漸層模擬；實體印刷請採燙金加工（hot-foil stamping），色票以 PANTONE 8640 C 為準，用於標誌、髮絲線與「靈魂細節」。</p>
+    </div>
+    <div class="pf"><span class="b">Tahir Zainab · Brand Guidelines</span><span class="s">✦</span><span class="b">04</span></div>
+  </section>
+
+  <!-- 5 字體 -->
+  <section class="page" id="p5">
+    <div class="ph"><span class="l">Typography · 四字體系統</span><span class="r">TAHIR ZAINAB</span></div>
+    <h2 class="sect">字體系統</h2>
+    <div class="sect-en">Official Four-Font System</div>
+    <div class="goldrule"></div>
+    <div class="typerow">
+      <div class="demo" style="font-family:var(--font-sans-tc);font-weight:700">綻放的美</div>
+      <div><div class="who">中文主字體 · 思源黑體／微軟正黑體</div><div class="use">標題、內文、圖說 —— 日常主力。網頁對應 Noto Sans TC。</div></div>
+    </div>
+    <div class="typerow">
+      <div class="demo" style="font-family:var(--font-sans);letter-spacing:.18em">TAHIR ZAINAB</div>
+      <div><div class="who">英文主字體 · Helvetica</div><div class="use">英文標題、品牌名（大寫＋寬字距）、以及所有數字（價格、日期）。</div></div>
+    </div>
+    <div class="typerow">
+      <div class="demo" style="font-family:var(--font-serif-tc)">跨越座標的相遇</div>
+      <div><div class="who">中文輔字體 · 思源宋體</div><div class="use">品牌故事、情感性文案專用。網頁對應 Noto Serif TC。</div></div>
+    </div>
+    <div class="typerow" style="border-bottom:none">
+      <div class="demo" style="font-family:var(--font-serif)">Elegance</div>
+      <div><div class="who">英文輔字體 · Georgia / Serif</div><div class="use">英文長文、引言、單據文件。</div></div>
+    </div>
+    <div class="numnote">數字規則：所有數字一律使用 <b>Helvetica</b> 直立齊線數字 —— 例如 <b>NT$ 4,880</b>、<b>2026.06.18</b>、<b>30°N 70°E</b>。英文眉標全大寫寬字距：<b>NEW ARRIVAL · LIMITED</b>。</div>
+    <div class="pf"><span class="b">Tahir Zainab · Brand Guidelines</span><span class="s">✦</span><span class="b">05</span></div>
+  </section>
+
+  <!-- 6 花紋與包裝 -->
+  <section class="page" id="p6">
+    <div class="ph"><span class="l">Pattern &amp; Packaging</span><span class="r">TAHIR ZAINAB</span></div>
+    <h2 class="sect">花紋與包裝</h2>
+    <div class="sect-en">品牌花紋 · 天球包裝紋樣</div>
+    <div class="goldrule"></div>
+    <p class="lede">品牌花紋是自標誌提取的四瓣花形單元 —— 於桃紅底作同色系拼貼（禮盒、包裝紙），淺色底則以金色細線呈現。所有花紋皆為細金線條，永不粗重填色。</p>
+    <div class="patgrid">
+      <div class="pat"><img src="assets/motif-gold.png" alt="金色花紋單元"><span class="tag">花紋單元 · 金線</span></div>
+      <div class="pat mag"><img src="assets/motif-darkpink.png" alt="同色系花紋" style="opacity:.85"><span class="tag">桃紅底 · Tone-on-tone</span></div>
+      <div class="pat photo"><img src="assets/brand-guide/packaging-pattern.png" alt="包裝紙拼貼實品示意"><span class="tag" style="color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.5)">包裝紙 · 拼貼示意</span></div>
+      <div class="pat photo"><img src="assets/brand-guide/packaging-celestial.png" alt="天球紋樣禮盒示意"><span class="tag" style="color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.5)">禮盒 · 天球紋樣</span></div>
+    </div>
+    <div class="warn"><b>使用限制：</b>天球包裝紋樣（羅盤座標、星宿、日月、寶石刻面）為<b>實體印刷專用</b> —— 禮盒、包裝紙、印刷主視覺。<b>請勿直接放入社群貼文</b>；數位版面一律使用乾淨的編輯式排版。繁複紋樣底上的文字須置於留白的圓章／色塊內以確保可讀。</div>
+    <div class="pf"><span class="b">Tahir Zainab · Brand Guidelines</span><span class="s">✦</span><span class="b">06</span></div>
+  </section>
+
+  <!-- 7 版面摘要 -->
+  <section class="page" id="p7">
+    <div class="ph"><span class="l">Layout Essentials</span><span class="r">TAHIR ZAINAB</span></div>
+    <h2 class="sect">版面與元件摘要</h2>
+    <div class="sect-en">Spacing · Radii · Rules · Shadows</div>
+    <div class="goldrule"></div>
+    <div class="sumgrid">
+      <div class="sum">
+        <h4>間距 · 8pt 基準</h4>
+        <p>4 / 8 / 12 / 16 / 24 / 32 / 48 / 64 / 96 / 128。留白是品牌的一部分 —— 用得慷慨。</p>
+        <div class="spdots"><i style="height:4mm"></i><i style="height:6mm"></i><i style="height:9mm"></i><i style="height:13mm"></i><i style="height:18mm"></i></div>
+      </div>
+      <div class="sum">
+        <h4>圓角 · 優雅收斂</h4>
+        <p>sm 8 / md 14 / lg 22；按鈕與標籤用藥丸形；大頭貼與限動環為正圓。</p>
+        <div class="radrow"><i style="border-radius:2mm"></i><i style="border-radius:3.5mm"></i><i style="border-radius:5mm"></i><i style="border-radius:999px"></i></div>
+      </div>
+      <div class="sum">
+        <h4>髮絲線 · 金色分隔</h4>
+        <p>邊線一律 1–1.5px 髮絲線（粉灰或金調）；金色髮絲分隔線是品牌的簽名筆觸。無粗框、無彩色側條。</p>
+        <div class="hairline"></div><div class="hairline" style="background:var(--line)"></div>
+      </div>
+      <div class="sum">
+        <h4>陰影與動態</h4>
+        <p>陰影低而柔、帶暖調（梅紫黑低透明度）；桃紅 CTA 允許柔光。動態一律緩入緩出 300–500ms，無彈跳。</p>
+      </div>
+    </div>
+    <p class="lede" style="margin-top:9mm">版面構圖：置中、對稱、大邊距。正方 1080×1080 與 4:5 用於貼文，9:16 用於限動，內容保留約 8% 安全邊距。</p>
+    <div class="pf"><span class="b">Tahir Zainab · Brand Guidelines</span><span class="s">✦</span><span class="b">07</span></div>
+  </section>
+
+</div>
+
+<script>
+document.getElementById('coverDate').textContent =
+  new Date().toLocaleDateString('zh-TW', { year: 'numeric', month: 'long' }) + ' 版';
+document.getElementById('secs').addEventListener('change', function (e) {
+  var p = e.target.dataset.p;
+  if (p) document.getElementById(p).classList.toggle('off', !e.target.checked);
+});
+</script>
+</body>
+</html>

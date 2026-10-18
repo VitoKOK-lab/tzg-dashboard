@@ -1,0 +1,29 @@
+<!DOCTYPE html><!-- @dsCard group="Brand" -->
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0}
+  body{font-family:var(--font-sans-tc);background:var(--white);padding:22px 26px;color:var(--ink);display:flex;gap:18px}
+  .units{flex:none;display:flex;flex-direction:column;gap:12px;justify-content:center}
+  .unit{display:flex;align-items:center;gap:12px}
+  .unit img{width:46px;height:46px;object-fit:contain}
+  .ulbl{font-family:var(--font-sans);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint)}
+  .swatches{flex:1;display:flex;gap:14px}
+  .sw{flex:1;border-radius:var(--r-md);border:1px solid var(--line);position:relative;overflow:hidden;min-height:200px}
+  .tag{position:absolute;left:0;right:0;bottom:0;font-family:var(--font-sans);font-size:10px;letter-spacing:.12em;text-transform:uppercase;text-align:center;padding:6px;background:rgba(255,255,255,.86);color:var(--ink-soft)}
+  /* tiled tonal pattern on magenta — straight aligned grid (matches packaging) */
+  .p-pink{background-color:#D60B74;background-image:url(../assets/motif-darkpink.png);background-size:70px 70px;background-position:center;background-repeat:repeat}
+  /* gold foil on magenta brand ground (matches gift box) */
+  .p-white{background-color:#C4106F;background-image:url(../assets/motif-gold.png);background-size:70px 70px;background-position:center;background-repeat:repeat}
+</style></head>
+<body>
+  <div class="units">
+    <div class="unit"><img src="../assets/motif-gold.png"><span class="ulbl">金 / 燙金</span></div>
+    <div class="unit"><img src="../assets/motif-pink.png"><span class="ulbl">桃紅</span></div>
+    <div class="unit"><img src="../assets/motif-black.png"><span class="ulbl">墨</span></div>
+  </div>
+  <div class="swatches">
+    <div class="sw p-pink"><div class="tag">品牌花紋 · 同色階</div></div>
+    <div class="sw p-white"><div class="tag">燙金 · 品牌色底</div></div>
+  </div>
+</body></html>
