@@ -248,8 +248,17 @@ fi
 
 TIMESTAMP="$(date +'%Y-%m-%d %H:%M')"
 
-git add output/dashboard_latest.html
-[ -f "output/monthly_review.html" ] && git add output/monthly_review.html
+# 同步一份到 public/，Cloudflare 部署只讀這裡，不會自動跟 output/ 同步
+mkdir -p public/output
+cp output/dashboard_latest.html public/output/dashboard_latest.html
+[ -f "output/monthly_review.html" ] && cp output/monthly_review.html public/output/monthly_review.html
+[ -f "output/banner.jpg" ] && cp output/banner.jpg public/output/banner.jpg
+[ -f "output/banner_monthly.jpg" ] && cp output/banner_monthly.jpg public/output/banner_monthly.jpg
+
+git add output/dashboard_latest.html public/output/dashboard_latest.html
+[ -f "output/monthly_review.html" ] && git add output/monthly_review.html public/output/monthly_review.html
+[ -f "public/output/banner.jpg" ] && git add public/output/banner.jpg
+[ -f "public/output/banner_monthly.jpg" ] && git add public/output/banner_monthly.jpg
 
 if git diff --cached --quiet; then
     echo "No changes to deploy. Dashboard content is identical."
