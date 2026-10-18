@@ -1,3 +1,6 @@
+# ========== Cloudflare wrangler 本地快取 ==========
+.wrangler/
+
 # ========== 客戶個資：絕對不能上傳 ==========
 data/*.csv
 data/*.xls
