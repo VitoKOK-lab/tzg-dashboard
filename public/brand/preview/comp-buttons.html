@@ -1,0 +1,35 @@
+<!DOCTYPE html><!-- @dsCard group="Components" -->
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0}
+  body{font-family:var(--font-sans-tc);background:var(--white);padding:26px 30px;color:var(--ink);display:flex;flex-direction:column;gap:18px}
+  .row{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+  .cap{font-family:var(--font-sans);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint)}
+  .btn{font-family:var(--font-sans-tc);font-weight:500;font-size:14px;letter-spacing:.14em;padding:13px 30px;border-radius:2px;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:9px;transition:.25s ease;line-height:1;white-space:nowrap}
+  /* primary: flat pink, no glow */
+  .primary{background:var(--zana-pink);color:#fff;box-shadow:var(--shadow-sm)}
+  .dark{background:var(--ink);color:#fff}
+  /* gold: refined hairline, antique-gold text */
+  .gold{background:#fff;color:var(--gold-deep);border:1px solid var(--gold-deep)}
+  .ghost{background:#fff;color:var(--dark-pink);border:1px solid var(--pink-200)}
+  .text{background:none;color:var(--zana-pink);padding:13px 4px;border-radius:0}
+  .text span{border-bottom:1px solid var(--pink-200);padding-bottom:3px}
+  .sm{font-size:12px;padding:10px 20px}
+  .ico{width:5px;height:5px;background:currentColor;transform:rotate(45deg);display:inline-block}
+</style></head>
+<body>
+  <div class="cap">Primary · 主要按鈕</div>
+  <div class="row">
+    <button class="btn primary">立即選購</button>
+    <button class="btn dark">預約諮詢</button>
+    <button class="btn gold"><span class="ico"></span>尊享預約</button>
+  </div>
+  <div class="cap">Secondary · 次要</div>
+  <div class="row">
+    <button class="btn ghost">加入收藏</button>
+    <button class="btn gold sm">查看細節</button>
+    <button class="btn text"><span>追蹤我們</span></button>
+    <button class="btn primary sm">SHOP NOW</button>
+  </div>
+</body></html>

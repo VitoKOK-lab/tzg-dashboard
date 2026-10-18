@@ -1,0 +1,139 @@
+/* ============================================================
+   泰熙爾札娜 · tahir zinab — Foundations
+   Colors + Type tokens. Import this everywhere.
+   ============================================================ */
+
+/* --- Webfonts: 思源黑體 (Source Han Sans = Noto Sans TC) + 思源宋體 (Source Han Serif = Noto Serif TC).
+   Latin = Helvetica (primary) / Georgia (secondary) — both system/web-safe, no import needed. --- */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=Noto+Serif+TC:wght@400;500;600;700&display=swap');
+
+:root {
+  /* ===========================================================
+     BRAND PALETTE — 五色制 (five-color system)
+     =========================================================== */
+  --zana-pink:    #E6007E; /* 主色 札娜紅(桃紅)  Pantone 213 C — lead accent   */
+  --gold:         #C5B382; /* 燙金 Gold          Pantone 8640 C — foil detail   */
+  --tahir-blue:   #50C8BE; /* 亮點 泰熙爾藍       Pantone 3258 C — ribbon/seal   */
+  --dark-pink:    #B12468; /* 輔助 暗桃紅         Pantone 215 C — depth/support  */
+  --white:        #FFFFFF; /* 背景 純白          Bright White — the canvas      */
+
+  /* --- Brand tints (derived; white-dominant system) --- */
+  --pink-050:  #FDF0F7;
+  --pink-100:  #FBD9EC;
+  --pink-200:  #F4A9D2;
+  --dark-pink-700: #8E1A52;
+
+  --gold-050:  #FAF6EA;
+  --gold-100:  #EFE7CF;
+  --gold-300:  #DCCD9E;
+  --gold-deep: #937C44; /* antique gold text on white (in #C5B382 family, passes contrast) */
+
+  --teal-050:  #EAF8F6;
+  --teal-100:  #CFEEEA;
+
+  /* --- Ink / neutrals (warm, plum-leaning charcoal) --- */
+  --ink:       #2B1822; /* primary text — warm near-black           */
+  --ink-soft:  #6A5560; /* secondary text                           */
+  --ink-faint: #A999A2; /* tertiary / captions                      */
+  --line:      #EDE4E8; /* hairline dividers on white               */
+  --line-gold: #E7DEC8; /* gold-tinted hairline                     */
+  --paper:     #FFFFFF;
+  --paper-warm:#FFFCFA; /* barely-warm off-white panel              */
+
+  /* ===========================================================
+     GOLD FOIL — metallic gradient for "soul" details
+     =========================================================== */
+  --foil-gold: linear-gradient(110deg,#9C8550 0%,#C5B382 18%,#DCCD9E 36%,#F1E9CD 50%,#CFBE8A 64%,#B5A06A 84%,#9C8550 100%);
+  --foil-gold-soft: linear-gradient(120deg,#B6A06A 0%,#E6DBB6 50%,#C5B382 100%);
+
+  /* ===========================================================
+     TYPE FAMILIES
+     =========================================================== */
+  /* ----- OFFICIAL FOUR-FONT SYSTEM -----
+     中文主字體 思源黑體 / 微軟正黑體 — titles, body, captions
+     英文主字體 Helvetica          — English titles, BRAND NAME, numbers
+     中文輔字體 思源宋體            — brand story, contextual text
+     英文輔字體 Georgia / serif       — English long-form, quotes / invoices  */
+  --font-sans-tc: 'Noto Sans TC', 'Microsoft JhengHei', '微軟正黑體', '思源黑體', 'PingFang TC', sans-serif; /* 中文主 (primary) */
+  --font-serif-tc: 'Noto Serif TC', '思源宋體', 'Source Han Serif TC', 'Songti TC', serif;                       /* 中文輔 (secondary) */
+  --font-sans:    'Helvetica Neue', Helvetica, Arial, sans-serif;   /* 英文主 Helvetica — brand name / titles / numbers */
+  --font-serif:   Georgia, 'Times New Roman', serif;               /* 英文輔 Georgia — long-form / quotes */
+  --font-display: 'Helvetica Neue', Helvetica, Arial, sans-serif;  /* wordmark / hero = English primary (Helvetica) */
+
+  /* ===========================================================
+     TYPE SCALE  (display uses serif; body uses sans)
+     =========================================================== */
+  --fs-display:  clamp(48px, 7vw, 92px);
+  --fs-h1:       clamp(36px, 5vw, 60px);
+  --fs-h2:       clamp(28px, 3.4vw, 40px);
+  --fs-h3:       24px;
+  --fs-body-lg:  19px;
+  --fs-body:     16px;
+  --fs-small:    14px;
+  --fs-caption:  12px;
+  --fs-eyebrow:  12px; /* uppercase Jost, wide tracking */
+
+  --lh-tight: 1.05;
+  --lh-snug:  1.25;
+  --lh-body:  1.65;
+
+  --track-eyebrow: 0.32em;
+  --track-wide:    0.18em;
+  --track-label:   0.08em;
+
+  /* ===========================================================
+     SPACING (8pt base, generous)
+     =========================================================== */
+  --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px; --sp-4: 16px;
+  --sp-5: 24px; --sp-6: 32px; --sp-7: 48px; --sp-8: 64px;
+  --sp-9: 96px; --sp-10: 128px;
+
+  /* ===========================================================
+     RADII — modest, refined
+     =========================================================== */
+  --r-xs: 4px;  --r-sm: 8px;  --r-md: 14px; --r-lg: 22px;
+  --r-pill: 999px;
+
+  /* ===========================================================
+     SHADOWS — soft, low, warm-tinted
+     =========================================================== */
+  --shadow-xs: 0 1px 2px rgba(43,24,34,.05);
+  --shadow-sm: 0 2px 10px rgba(43,24,34,.06);
+  --shadow-md: 0 10px 30px rgba(43,24,34,.08);
+  --shadow-lg: 0 24px 60px rgba(43,24,34,.12);
+  --shadow-pink: 0 14px 34px rgba(230,0,126,.22);
+}
+
+/* ============================================================
+   SEMANTIC ELEMENT STYLES (opt-in via .tz-prose or utility classes)
+   ============================================================ */
+.tz-eyebrow {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: var(--fs-eyebrow);
+  letter-spacing: var(--track-eyebrow);
+  text-transform: uppercase;
+  color: var(--gold-deep);
+}
+.tz-display {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: var(--fs-display);
+  line-height: var(--lh-tight);
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.tz-h1 { font-family: var(--font-display); font-weight: 500; font-size: var(--fs-h1); line-height: var(--lh-snug); color: var(--ink); }
+.tz-h2 { font-family: var(--font-serif-tc); font-weight: 600; font-size: var(--fs-h2); line-height: var(--lh-snug); color: var(--ink); }
+.tz-h3 { font-family: var(--font-sans-tc); font-weight: 700; font-size: var(--fs-h3); line-height: var(--lh-snug); color: var(--ink); }
+.tz-body { font-family: var(--font-sans-tc); font-weight: 400; font-size: var(--fs-body); line-height: var(--lh-body); color: var(--ink-soft); }
+.tz-body-lg { font-family: var(--font-sans-tc); font-weight: 400; font-size: var(--fs-body-lg); line-height: var(--lh-body); color: var(--ink-soft); }
+.tz-caption { font-family: var(--font-sans); font-weight: 400; font-size: var(--fs-caption); letter-spacing: var(--track-label); color: var(--ink-faint); }
+
+/* gold foil text */
+.tz-foil {
+  background: var(--foil-gold);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TZG 泰熙爾札娜珠寶</title>
+<!-- deploy: v6 -->
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body { font-family: 'Montserrat', 'PingFang TC', sans-serif; background: #fff; display: flex; flex-direction: column; }
+
+/* ── TAB BAR ── */
+.tabbar {
+  height: 44px;
+  background: #fff;
+  border-bottom: 1px solid rgba(0,0,0,.08);
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+  padding: 0 16px;
+  gap: 2px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  padding-right: 16px;
+  border-right: 1px solid rgba(0,0,0,.07);
+  margin-right: 6px;
+  flex-shrink: 0;
+}
+.brand img {
+  height: 28px;
+  width: auto;
+  display: block;
+  mix-blend-mode: multiply;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #f4a9d2;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color .14s, border-color .14s;
+  white-space: nowrap;
+  user-select: none;
+}
+.tab:hover { color: #B12468; }
+.tab.active { color: #E6007E; border-bottom-color: #E6007E; font-weight: 700; }
+
+/* ── CONTENT ── */
+.content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+iframe {
+  width: 100%; height: 100%;
+  border: none;
+  display: none;
+}
+iframe.active { display: block; }
+
+/* Loading */
+.loader {
+  position: fixed; inset: 0; top: 44px;
+  display: flex; align-items: center; justify-content: center;
+  background: #fff;
+  z-index: 10;
+  transition: opacity .2s;
+}
+.loader.hidden { opacity: 0; pointer-events: none; }
+.spinner {
+  width: 28px; height: 28px;
+  border: 2px solid #efe7cf;
+  border-top-color: #C5B382;
+  border-radius: 50%;
+  animation: spin .6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div class="tabbar">
+  <div class="brand"><img src="logo.png" alt="TZG"></div>
+  <div class="tab active" onclick="show(0)">日報</div>
+  <div class="tab" onclick="show(1)">月報</div>
+  <div class="tab" onclick="show(2)">短影音</div>
+  <div class="tab" onclick="show(3)">代理</div>
+  <div class="tab" onclick="show(4)">即時</div>
+  <div class="tab" onclick="show(5)">品牌</div>
+</div>
+
+<div class="content">
+  <div class="loader" id="loader"><div class="spinner"></div></div>
+  <iframe id="f0" class="active" src="output/dashboard_latest.html"></iframe>
+  <iframe id="f1" src=""></iframe>
+  <iframe id="f2" src=""></iframe>
+  <iframe id="f3" src=""></iframe>
+  <iframe id="f4" allow="autoplay" src=""></iframe>
+  <iframe id="f5" src=""></iframe>
+</div>
+
+<script>
+const urls = [
+  'output/dashboard_latest.html',
+  'output/monthly_review.html',
+  'https://vitokok-lab.github.io/meta-dashboard/',
+  'https://tzg-commission.fly.dev/review/2026-04?t=a301e31bce1565a771691b7ad3167e05',
+  'live.html',
+  'brand/index.html',
+];
+
+const loaded = [false, false, false, false, false, false];
+let cur = 0;
+
+const tabs   = document.querySelectorAll('.tab');
+const frames = [0,1,2,3,4,5].map(i => document.getElementById('f'+i));
+const loader = document.getElementById('loader');
+
+// 第一個 iframe 監聽 load
+frames[0].onload = () => { loaded[0] = true; if(cur===0) loader.classList.add('hidden'); };
+
+function show(i) {
+  if (i === cur) return;
+  tabs[cur].classList.remove('active');
+  frames[cur].classList.remove('active');
+  cur = i;
+  tabs[i].classList.add('active');
+
+  if (!loaded[i]) {
+    loader.classList.remove('hidden');
+    frames[i].src = urls[i] + (urls[i].includes('?') ? '&' : '?') + '_t=' + Date.now();
+    frames[i].onload = () => { loaded[i] = true; loader.classList.add('hidden'); };
+  } else {
+    loader.classList.add('hidden');
+  }
+
+  frames[i].classList.add('active');
+}
+</script>
+</body>
+</html>
