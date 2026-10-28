@@ -122,6 +122,48 @@ details#more[open] summary::after{transform:rotate(-135deg);}
 .yoy-bar-fill.prev{background:var(--ink-faint);opacity:.45;}
 .yoy-bar-val{width:70px;text-align:right;font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--ink-soft);flex-shrink:0;}
 
+/* 未付款提醒 */
+.unpaid-summary{display:flex;align-items:baseline;gap:8px;margin-bottom:10px;font-size:12px;color:var(--ink-soft);}
+.unpaid-summary b{font-family:var(--font-mono);font-size:15px;color:var(--ink);}
+.unpaid-item{display:flex;align-items:center;justify-content:space-between;padding:8px 0;gap:10px;}
+.unpaid-item + .unpaid-item{border-top:1px solid var(--line);}
+.unpaid-cust{font-size:12.5px;color:var(--ink-soft);}
+.unpaid-right{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.unpaid-amt{font-family:var(--font-mono);font-size:12.5px;font-weight:600;color:var(--ink);}
+.unpaid-wait{font-family:var(--font-mono);font-size:10.5px;padding:2px 7px;border-radius:999px;background:var(--gold-050);color:var(--gold-deep);}
+.unpaid-wait.overdue{background:var(--warn-bg);color:var(--warn-ink);font-weight:700;}
+
+/* 購物習慣:付款速度分布 */
+.habit-stat{display:flex;align-items:baseline;gap:6px;margin-bottom:10px;}
+.habit-stat-main{font-family:var(--font-mono);font-size:20px;font-weight:700;color:var(--gold-deep);}
+.habit-stat-label{font-size:11.5px;color:var(--ink-soft);}
+.pay-speed-bar{display:flex;height:20px;border-radius:6px;overflow:hidden;margin-bottom:8px;}
+.pay-speed-seg{height:100%;}
+.pay-speed-legend{display:flex;flex-wrap:wrap;gap:8px 14px;font-size:10.5px;color:var(--ink-soft);}
+.pay-speed-legend span{display:inline-flex;align-items:center;gap:4px;}
+.pay-speed-legend i{width:8px;height:8px;border-radius:2px;display:inline-block;}
+.combo-item{display:flex;align-items:center;justify-content:space-between;padding:8px 0;font-size:12.5px;}
+.combo-item + .combo-item{border-top:1px solid var(--line);}
+.combo-names{color:var(--ink-soft);}
+.combo-names b{color:var(--ink);font-weight:600;}
+.combo-count{font-family:var(--font-mono);font-size:11px;color:var(--ink-faint);flex-shrink:0;}
+
+/* 客戶結構:活躍分層堆疊條 + 關鍵客群 */
+.tier-bar{display:flex;height:22px;border-radius:7px;overflow:hidden;margin-bottom:8px;}
+.tier-seg{height:100%;}
+.tier-legend{display:flex;flex-wrap:wrap;gap:7px 12px;font-size:10px;color:var(--ink-soft);margin-bottom:14px;}
+.tier-legend span{display:inline-flex;align-items:center;gap:4px;}
+.tier-legend i{width:8px;height:8px;border-radius:50%;display:inline-block;}
+.segment-item{display:flex;align-items:center;gap:10px;padding:8px 0;}
+.segment-item + .segment-item{border-top:1px solid var(--line);}
+.segment-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.segment-body{flex:1;min-width:0;}
+.segment-name{font-size:12.5px;font-weight:600;color:var(--ink);}
+.segment-action{font-size:10.5px;color:var(--ink-faint);}
+.segment-val{text-align:right;flex-shrink:0;}
+.segment-count{font-family:var(--font-mono);font-size:12.5px;font-weight:700;color:var(--ink);}
+.segment-rev{font-size:10px;color:var(--ink-faint);}
+
 footer{text-align:center;padding:18px 0 4px;font-size:10.5px;color:var(--ink-faint);}
 @media (min-width:600px){ main{padding-top:18px;} }
 </style>
@@ -197,7 +239,7 @@ footer{text-align:center;padding:18px 0 4px;font-size:10.5px;color:var(--ink-fai
   </section>
 
   <details id="more">
-    <summary>更多(年度對比、滯銷商品、完整版)</summary>
+    <summary>更多(年度對比、未付款、購物習慣、客戶結構)</summary>
     <div id="more-body">
       <div class="more-section">
         <div class="more-section-title">年度業績對比</div>
@@ -208,7 +250,19 @@ footer{text-align:center;padding:18px 0 4px;font-size:10.5px;color:var(--ink-fai
         <div id="dormant-list"></div>
       </div>
       <div class="more-section">
-        <div class="more-link">即時 / 代理 / 品牌 / 購物習慣 / 客戶結構 / 未付款提醒</div>
+        <div class="more-section-title">未付款提醒</div>
+        <div id="unpaid-block"></div>
+      </div>
+      <div class="more-section">
+        <div class="more-section-title">購物習慣</div>
+        <div id="habits-block"></div>
+      </div>
+      <div class="more-section">
+        <div class="more-section-title">客戶結構</div>
+        <div id="segments-block"></div>
+      </div>
+      <div class="more-section">
+        <div class="more-link">即時 / 代理 / 品牌</div>
         <div class="more-link"><a href="dashboard_latest.html">查看完整舊版 →</a></div>
       </div>
     </div>
@@ -353,12 +407,102 @@ function renderDormant(){
   ).join('');
 }
 
+function renderUnpaid(){
+  const el = document.getElementById('unpaid-block');
+  const grp = (D.unpaid || [])[0];
+  if (!grp || !grp.orders || !grp.orders.length){
+    el.innerHTML = '<div class="empty-hint">目前沒有未付款訂單 🎉</div>';
+    return;
+  }
+  const rows = grp.orders.slice(0, 8).map(o => {
+    const overdue = (o.days_waiting || 0) >= 1;
+    return `<div class="unpaid-item">
+      <div class="unpaid-cust">${o.customer || '客人'}</div>
+      <div class="unpaid-right">
+        <span class="unpaid-amt tabular">${fmtMoney(o.amount)}</span>
+        <span class="unpaid-wait ${overdue ? 'overdue' : ''}">等 ${o.days_waiting ?? 0} 天</span>
+      </div>
+    </div>`;
+  }).join('');
+  el.innerHTML = `<div class="unpaid-summary"><b>${grp.count}</b> 筆 · 共 <b class="tabular">${fmtMoney(grp.total_amount)}</b> · 最久等了 ${grp.max_days} 天</div>${rows}`;
+}
+
+function renderHabits(){
+  const el = document.getElementById('habits-block');
+  const h = D.shopping_habits;
+  if (!h){ el.innerHTML = '<div class="empty-hint">本月尚無資料</div>'; return; }
+
+  const speed = h.pay_speed || {};
+  const speedKeys = ['10分鐘內','10分–1小時','1–24小時','>24小時'];
+  const speedColors = ['#C5B382','#50C8BE','#E6007E','#6A5560'];
+  const total = speedKeys.reduce((s,k) => s + (speed[k]||0), 0) || 1;
+  const fastPct = Math.round((speed['10分鐘內']||0) / total * 100);
+
+  const barHtml = speedKeys.map((k,i) =>
+    `<div class="pay-speed-seg" style="width:${Math.max(0,(speed[k]||0)/total*100)}%;background:${speedColors[i]}"></div>`
+  ).join('');
+  const legendHtml = speedKeys.map((k,i) =>
+    `<span><i style="background:${speedColors[i]}"></i>${k} ${speed[k]||0}</span>`
+  ).join('');
+
+  const combos = h.top_combos || [];
+  const comboHtml = combos.length
+    ? combos.slice(0,5).map(([[a,b],c]) =>
+        `<div class="combo-item"><div class="combo-names"><b>${a}</b> + <b>${b}</b></div><div class="combo-count">${c} 次</div></div>`
+      ).join('')
+    : '<div class="empty-hint">尚無常見搭配組合</div>';
+
+  el.innerHTML = `
+    <div class="habit-stat"><span class="habit-stat-main tabular">${fastPct}%</span><span class="habit-stat-label">訂單在 10 分鐘內完成付款</span></div>
+    <div class="pay-speed-bar">${barHtml}</div>
+    <div class="pay-speed-legend">${legendHtml}</div>
+    <div style="margin-top:14px;font-size:11.5px;font-weight:700;color:var(--ink);margin-bottom:4px;">常見搭配組合</div>
+    ${comboHtml}
+  `;
+}
+
+function renderSegments(){
+  const el = document.getElementById('segments-block');
+  const tiers = D.active_tiers || [];
+  const rfmGrid = (D.rfm && D.rfm.grid) || [];
+
+  let tierHtml = '<div class="empty-hint">本月尚無資料</div>', legendHtml = '';
+  if (tiers.length){
+    tierHtml = tiers.map(t => `<div class="tier-seg" style="width:${t.pct}%;background:${t.color}"></div>`).join('');
+    legendHtml = tiers.map(t => `<span><i style="background:${t.color}"></i>${t.name} ${t.pct}%</span>`).join('');
+  }
+
+  // 攤平 RFM 9 宮格,挑出人數最多的「冠軍/忠實」跟「流失/即將流失」各前幾名,不塞完整矩陣
+  const cells = rfmGrid.flat().filter(c => c.c > 0);
+  const priority = ['冠軍客戶','忠實客戶','無法失去','即將流失','流失'];
+  const picked = cells
+    .filter(c => priority.includes(c.k))
+    .sort((a,b) => priority.indexOf(a.k) - priority.indexOf(b.k))
+    .slice(0, 4);
+  const segHtml = picked.length
+    ? picked.map(c => `<div class="segment-item">
+        <div class="segment-dot" style="background:${c.color}"></div>
+        <div class="segment-body"><div class="segment-name">${c.k}</div><div class="segment-action">建議:${c.action}</div></div>
+        <div class="segment-val"><div class="segment-count tabular">${c.c} 位</div><div class="segment-rev tabular">${fmtMoneyShort(c.rev)}</div></div>
+      </div>`).join('')
+    : '<div class="empty-hint">本月尚無資料</div>';
+
+  el.innerHTML = `
+    <div class="tier-bar">${tierHtml}</div>
+    <div class="tier-legend">${legendHtml}</div>
+    ${segHtml}
+  `;
+}
+
 renderKpi();
 renderAgents();
 renderProducts();
 renderRegions();
 renderYoy();
 renderDormant();
+renderUnpaid();
+renderHabits();
+renderSegments();
 </script>
 </body>
 </html>
