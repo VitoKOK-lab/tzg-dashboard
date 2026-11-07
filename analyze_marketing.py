@@ -28,6 +28,11 @@ import generate_daily as gd
 
 CCOL = '顧客 ID'
 STAFF_KEYWORDS = ['客服', '跟單', '業務', '銷售', '中控', '電商', '行政', '培訓', '助理', '行銷']
+# 只寫名字的推薦碼(使用者確認全部是客服)
+STAFF_NAMES = {'闆娘', '可樂', '立蓮', '沛珊', '均睿', 'lingling', '品縈', '小婷', 'zoe'}
+# 平台縮寫要前後不是英文字母才算,避免 angeline 被當成 line
+PLATFORM_TOKENS = [('line', 'LINE'), ('fb', 'Facebook'), ('ig', 'Instagram'),
+                   ('yt', 'YouTube'), ('tiktok', 'TikTok')]
 CODE_SUFFIX = {'fb': 'Facebook', 'line': 'LINE', 'ig': 'Instagram',
                'yt': 'YouTube', 'tk': 'TikTok', 'tt': 'TikTok', 'th': 'Threads'}
 AD_OR_CONTENT = {'Facebook', 'LINE', 'Instagram', 'YouTube', 'TikTok', 'Threads',
@@ -53,14 +58,23 @@ def classify_channel(r):
             return 'Threads'
         if '直播' in act or '主播' in act:
             return '直播'
-        if '代理' in act or '加盟' in act or '專用連結' in act:
+        if a in STAFF_NAMES or '專用連結' in act:
+            return '客服成交'
+        if '代理' in act or '加盟' in act:
             return '代理/合作夥伴'
         if '店務' in act or '門市' in act:
             return '門市'
         # 客服代碼格式是「職稱/名字/地點」,沒有斜線的「社群貼文行銷」之類不算
         if '/' in act and any(k in act for k in STAFF_KEYWORDS):
             return '客服成交'
-        if '｜' in act or '|' in act or '貼文' in act or '社群' in act:
+        # LineOA私域、FB主頁推流參數、IG大帳主頁推流參數、20260117D04（IG寵粉影片)
+        for tok, ch in PLATFORM_TOKENS:
+            if re.search(rf'(?<![a-z]){tok}(?![a-z])', a) or a.startswith(tok):
+                return ch
+        if '｜' in act or '|' in act or '貼文' in act or '社群' in act or '剪輯' in act:
+            return '內容貼文'
+        # 商品名+編號:寵愛自己系列46、天河石・粉晶・紫牙烏能量手串37
+        if re.search(r'[一-鿿].*\d{1,3}$', act):
             return '內容貼文'
         return '其他推薦碼'
     src = gd.classify_source(r)
@@ -74,12 +88,14 @@ def build(vd, months):
     ords['_ch'] = ords.apply(classify_channel, axis=1)
     ords = ords.sort_values('訂單日期')
 
-    first = ords.groupby(CCOL).first()
+    # 不用 groupby().first():它會跳過空值,抓到後面訂單的推薦碼
+    first = ords.drop_duplicates(CCOL, keep='first').set_index(CCOL)
     acq = first['_ch'].where(first['_ch'] != '客服成交', '客服成交(來源未記錄)')
+    codes = first['推薦活動'].fillna('').astype(str).str.strip()
     cust = pd.DataFrame({
         '管道': acq,
         '首購日': first['訂單日期'],
-        '首購碼': first['推薦活動'].astype(str),
+        '首購碼': codes.where(~codes.str.lower().isin(['', 'nan', 'none']), ''),
         '首購營收': first['訂單合計'],
         '累計營收': ords.groupby(CCOL)['訂單合計'].sum(),
         '訂單數': ords.groupby(CCOL)['訂單號碼'].count(),
@@ -95,13 +111,27 @@ def build(vd, months):
     t1['營收佔比%'] = (t1['累計營收'] / t1['累計營收'].sum() * 100).round(1)
     t1 = t1.sort_values('累計營收', ascending=False)
 
+    # 公平比較:每位新客首購後 90 天內的營收,只算首購已滿 90 天的客人
+    first_dt = ords[CCOL].map(cust['首購日'])
+    win = ords[ords['訂單日期'] <= first_dt + pd.Timedelta(days=90)]
+    cust['90天營收'] = win.groupby(CCOL)['訂單合計'].sum()
+    cust['90天訂單數'] = win.groupby(CCOL)['訂單號碼'].count()
+    cutoff = ords['訂單日期'].max() - pd.Timedelta(days=90)
+    mature = cust[cust['首購日'] <= cutoff]
+    t1b = mature.groupby('管道').agg(
+        新客數=('90天營收', 'size'),
+        平均90天營收=('90天營收', 'mean'),
+        中位數90天營收=('90天營收', 'median'),
+        回購率=('90天訂單數', lambda s: (s > 1).mean() * 100),
+    ).round(1).sort_values('平均90天營收', ascending=False)
+
     cust['首購月'] = cust['首購日'].dt.to_period('M')
     last = sorted(cust['首購月'].dropna().unique())[-months:]
     t2 = (cust[cust['首購月'].isin(last)]
           .pivot_table(index='管道', columns='首購月', values='首購營收', aggfunc='size', fill_value=0))
     t2 = t2.loc[t2.sum(axis=1).sort_values(ascending=False).index]
 
-    posts = cust[cust['管道'].isin(AD_OR_CONTENT) & (cust['首購碼'].str.lower() != 'nan')]
+    posts = cust[cust['管道'].isin(AD_OR_CONTENT) & (cust['首購碼'] != '')]
     t3 = posts.groupby(['管道', '首購碼']).agg(
         新客數=('首購營收', 'size'), 累計營收=('累計營收', 'sum'),
     ).reset_index().sort_values(['新客數', '累計營收'], ascending=False).head(20)
@@ -114,7 +144,7 @@ def build(vd, months):
     t5 = (ords[ords['_ch'] == '其他推薦碼'].groupby('推薦活動')
           .agg(訂單數=('訂單號碼', 'count'), 營收=('訂單合計', 'sum'))
           .sort_values('營收', ascending=False).head(20))
-    return t1, t2, t3, t4, staff_share, t5
+    return t1, t1b, t2, t3, t4, staff_share, t5
 
 
 def main():
@@ -124,7 +154,7 @@ def main():
 
     print('載入資料...')
     vd = gd.paid_orders(gd.load_data())
-    t1, t2, t3, t4, staff_share, t5 = build(vd, args.months)
+    t1, t1b, t2, t3, t4, staff_share, t5 = build(vd, args.months)
     pd.set_option('display.width', 200)
     pd.set_option('display.max_columns', 20)
     pd.set_option('display.unicode.east_asian_width', True)
@@ -132,7 +162,12 @@ def main():
     print('\n① 各管道帶進來的客人(依「第一筆訂單」判斷首次接觸管道)\n')
     print(t1.to_string(formatters={'首購營收': '{:,.0f}'.format, '累計營收': '{:,.0f}'.format,
                                    '每位平均累計營收': '{:,.0f}'.format}))
-    print('\n  註:越早進來的客人累計時間越長,累計營收會偏高,跨管道比較時請搭配②看趨勢')
+    print('\n  註:越早進來的客人累計時間越長,累計營收會偏高,跨管道比較請看下一張表')
+
+    print('\n①-2 公平比較:每位新客「首購後 90 天內」營收(只算首購已滿 90 天的客人)\n')
+    print('  中位數比平均數更能代表一般客人,平均數容易被少數大客戶拉高\n')
+    print(t1b.to_string(formatters={'平均90天營收': '{:,.0f}'.format,
+                                    '中位數90天營收': '{:,.0f}'.format}))
 
     print(f'\n② 各管道每月新客數(最近 {args.months} 個月)\n')
     print(t2.to_string())
@@ -149,6 +184,7 @@ def main():
     out = Path('output')
     out.mkdir(exist_ok=True)
     t1.to_csv(out / 'marketing_channels.csv', encoding='utf-8-sig')
+    t1b.to_csv(out / 'marketing_channels_90d.csv', encoding='utf-8-sig')
     t2.to_csv(out / 'marketing_trend.csv', encoding='utf-8-sig')
     t3.to_csv(out / 'marketing_top_posts.csv', index=False, encoding='utf-8-sig')
     print('\n[✓] 表格已存到 output/marketing_*.csv(可用 Excel 打開)')
