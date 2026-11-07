@@ -33,9 +33,15 @@ def load_raw(data_dir=Path('data')):
     if not dfs:
         return None
     raw = pd.concat(dfs, ignore_index=True)
-    # 同一張訂單會出現在多個累積下載檔和多個商品列,只留一列
-    ords = raw.drop_duplicates('訂單號碼', keep='last').copy()
-    ords['訂單合計'] = pd.to_numeric(ords['訂單合計'], errors='coerce').fillna(0)
+    raw = raw[raw['訂單號碼'].notna()]
+    # 一張訂單有幾個商品就有幾列,訂單層級欄位(金額、推薦活動、UTM)可能只填在
+    # 其中一列;同一張訂單又會出現在多個累積下載檔。每欄取第一個有填的值,不能只挑某一列
+    for c in raw.columns:
+        if c != '訂單號碼':
+            raw[c] = raw[c].where(~blank(raw[c]))
+    raw['訂單合計'] = pd.to_numeric(raw['訂單合計'], errors='coerce')
+    ords = raw.groupby('訂單號碼', as_index=False).first()
+    ords['訂單合計'] = raw.groupby('訂單號碼')['訂單合計'].max().reindex(ords['訂單號碼']).fillna(0).values
     return ords
 
 
