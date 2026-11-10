@@ -6,19 +6,19 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
 LATEST="output/dashboard_latest.html"
-TODAY="$(date +%Y-%m-%d)"
 
+# 排程只剩每天 23:59 一次,所以改看「距離上次更新幾小時」:
+# 不能用「今天跑過沒」,否則昨晚 23:59 跑完、隔天早上開機又會補跑一次
 if [ -f "$LATEST" ]; then
-    LAST_DAY="$(stat -f %Sm -t %Y-%m-%d "$LATEST")"
+    AGE_H=$(( ( $(date +%s) - $(stat -f %m "$LATEST") ) / 3600 ))
 else
-    LAST_DAY="1970-01-01"
+    AGE_H=9999
 fi
 
-echo "[catchup] 今日：$TODAY / 
-上次更新：$LAST_DAY"
+echo "[catchup] 上次更新：$AGE_H 小時前"
 
-if [ "$LAST_DAY" = "$TODAY" ]; then
-    echo "[catchup] 今天已執行過，略過。"
+if [ "$AGE_H" -lt 24 ]; then
+    echo "[catchup] 24 小時內已更新過，略過。"
     exit 0
 fi
 
