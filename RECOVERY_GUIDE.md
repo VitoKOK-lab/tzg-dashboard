@@ -360,36 +360,17 @@ echo "credentials/" >> .gitignore
 
 ### macOS 系統排程 (.plist)
 
-項目包含以下排程檔：
+排程只有兩個,由 `安裝排程.sh` 依專案實際所在路徑自動產生(不再把寫死路徑的 .plist 放在專案裡):
 
-- `com.tzg.dashboard.boot.plist` - 開機執行
-- `com.tzg.dashboard.daily.plist` - 每日定時執行
-- `com.tzg.dashboard.afternoon.plist` - 下午執行
+- `com.tzg.dashboard.daily` - 每天 23:59 同步一次(跑完讓電腦睡眠)
+- `com.tzg.dashboard.boot` - 開機登入時,若超過 24 小時沒更新就補跑
 
-**安裝排程：**
-
-```bash
-# 將排程檔複製到 LaunchAgents
-cp *.plist ~/Library/LaunchAgents/
-
-# 啟用排程
-launchctl load ~/Library/LaunchAgents/com.tzg.dashboard.daily.plist
-
-# 驗證排程
-launchctl list | grep tzg
-```
-
-**在新電腦上恢復排程：**
+**安裝 / 換電腦 / 搬資料夾後重裝(都一樣):**
 
 ```bash
-# 1. 編輯排程檔中的路徑（替換為新路徑）
-sed -i '' "s|/old/path|/new/path|g" *.plist
+cd 專案資料夾 && ./安裝排程.sh
 
-# 2. 重新安裝排程
-cp *.plist ~/Library/LaunchAgents/
-launchctl load ~/Library/LaunchAgents/com.tzg.dashboard.*.plist
-
-# 3. 驗證
+# 驗證:應只看到 daily 跟 boot 兩個
 launchctl list | grep tzg
 ```
 
